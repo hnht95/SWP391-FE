@@ -60,7 +60,7 @@ const Search: React.FC<SearchProps> = ({
             type="text"
             value={searchQuery}
             onChange={handleInputChange}
-            className="w-full px-4 py-3 pl-12 pr-16 text-white font-bold bg-white border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md placeholder-gray-400"
+            className="w-full px-4 py-3 pl-12 pr-16 text-slate-800 font-bold bg-white border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md placeholder-slate-400"
             placeholder=""
           />
           
@@ -84,7 +84,7 @@ const Search: React.FC<SearchProps> = ({
           {/* Search Button */}
           <button
             type="submit"
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-1.5 bg-black text-white text-sm font-bold rounded-full hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 transition-colors duration-200"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-1.5 bg-slate-800 text-white text-sm font-bold rounded-full hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 transition-colors duration-200"
           >
             Tìm kiếm
           </button>
@@ -103,17 +103,17 @@ const Search: React.FC<SearchProps> = ({
 
       {/* Search Suggestions Dropdown (Optional) */}
       {searchQuery && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-600 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
           <div className="p-3">
             <p className="text-sm text-gray-500 mb-2">Gợi ý tìm kiếm:</p>
             <div className="space-y-1">
-              <button className="w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-700 rounded transition-colors duration-200">
+              <button className="w-full text-left px-3 py-2 text-sm text-white hover:bg-slate-700 rounded transition-colors duration-200">
                 🚗 {searchQuery} - Xe điện
               </button>
-              <button className="w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-700 rounded transition-colors duration-200">
+              <button className="w-full text-left px-3 py-2 text-sm text-white hover:bg-slate-700 rounded transition-colors duration-200">
                 🔧 {searchQuery} - địa điểm 
               </button>
-              <button className="w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-700 rounded transition-colors duration-200">
+              <button className="w-full text-left px-3 py-2 text-sm text-white hover:bg-slate-700 rounded transition-colors duration-200">
                 🛠️ {searchQuery} - dịch vụ
                 
               </button>

@@ -25,7 +25,7 @@ const User: React.FC<UserProps> = ({
       {/* User Avatar Button */}
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+        className="flex items-center space-x-2 p-2 rounded-full hover:bg-slate-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400"
       >
         {/* Avatar */}
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
@@ -60,11 +60,11 @@ const User: React.FC<UserProps> = ({
 
       {/* Dropdown Menu */}
       {isDropdownOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-600 py-1 z-50">
+        <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-lg border border-slate-600 py-1 z-50">
           {/* User Info */}
-          <div className="px-4 py-3 border-b border-gray-600">
-            <p className="text-sm font-medium text-gray-100">{userName}</p>
-            <p className="text-xs text-gray-400">Thành viên</p>
+          <div className="px-4 py-3 border-b border-slate-600">
+            <p className="text-sm font-medium text-white">{userName}</p>
+            <p className="text-xs text-slate-300">Thành viên</p>
           </div>
           
           {/* Logout Button */}
