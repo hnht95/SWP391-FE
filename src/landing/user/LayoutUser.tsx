@@ -1,13 +1,16 @@
 import React from "react";
+import { Outlet } from "react-router-dom";
 import Header from "./component/Header";
 import Footer from "./component/Footer";
-import HomePage from "./component/HomePage";
 
 const LayoutUser = () => {
   return (
     <div>
       <Header />
-      <HomePage />
+
+      {/* Route con sẽ được render ở đây */}
+      <Outlet />
+
       <Footer />
     </div>
   );
