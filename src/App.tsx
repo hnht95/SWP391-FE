@@ -5,7 +5,7 @@ import AllRouter from "./routes/AllRouter";
 function App() {
   return (
     <Router>
-      <div className="p-1 text-amber-300">
+      <div className="w-full  h-screen bg-white rounded shadow">
         <AllRouter />
       </div>
     </Router>
