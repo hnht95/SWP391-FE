@@ -75,7 +75,7 @@ const LoginPage = () => {
       bottomText="Don't have an account?"
       bottomLink="/signup"
       bottomLinkText="Sign up now"
-      animationKey="login" // Key để trigger animation
+      animationKey="login"
     >
       <motion.form
         className="w-full space-y-4"
@@ -174,7 +174,7 @@ const LoginPage = () => {
           className="flex items-center justify-between select-none"
         >
           <motion.a
-            href="#"
+            href="/forgot-password"
             className="text-sm ml-auto text-black hover:text-gray-700 underline"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
