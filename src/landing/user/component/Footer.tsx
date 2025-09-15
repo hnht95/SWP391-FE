@@ -1,14 +1,15 @@
 import React from "react";
+import logoWeb from "../../../assets/loginImage/logoZami.png";
 import { FaFacebook, FaInstagram, FaPhone, FaMapMarkerAlt, FaEnvelope, FaTwitter, FaYoutube } from "react-icons/fa";
 import { SiZalo } from "react-icons/si";
 
 const Footer = () => {
   return (
-    <footer className="bg-gradient-to-r from-gray-900 via-black to-gray-900 text-white py-12 px-4 relative overflow-hidden">
+    <footer className="bg-gradient-to-r from-black via-black to-gray-950 text-white py-12 px-4 relative overflow-hidden">
       {/* Light reflection effects */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/3 to-transparent"></div>
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl"></div>
       
       <div className="relative z-10">
         <div className="max-w-7xl mx-auto">
@@ -17,17 +18,13 @@ const Footer = () => {
             
             {/* Company Information */}
             <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-full flex items-center justify-center shadow-2xl ring-2 ring-emerald-400/30 relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  <div className="absolute -inset-1 bg-emerald-400/30 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 2L3 7v11h14V7l-7-5zM8 15V9h4v6H8z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-white">
-                  <span className="text-emerald-400">Green</span> Word
-                </h3>
+              <div className="flex items-center justify-center">
+                <img
+                  src={logoWeb}
+                  alt="ZaMi Logo"
+                  className="w-16 md:w-20 h-auto object-contain"
+                  style={{ filter: 'brightness(0) invert(1)' }}
+                />
               </div>
               <p className="text-gray-300 text-sm leading-relaxed">
                 Experience the future of mobility with our premium electric vehicle rental service. 
@@ -107,7 +104,7 @@ const Footer = () => {
               <div className="space-y-2 pt-2">
                 <div className="flex items-center space-x-2 text-gray-300">
                   <FaEnvelope className="text-emerald-400" />
-                  <span className="text-sm">hello@greenword.com</span>
+                  <span className="text-sm">hello@zami.com</span>
                 </div>
                 <div className="flex items-center space-x-2 text-gray-300">
                   <FaPhone className="text-emerald-400" />
@@ -124,7 +121,7 @@ const Footer = () => {
           {/* Bottom Border */}
           <div className="mt-8 pt-6 border-t border-gray-700">
             <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-300">
-              <p>&copy; 2024 Green Word. All rights reserved.</p>
+              <p>&copy; 2024 ZaMi. All rights reserved.</p>
               <div className="flex space-x-4 mt-2 md:mt-0">
                 <a href="/terms" className="hover:text-emerald-400 transition-colors duration-300">Terms</a>
                 <a href="/privacy" className="hover:text-emerald-400 transition-colors duration-300">Privacy</a>

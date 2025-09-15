@@ -4,12 +4,14 @@ interface SearchProps {
   onSearch?: (query: string) => void;
   placeholder?: string;
   className?: string;
+  isOverlay?: boolean;
 }
 
 const Search: React.FC<SearchProps> = ({ 
   onSearch, 
   placeholder,
-  className = ""
+  className = "",
+  isOverlay = false
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [displayText, setDisplayText] = useState('');
