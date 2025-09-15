@@ -1,6 +1,4 @@
-// src/components/WhyChooseUs.tsx
-import React from "react";
-import greenCar from "../../../assets/loginImage/greenCar.png";
+import greenCar from "../../../../assets/loginImage/greenCar.png";
 
 const WhyChooseUs = () => {
   return (
