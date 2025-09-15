@@ -106,7 +106,7 @@ const CarouselHome: React.FC = () => {
                     </div>
 
                     {/* Learn More Button */}
-                    <button className="bg-white text-black px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors duration-300 flex items-center gap-2">
+                    <button className="bg-white text-black px-4 py-2 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors duration-300 flex items-center gap-2">
                       Learn More
                       <svg
                         className="w-5 h-5"
