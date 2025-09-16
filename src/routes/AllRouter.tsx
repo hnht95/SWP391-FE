@@ -6,13 +6,14 @@ import SignUpPage from "../auth/signUp/SignUpPage";
 import ForgotPasswordPage from "../auth/forgotPassword/ForgotPasswordPage";
 import LayoutStaff from "../landing/staff/LayoutStaff";
 import HomePageStaff from "../landing/staff/component/HomePageStaff";
+import AboutUs from "../landing/user/component/headerComponent/AboutUs";
 
 const AllRouter = () => {
   return (
     <Routes>
       <Route element={<LayoutUser />}>
         <Route path="/" element={<HomePage />} />
-        {/* <Route path="/aboutUs" element={<AboutUs />} /> */}
+        <Route path="/aboutus" element={<AboutUs />} />
         {/* Thêm các route khác cần Header/Footer ở đây */}
       </Route>
       <Route element={<LayoutStaff />}>

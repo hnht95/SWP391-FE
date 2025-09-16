@@ -1,13 +1,13 @@
 import React from "react";
 import { Carousel } from "antd";
-import modelS from "../../../assets/homepage/carousel/modelS.png";
-import taycan from "../../../assets/homepage/carousel/taycan.png";
-import vf9 from "../../../assets/homepage/carousel/vf9.png";
-import vf3 from "../../../assets/homepage/carousel/vf3.png";
-import taycanvideo from "../../../assets/homepage/carousel/video/taycan.mp4";
-import vf3video from "../../../assets/homepage/carousel/video/vf3.mp4";
-import vf9video from "../../../assets/homepage/carousel/video/vf9.mp4";
-import modelSvideo from "../../../assets/homepage/carousel/video/modelS.mp4";
+// import modelS from "../../../../assets/homepage/";
+// import taycan from "../../../assets/homepage/carousel/taycan.png";
+// import vf9 from "../../../assets/homepage/carousel/vf9.png";
+// import vf3 from "../../../assets/homepage/carousel/vf3.png";
+import taycanvideo from "../../../../assets/homepage/carousel/video/taycan.mp4";
+import vf3video from "../../../../assets/homepage/carousel/video/vf3.mp4";
+import vf9video from "../../../../assets/homepage/carousel/video/vf9.mp4";
+import modelSvideo from "../../../../assets/homepage/carousel/video/modelS.mp4";
 import { HiOutlineBolt } from "react-icons/hi2";
 import { IoSpeedometerOutline } from "react-icons/io5";
 import { TbManualGearbox } from "react-icons/tb";
@@ -19,7 +19,7 @@ const CarouselHome: React.FC = () => {
       price: "$89,990",
       brand: "Tesla",
       model: "Model S",
-      image: modelS,
+      // image: modelS,
       video: modelSvideo,
       specs: [
         { icon: <HiOutlineBolt />, text: "Electric" },
@@ -32,7 +32,7 @@ const CarouselHome: React.FC = () => {
       price: "$103,800",
       brand: "Porsche",
       model: "Taycan",
-      image: taycan,
+      // image: taycan,
       video: taycanvideo,
       specs: [
         { icon: <HiOutlineBolt />, text: "Electric" },
@@ -45,7 +45,7 @@ const CarouselHome: React.FC = () => {
       price: "$45,000",
       brand: "VinFast",
       model: "VF 9",
-      image: vf9,
+      // image: vf9,
       video: vf9video,
       specs: [
         { icon: <HiOutlineBolt />, text: "Electric" },
@@ -58,7 +58,7 @@ const CarouselHome: React.FC = () => {
       price: "$35,000",
       brand: "VinFast",
       model: "VF 3",
-      image: vf3,
+      // image: vf3,
       video: vf3video,
       specs: [
         { icon: <HiOutlineBolt />, text: "Electric" },
@@ -79,22 +79,14 @@ const CarouselHome: React.FC = () => {
         {carData.map((car) => (
           <div key={car.id} className="relative">
             <div className="w-full h-[500px] relative">
-              {car.video ? (
-                <video
-                  src={car.video}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <img
-                  src={car.image}
-                  alt={`${car.brand} ${car.model}`}
-                  className="w-full h-full object-cover"
-                />
-              )}
+              <video
+                src={car.video}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
 
               {/* Car Information Overlay */}
               <div className="absolute inset-0 flex items-center">
