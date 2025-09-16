@@ -4,12 +4,14 @@ interface UserProps {
   userName?: string;
   userAvatar?: string;
   onLogout?: () => void;
+  isLoggedIn?: boolean;
 }
 
 const User: React.FC<UserProps> = ({ 
-  userName = "Người dùng", 
+  userName = "Login", 
   userAvatar, 
-  onLogout 
+  onLogout,
+  isLoggedIn = false
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -22,49 +24,37 @@ const User: React.FC<UserProps> = ({
 
   return (
     <div className="relative">
-      {/* User Avatar Button */}
+      {/* User Avatar/Login Button */}
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+        className="group flex items-center space-x-2 px-2 py-1 rounded-full transition duration-200 focus:outline-none hover:brightness-200 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
       >
-        {/* Avatar */}
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
-          {userAvatar ? (
-            <img 
-              src={userAvatar} 
-              alt="User Avatar" 
-              className="w-full h-full rounded-full object-cover"
-            />
+        <div className="w-7 h-7 flex items-center justify-center text-white overflow-hidden">
+          {isLoggedIn && userAvatar ? (
+            <img src={userAvatar} alt="User Avatar" className="w-full h-full rounded-full object-cover" />
           ) : (
-            userName.charAt(0).toUpperCase()
+            <svg className="w-5 h-5 text-white group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A4 4 0 019 16h6a4 4 0 013.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
           )}
         </div>
-        
-        {/* User Name */}
-        <span className="text-gray-300 font-medium text-sm hidden sm:block">
-          {userName}
-        </span>
-        
-        {/* Dropdown Arrow */}
-        <svg 
-          className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
-            isDropdownOpen ? 'rotate-180' : ''
-          }`} 
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        {!isLoggedIn && (
+          <>
+            <span className="text-white font-normal text-[12px] hidden sm:block group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]" style={{ fontFamily: '"MBCorpo Text", sans-serif' }}>Login</span>
+            <svg className="w-4 h-4 text-white/80 group-hover:text-white group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </>
+        )}
       </button>
 
       {/* Dropdown Menu */}
       {isDropdownOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-600 py-1 z-50">
+        <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-lg border border-slate-600 py-1 z-50">
           {/* User Info */}
-          <div className="px-4 py-3 border-b border-gray-600">
-            <p className="text-sm font-medium text-gray-100">{userName}</p>
-            <p className="text-xs text-gray-400">Thành viên</p>
+          <div className="px-4 py-3 border-b border-slate-600">
+            <p className="text-sm font-medium text-white">{userName}</p>
+            <p className="text-xs text-slate-300">Thành viên</p>
           </div>
           
           {/* Logout Button */}

@@ -48,7 +48,13 @@ const Navbar: React.FC<NavbarProps> = ({ className = "", onNavigate }) => {
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+            d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1-1V9a1 1 0 011-1h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6 0a1 1 0 001 1h4a1 1 0 001-1m-6 0V9a1 1 0 00-1-1v8a1 1 0 001 1z"
           />
         </svg>
       ),
@@ -136,11 +142,11 @@ const Navbar: React.FC<NavbarProps> = ({ className = "", onNavigate }) => {
 
             {/* Active indicator */}
             {activeItem === item.label && (
-              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-green-400 rounded-full"></div>
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-emerald-400 rounded-full"></div>
             )}
 
             {/* Hover effect */}
-            <div className="absolute inset-0 rounded-lg bg-green-400 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+            <div className="absolute inset-0 rounded-lg bg-emerald-400 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
           </button>
         ))}
       </div>
