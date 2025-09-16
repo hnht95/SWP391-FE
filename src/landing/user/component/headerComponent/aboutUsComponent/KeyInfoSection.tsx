@@ -1,6 +1,6 @@
 import React from "react";
-import vf3 from "../../../../assets/aboutus/vf3.png"; // Hình ảnh cho hàng đầu tiên
-import byd from "../../../../assets/aboutus/byd.png"; // <-- Thêm import hình ảnh thứ hai
+import vf3 from "../../../../../assets/aboutus/vf3.png";
+import byd from "../../../../../assets/aboutus/byd.png";
 import { FaRegCircleCheck } from "react-icons/fa6";
 import { FiClock } from "react-icons/fi";
 
@@ -8,11 +8,10 @@ const KeyInfoSection: React.FC = () => {
   return (
     <section className="py-12 md:py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        =
         <h2 className="text-4xl md:text-5xl font-extrabold text-gray-700 mt-12 mb-16 text-left relative">
           EV-Car <span className="text-gray-500">Renting </span>
         </h2>
-        =
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16 lg:mb-24">
           <div className="order-2 lg:order-1">
             {" "}

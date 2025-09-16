@@ -1,6 +1,6 @@
+import FeaturesSection from "./aboutUsComponent/FeaturesSection";
 import HeroSection from "./aboutUsComponent/HeroSection";
 import KeyInfoSection from "./aboutUsComponent/KeyInfoSection";
-import FeaturesSection from "./aboutUsComponent/FeaturesSection";
 
 const AboutUs = () => {
   return (

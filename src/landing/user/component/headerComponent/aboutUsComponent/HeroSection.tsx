@@ -1,5 +1,5 @@
 import React from "react";
-import vf9 from "../../../../assets/aboutus/vf9.png";
+import vf9 from "../../../../../assets/aboutus/vf9.png";
 const HeroSection: React.FC = () => {
   return (
     <section className="relative h-[60vh] md:h-[70vh] lg:h-[80vh] bg-black flex items-center justify-center overflow-hidden">

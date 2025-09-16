@@ -6,7 +6,7 @@ import SignUpPage from "../auth/signUp/SignUpPage";
 import ForgotPasswordPage from "../auth/forgotPassword/ForgotPasswordPage";
 import LayoutStaff from "../landing/staff/LayoutStaff";
 import HomePageStaff from "../landing/staff/component/HomePageStaff";
-import AboutUs from "../landing/user/component/AboutUs";
+import AboutUs from "../landing/user/component/headerComponent/AboutUs";
 
 const AllRouter = () => {
   return (

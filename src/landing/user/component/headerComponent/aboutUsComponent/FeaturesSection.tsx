@@ -1,7 +1,7 @@
 import React from "react";
-import station from "../../../../assets/aboutus/station.png";
-import map from "../../../../assets/aboutus/map2.png";
-import parking from "../../../../assets/aboutus/parking.png";
+import station from "../../../../../assets/aboutus/station.png";
+import map from "../../../../../assets/aboutus/map2.png";
+import parking from "../../../../../assets/aboutus/parking.png";
 
 interface FeatureCardProps {
   title: string;
