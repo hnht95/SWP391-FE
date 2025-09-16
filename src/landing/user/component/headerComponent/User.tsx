@@ -40,7 +40,7 @@ const User: React.FC<UserProps> = ({
         </div>
         {!isLoggedIn && (
           <>
-            <span className="text-white font-medium text-sm hidden sm:block group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]">Login</span>
+            <span className="text-white font-normal text-[12px] hidden sm:block group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]" style={{ fontFamily: '"MBCorpo Text", sans-serif' }}>Login</span>
             <svg className="w-4 h-4 text-white/80 group-hover:text-white group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>

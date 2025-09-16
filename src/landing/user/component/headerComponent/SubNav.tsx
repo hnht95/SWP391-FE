@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 interface SubNavProps {
   isHeaderHovered?: boolean;
+  isSearchOpen?: boolean;
 }
 
-const SubNav: React.FC<SubNavProps> = ({ isHeaderHovered = false }) => {
+const SubNav: React.FC<SubNavProps> = ({ isHeaderHovered = false, isSearchOpen = false }) => {
   const lastScrollYRef = useRef(0);
   const [isVisible, setIsVisible] = useState(true);
   const [isSelfHovered, setIsSelfHovered] = useState(false);
@@ -26,68 +28,29 @@ const SubNav: React.FC<SubNavProps> = ({ isHeaderHovered = false }) => {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Show subnav when visible from scroll or when header/subnav is hovered
-  const shouldShow = isVisible || isHeaderHovered || isSelfHovered;
+  // Hide entirely when search is open; otherwise show by scroll or hover
+  const shouldShow = !isSearchOpen && (isVisible || isHeaderHovered || isSelfHovered);
 
   return (
     <>
-      <style>{`
-        .subnav-reset {
-          border: none !important;
-          outline: none !important;
-          box-shadow: none !important;
-          border-radius: 0 !important;
-          border-width: 0 !important;
-          border-style: none !important;
-          border-color: transparent !important;
-          background-image: none !important;
-        }
-        .subnav-reset * {
-          border: none !important;
-          outline: none !important;
-          box-shadow: none !important;
-          border-radius: 0 !important;
-          border-width: 0 !important;
-          border-style: none !important;
-          border-color: transparent !important;
-        }
-        .subnav-reset::before, .subnav-reset::after, .subnav-reset *::before, .subnav-reset *::after {
-          content: none !important;
-          border: none !important;
-          outline: none !important;
-          box-shadow: none !important;
-        }
-        .subnav-reset ul {
-          list-style: none !important;
-        }
-        .subnav-reset a {
-          text-decoration: none !important;
-        }
-        .subnav-container {
-          background: rgba(0, 0, 0, 0.3) !important;
-          backdrop-filter: blur(12px) !important;
-          -webkit-backdrop-filter: blur(12px) !important;
-        }
-      `}</style>
-      <div 
-        className={`subnav-reset subnav-container w-full sticky top-0 z-20 transition-transform duration-300 ${shouldShow ? 'translate-y-0' : '-translate-y-full'}`}
+      <div
+        className={`w-full sticky top-[80px] md:top-[88px] z-40 bg-black/50 backdrop-blur-md transition-transform duration-700 ease-in-out will-change-transform ${shouldShow ? 'translate-y-0' : '-translate-y-full'}`}
         onMouseEnter={() => setIsSelfHovered(true)}
         onMouseLeave={() => setIsSelfHovered(false)}
-        style={{ WebkitBackdropFilter: 'blur(12px)', backdropFilter: 'blur(12px)' }}
       >
-        <nav className="subnav-reset w-full px-4">
-          <ul className="subnav-reset flex items-center justify-center gap-8 text-base text-white/90 py-6">
-            <li className="subnav-reset">
-              <a className="subnav-reset hover:text-white transition-colors duration-200 font-medium" href="/">Home</a>
+        <nav className="w-full px-4">
+          <ul className="flex list-none items-center justify-center gap-6 md:gap-10 text-sm md:text-base text-white py-3 md:py-4">
+            <li>
+              <Link className="no-underline text-white hover:text-white transition-colors duration-200 font-medium" to="/">Home</Link>
             </li>
-            <li className="subnav-reset">
-              <a className="subnav-reset hover:text-white transition-colors duration-200 font-medium" href="/CarCar">Car</a>
+            <li>
+              <Link className="no-underline text-white hover:text-white transition-colors duration-200 font-medium" to="/CarCar">Car</Link>
             </li>
-            <li className="subnav-reset">
-              <a className="subnav-reset hover:text-white transition-colors duration-200 font-medium" href="/about">About</a>
+            <li>
+              <Link className="no-underline text-white hover:text-white transition-colors duration-200 font-medium" to="/about">About</Link>
             </li>
-            <li className="subnav-reset">
-              <a className="subnav-reset hover:text-white transition-colors duration-200 font-medium" href="/contact">Contact</a>
+            <li>
+              <Link className="no-underline text-white hover:text-white transition-colors duration-200 font-medium" to="/contact">Contact</Link>
             </li>
           </ul>
         </nav>

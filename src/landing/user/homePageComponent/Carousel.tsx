@@ -1,9 +1,16 @@
 import React from "react";
 import { Carousel } from "antd";
-import modelS from "../../../assets/carouselHomePage/modelS.png";
-import taycan from "../../../assets/carouselHomePage/taycan.png";
-import vf9 from "../../../assets/carouselHomePage/vf9.png";
-import vf3 from "../../../assets/carouselHomePage/vf3.png";
+import modelS from "../../../assets/homepage/carousel/modelS.png";
+import taycan from "../../../assets/homepage/carousel/taycan.png";
+import vf9 from "../../../assets/homepage/carousel/vf9.png";
+import vf3 from "../../../assets/homepage/carousel/vf3.png";
+import taycanvideo from "../../../assets/homepage/carousel/video/taycan.mp4";
+import vf3video from "../../../assets/homepage/carousel/video/vf3.mp4";
+import vf9video from "../../../assets/homepage/carousel/video/vf9.mp4";
+import modelSvideo from "../../../assets/homepage/carousel/video/modelS.mp4";
+import { HiOutlineBolt } from "react-icons/hi2";
+import { IoSpeedometerOutline } from "react-icons/io5";
+import { TbManualGearbox } from "react-icons/tb";
 
 const CarouselHome: React.FC = () => {
   const carData = [
@@ -13,10 +20,11 @@ const CarouselHome: React.FC = () => {
       brand: "Tesla",
       model: "Model S",
       image: modelS,
+      video: modelSvideo,
       specs: [
-        { icon: "", text: "Electric" },
-        { icon: "", text: "200 mph" },
-        { icon: "", text: "Automatic" },
+        { icon: <HiOutlineBolt />, text: "Electric" },
+        { icon: <IoSpeedometerOutline />, text: "200 mph" },
+        { icon: <TbManualGearbox />, text: "Automatic" },
       ],
     },
     {
@@ -25,10 +33,11 @@ const CarouselHome: React.FC = () => {
       brand: "Porsche",
       model: "Taycan",
       image: taycan,
+      video: taycanvideo,
       specs: [
-        { icon: "", text: "Electric" },
-        { icon: "", text: "161 mph" },
-        { icon: "", text: "Automatic" },
+        { icon: <HiOutlineBolt />, text: "Electric" },
+        { icon: <IoSpeedometerOutline />, text: "161 mph" },
+        { icon: <TbManualGearbox />, text: "Automatic" },
       ],
     },
     {
@@ -37,10 +46,11 @@ const CarouselHome: React.FC = () => {
       brand: "VinFast",
       model: "VF 9",
       image: vf9,
+      video: vf9video,
       specs: [
-        { icon: "", text: "Electric" },
-        { icon: "", text: "124 mph" },
-        { icon: "", text: "Automatic" },
+        { icon: <HiOutlineBolt />, text: "Electric" },
+        { icon: <IoSpeedometerOutline />, text: "124 mph" },
+        { icon: <TbManualGearbox />, text: "Automatic" },
       ],
     },
     {
@@ -49,10 +59,11 @@ const CarouselHome: React.FC = () => {
       brand: "VinFast",
       model: "VF 3",
       image: vf3,
+      video: vf3video,
       specs: [
-        { icon: "", text: "Electric" },
-        { icon: "", text: "100 mph" },
-        { icon: "", text: "Automatic" },
+        { icon: <HiOutlineBolt />, text: "Electric" },
+        { icon: <IoSpeedometerOutline />, text: "100 mph" },
+        { icon: <TbManualGearbox />, text: "Automatic" },
       ],
     },
   ];
@@ -60,19 +71,30 @@ const CarouselHome: React.FC = () => {
   return (
     <div className="relative">
       <Carousel
-        autoplay={{ dotDuration: true }}
-        autoplaySpeed={5000}
-        arrows={true}
+        autoplay
+        autoplaySpeed={10000}
+        arrows
         className="carousel-container"
       >
         {carData.map((car) => (
           <div key={car.id} className="relative">
-            <div className="w-full  h-[500px] relative">
-              <img
-                src={car.image}
-                alt={`${car.brand} ${car.model}`}
-                className="w-full h-full object-cover"
-              />
+            <div className="w-full h-[500px] relative">
+              {car.video ? (
+                <video
+                  src={car.video}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img
+                  src={car.image}
+                  alt={`${car.brand} ${car.model}`}
+                  className="w-full h-full object-cover"
+                />
+              )}
 
               {/* Car Information Overlay */}
               <div className="absolute inset-0 flex items-center">
@@ -106,7 +128,7 @@ const CarouselHome: React.FC = () => {
                     </div>
 
                     {/* Learn More Button */}
-                    <button className="bg-white text-black px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors duration-300 flex items-center gap-2">
+                    <button className="bg-white text-black px-4 py-2 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors duration-300 flex items-center gap-2">
                       Learn More
                       <svg
                         className="w-5 h-5"
@@ -129,53 +151,6 @@ const CarouselHome: React.FC = () => {
           </div>
         ))}
       </Carousel>
-
-      {/* Custom CSS for carousel arrows */}
-      <style>{`
-        .carousel-container .ant-carousel .slick-prev,
-        .carousel-container .ant-carousel .slick-next {
-          z-index: 10;
-          width: 50px;
-          height: 50px;
-          background: rgba(255, 255, 255, 0.9);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 20px;
-          color: #000;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        
-        .carousel-container .ant-carousel .slick-prev {
-          left: 30px;
-        }
-        
-        .carousel-container .ant-carousel .slick-next {
-          right: 30px;
-        }
-        
-        .carousel-container .ant-carousel .slick-prev:hover,
-        .carousel-container .ant-carousel .slick-next:hover {
-          background: white;
-          color: #000;
-        }
-        
-        .carousel-container .ant-carousel .slick-dots {
-          bottom: 30px;
-        }
-        
-        .carousel-container .ant-carousel .slick-dots li button {
-          background: rgba(255, 255, 255, 0.5);
-          border-radius: 50%;
-          width: 12px;
-          height: 12px;
-        }
-        
-        .carousel-container .ant-carousel .slick-dots li.slick-active button {
-          background: white;
-        }
-      `}</style>
     </div>
   );
 };

@@ -6,13 +6,17 @@ import Footer from "./component/Footer";
 
 const LayoutUser = () => {
   const [isHeaderHovered, setIsHeaderHovered] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   return (
     <div>
-      <Header onHoverChange={setIsHeaderHovered} />
-      <SubNav isHeaderHovered={isHeaderHovered} />
+      <Header onHoverChange={setIsHeaderHovered} onSearchOpenChange={setIsSearchOpen} />
+      <SubNav isHeaderHovered={isHeaderHovered && !isSearchOpen} isSearchOpen={isSearchOpen} />
 
-      {/* Route con sẽ được render ở đây */}
-      <Outlet />
+      {/* Offset only header height; let SubNav overlay carousel */}
+      <div className="pt-[80px] md:pt-[88px]">
+        {/* Route con sẽ được render ở đây */}
+        <Outlet />
+      </div>
 
       <Footer />
     </div>

@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
-import Search from "./headerComponent/Search";
+import { Link } from "react-router-dom";
 import User from "./headerComponent/User";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 
 interface HeaderProps {
   onHoverChange?: (isHovered: boolean) => void;
+  onSearchOpenChange?: (isOpen: boolean) => void;
 }
 
-export default function Header({ onHoverChange }: HeaderProps) {
+export default function Header({ onHoverChange, onSearchOpenChange }: HeaderProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
   const [currentPlaceholder, setCurrentPlaceholder] = useState(0);
   const [displayText, setDisplayText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
@@ -72,30 +71,18 @@ export default function Header({ onHoverChange }: HeaderProps) {
     };
   }, [isSearchOpen]);
 
-  // Handle scroll to show/hide header
+  // When search opens, ensure subnav doesn't open via header hover
   useEffect(() => {
-    let lastScrollY = window.scrollY;
+    if (isSearchOpen) {
+      onHoverChange && onHoverChange(false);
+      onSearchOpenChange && onSearchOpenChange(true);
+    } else {
+      onSearchOpenChange && onSearchOpenChange(false);
+    }
+  }, [isSearchOpen, onHoverChange, onSearchOpenChange]);
 
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      if (currentScrollY < lastScrollY || currentScrollY < 50) {
-        // Scrolling up or near top - show header
-        setIsHeaderVisible(true);
-      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        // Scrolling down - hide header
-        setIsHeaderVisible(false);
-      }
-      
-      lastScrollY = currentScrollY;
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Show header when hovered or when visible from scroll
-  const shouldShowContent = isHeaderVisible || isHovered;
+  // Header is always visible (fixed)
+  const shouldShowContent = true;
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchValue(e.target.value);
@@ -104,13 +91,13 @@ export default function Header({ onHoverChange }: HeaderProps) {
   return (
     <>
       <header 
-        className={`w-full bg-black shadow-xl px-6 relative z-50 transition-all duration-300 ${shouldShowContent ? 'py-3' : 'py-2'}`}
+        className={`fixed top-0 left-0 w-full bg-black shadow-xl px-6 z-50 transition-all duration-700 ease-in-out ${shouldShowContent ? 'py-3' : 'py-2'}`}
         onMouseEnter={() => {
-          setIsHovered(true);
-          onHoverChange && onHoverChange(true);
+          if (!isSearchOpen) {
+            onHoverChange && onHoverChange(true);
+          }
         }}
         onMouseLeave={() => {
-          setIsHovered(false);
           onHoverChange && onHoverChange(false);
         }}
       >
@@ -132,7 +119,7 @@ export default function Header({ onHoverChange }: HeaderProps) {
             {/* Right: Search trigger stays, Login flush right */}
             <div className="flex-1 flex items-center justify-end relative">
               {/* Search trigger - keep position; reserve space for Login on the far right */}
-              <div className={`flex items-center transition-all duration-300 ${
+              <div className={`flex items-center transition-all duration-700 ease-in-out will-change-transform ${
                 shouldShowContent && !isSearchOpen 
                   ? 'opacity-100 transform translate-y-0' 
                   : isSearchOpen 
@@ -140,18 +127,22 @@ export default function Header({ onHoverChange }: HeaderProps) {
                     : 'opacity-0 transform translate-y-4 pointer-events-none'
               } pr-10 md:pr-12`}>
                 <button 
-                  onClick={() => setIsSearchOpen(true)}
+                  onClick={() => {
+                    setIsSearchOpen(true);
+                    onHoverChange && onHoverChange(false);
+                    onSearchOpenChange && onSearchOpenChange(true);
+                  }}
                   className="group flex items-center gap-1 text-white transition duration-200 px-2 hover:brightness-200 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
                 >
                   <svg className="w-4 h-4 text-white group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-                  <span className="text-xs group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]">Search</span>
+                  <span className="text-[12px] font-normal group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]" style={{ fontFamily: '"MBCorpo Text", sans-serif' }}>Search</span>
                 </button>
               </div>
 
               {/* Login/User - stick to the far right */}
-              <div className={`absolute right-0 transition-all duration-300 ${
+              <div className={`absolute right-0 transition-all duration-700 ease-in-out will-change-transform ${
                 shouldShowContent && !isSearchOpen 
                   ? 'opacity-100 transform translate-y-0' 
                   : isSearchOpen 
@@ -162,13 +153,15 @@ export default function Header({ onHoverChange }: HeaderProps) {
               </div>
 
               {/* Close Search with fly-down animation */}
-              <div className={`transition-all duration-500 ${isSearchOpen ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform -translate-y-8 pointer-events-none'}`}>
+              <div className={`transition-all duration-700 ease-in-out will-change-transform ${isSearchOpen ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform -translate-y-8 pointer-events-none'}`}>
                 <button
                   onClick={() => {
                     setIsSearchOpen(false);
                     setSearchValue('');
+                    onSearchOpenChange && onSearchOpenChange(false);
                   }}
-                  className="text-white text-xs px-2 py-1 rounded hover:bg-white/10 transition-colors duration-200"
+                  className="text-white text-[12px] font-normal px-2 py-1 rounded hover:bg-white/10 transition-colors duration-200"
+                  style={{ fontFamily: '"MBCorpo Text", sans-serif' }}
                 >
                   Close Search
                 </button>
@@ -179,13 +172,13 @@ export default function Header({ onHoverChange }: HeaderProps) {
       </header>
 
       {/* Search overlay - expands from top to bottom */}
-      <div className={`fixed top-0 left-0 w-full z-30 transition-all duration-700 ease-out ${isSearchOpen ? 'h-screen' : 'h-0'} overflow-hidden`}>
+      <div className={`fixed top-0 left-0 w-full z-30 transition-all duration-700 ease-in-out ${isSearchOpen ? 'h-screen' : 'h-0'} overflow-hidden`}>
         {/* Header space - bigger to match header size */}
         <div className={`bg-transparent transition-all duration-300 ${shouldShowContent ? 'h-[60px] md:h-[64px]' : 'h-[48px] md:h-[52px]'}`}></div>
         
         {/* Search area with expanding animation */}
-        <div className={`bg-black/50 backdrop-blur-sm transition-all duration-700 ease-out ${isSearchOpen ? 'h-full opacity-100' : 'h-0 opacity-0'}`}>
-          <div className={`px-4 pt-8 transition-all duration-500 delay-300 ${isSearchOpen ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform -translate-y-4'}`}>
+        <div className={`bg-black/50 backdrop-blur-sm transition-all duration-700 ease-in-out ${isSearchOpen ? 'h-full opacity-100' : 'h-0 opacity-0'}`}>
+          <div className={`px-4 pt-8 transition-all duration-700 ease-in-out delay-200 ${isSearchOpen ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform -translate-y-4'}`}>
             {/* Search box like the image */}
             <div className="max-w-4xl mx-auto">
               <div className="relative">
@@ -229,25 +222,25 @@ export default function Header({ onHoverChange }: HeaderProps) {
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Vehicles</h3>
                   <ul className="space-y-2 text-gray-300">
-                    <li><a href="#" className="hover:text-white transition-colors">New Cars</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Electric Cars</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Test Drive</a></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">New Cars</Link></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">Electric Cars</Link></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">Test Drive</Link></li>
                   </ul>
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Services</h3>
                   <ul className="space-y-2 text-gray-300">
-                    <li><a href="#" className="hover:text-white transition-colors">Maintenance</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Parts</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Support</a></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">Maintenance</Link></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">Parts</Link></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">Support</Link></li>
                   </ul>
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Company</h3>
                   <ul className="space-y-2 text-gray-300">
-                    <li><a href="#" className="hover:text-white transition-colors">About</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
+                    <li><Link to="/about" className="hover:text-white transition-colors">About</Link></li>
+                    <li><Link to="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">Careers</Link></li>
                   </ul>
                 </div>
               </div>
