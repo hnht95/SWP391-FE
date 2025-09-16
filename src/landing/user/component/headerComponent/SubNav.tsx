@@ -37,8 +37,8 @@ const SubNav: React.FC<SubNavProps> = ({
 
   return (
     <>
-      <div
-        className={`w-full sticky top-[80px] md:top-[88px] z-40 bg-black/50 backdrop-blur-md transition-transform duration-700 ease-in-out will-change-transform ${
+      <div 
+        className={`cursor-pointerw-full sticky top-[80px] md:top-[88px] z-40 bg-black/50 backdrop-blur-md transition-transform duration-700 ease-in-out will-change-transform select-none ${
           shouldShow ? "translate-y-0" : "-translate-y-full"
         }`}
         onMouseEnter={() => setIsSelfHovered(true)}

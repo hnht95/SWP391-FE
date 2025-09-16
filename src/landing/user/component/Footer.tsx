@@ -159,15 +159,15 @@ const Footer = () => {
               </div>
               <div className="mt-3 space-y-2 text-gray-300 text-sm">
                 <div className="flex items-center space-x-2">
-                  <FaMapMarkerAlt className="text-emerald-400" />
+                  <FaMapMarkerAlt className="text-gray-400" />
                   <span>136/15 Trần Quang Diệu, Phường Nhiu Lộc</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <FaEnvelope className="text-emerald-400" />
+                  <FaEnvelope className="text-gray-400" />
                   <span>hello@zami.com</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <FaPhone className="text-emerald-400" />
+                  <FaPhone className="text-gray-400" />
                   <span>0917971420</span>
                 </div>
               </div>

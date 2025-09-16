@@ -27,7 +27,7 @@ const User: React.FC<UserProps> = ({
       {/* User Avatar/Login Button */}
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="group flex items-center space-x-2 px-2 py-1 rounded-full transition duration-200 focus:outline-none hover:brightness-200 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
+        className="group flex items-center space-x-2 px-2 py-1 rounded-full transition duration-200 focus:outline-none hover:brightness-200 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)] cursor-pointer"
       >
         <div className="w-7 h-7 flex items-center justify-center text-white overflow-hidden">
           {isLoggedIn && userAvatar ? (
@@ -50,17 +50,17 @@ const User: React.FC<UserProps> = ({
 
       {/* Dropdown Menu */}
       {isDropdownOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-lg border border-slate-600 py-1 z-50">
+        <div className="absolute right-0 mt-2 w-56 bg-white text-black rounded-lg shadow-xl border border-gray-200 py-2 z-50 transition-all duration-300 ease-out">
           {/* User Info */}
-          <div className="px-4 py-3 border-b border-slate-600">
-            <p className="text-sm font-medium text-white">{userName}</p>
-            <p className="text-xs text-slate-300">Thành viên</p>
+          <div className="px-4 py-3 border-b border-gray-200">
+            <p className="text-sm font-medium">{userName}</p>
+            <p className="text-xs text-gray-500">Thành viên</p>
           </div>
           
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 transition-colors duration-200 flex items-center space-x-2"
+            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 flex items-center space-x-2"
           >
             <svg 
               className="w-4 h-4" 

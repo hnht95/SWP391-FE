@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import User from "./headerComponent/User";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
@@ -18,6 +18,7 @@ export default function Header({
   const [isTyping, setIsTyping] = useState(true);
   const [charIndex, setCharIndex] = useState(0);
   const [searchValue, setSearchValue] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const placeholders = [
     "Search for cars...",
@@ -84,6 +85,16 @@ export default function Header({
     };
   }, [isSearchOpen]);
 
+  // Focus search input when opening search overlay
+  useEffect(() => {
+    if (isSearchOpen) {
+      // Allow DOM to paint before focusing
+      requestAnimationFrame(() => {
+        searchInputRef.current?.focus();
+      });
+    }
+  }, [isSearchOpen]);
+
   // When search opens, ensure subnav doesn't open via header hover
   useEffect(() => {
     if (isSearchOpen) {
@@ -104,7 +115,7 @@ export default function Header({
   return (
     <>
       <header
-        className={`fixed top-0 left-0 w-full bg-black shadow-xl px-6 z-50 transition-all duration-700 ease-in-out ${
+        className={`fixed top-0 left-0 w-full bg-black shadow-xl px-6 z-50 transition-all duration-700 ease-in-out select-none ${
           shouldShowContent ? "py-3" : "py-2"
         }`}
         onMouseEnter={() => {
@@ -151,7 +162,7 @@ export default function Header({
                     onHoverChange && onHoverChange(false);
                     onSearchOpenChange && onSearchOpenChange(true);
                   }}
-                  className="group flex items-center gap-1 text-white transition duration-200 px-2 hover:brightness-200 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
+                  className="group flex items-center gap-1 text-white transition duration-200 px-2 hover:brightness-200 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)] cursor-pointer"
                 >
                   <svg
                     className="w-4 h-4 text-white group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
@@ -261,10 +272,10 @@ export default function Header({
 
                     {/* Search Input */}
                     <input
-                      autoFocus
                       type="text"
                       value={searchValue}
                       onChange={handleSearchChange}
+                      ref={searchInputRef}
                       className="flex-1 bg-transparent text-white text-lg focus:outline-none placeholder-gray-400"
                       placeholder=""
                     />
