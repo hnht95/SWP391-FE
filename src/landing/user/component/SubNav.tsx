@@ -57,9 +57,9 @@ const SubNav: React.FC<SubNavProps> = ({
             <li>
               <Link
                 className="no-underline text-white hover:text-white transition-colors duration-200 font-medium"
-                to="/CarCar"
+                to="/vehicles"
               >
-                Car
+                Vehicles
               </Link>
             </li>
             <li>
@@ -73,9 +73,9 @@ const SubNav: React.FC<SubNavProps> = ({
             <li>
               <Link
                 className="no-underline text-white hover:text-white transition-colors duration-200 font-medium"
-                to="/contact"
+                to="/contactus"
               >
-                Contact
+                Contact Us
               </Link>
             </li>
           </ul>
