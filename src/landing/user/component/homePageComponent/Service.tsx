@@ -1,7 +1,7 @@
 // src/components/Services.tsx
-import React from "react";
+
 import { FaHeadset, FaDollarSign, FaCheckCircle, FaCar } from "react-icons/fa";
-import bmwxm from "../../../assets/homepage/ourService/bmwxm.png";
+import bmwxm from "../../../../assets/homepage/ourService/bmwxm.png";
 
 const Services = () => {
   return (
