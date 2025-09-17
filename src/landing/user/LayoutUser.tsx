@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Header from "./component/Header";
 import SubNav from "./component/SubNav";
@@ -8,7 +8,7 @@ const LayoutUser = () => {
   const [isHeaderHovered, setIsHeaderHovered] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   return (
-    <div>
+    <div className="bg-white min-h-screen">
       <Header
         onHoverChange={setIsHeaderHovered}
         onSearchOpenChange={setIsSearchOpen}
