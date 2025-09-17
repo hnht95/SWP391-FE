@@ -1,16 +1,22 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Header from "./component/Header";
-import SubNav from "./component/headerComponent/SubNav";
+import SubNav from "./component/SubNav";
 import Footer from "./component/Footer";
 
 const LayoutUser = () => {
   const [isHeaderHovered, setIsHeaderHovered] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   return (
-    <div>
-      <Header onHoverChange={setIsHeaderHovered} onSearchOpenChange={setIsSearchOpen} />
-      <SubNav isHeaderHovered={isHeaderHovered && !isSearchOpen} isSearchOpen={isSearchOpen} />
+    <div className="bg-white min-h-screen">
+      <Header
+        onHoverChange={setIsHeaderHovered}
+        onSearchOpenChange={setIsSearchOpen}
+      />
+      <SubNav
+        isHeaderHovered={isHeaderHovered && !isSearchOpen}
+        isSearchOpen={isSearchOpen}
+      />
 
       {/* Offset only header height; let SubNav overlay carousel */}
       <div className="pt-[80px] md:pt-[88px]">
