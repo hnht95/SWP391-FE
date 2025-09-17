@@ -9,7 +9,13 @@ import HomePageStaff from "../landing/staff/component/HomePageStaff";
 import AboutUs from "../landing/user/component/subnavComponent/AboutUs";
 import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
 
+import React, { useState } from "react";
+
 const AllRouter = () => {
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "handover" | "maintain" | "reports" | "vehicles"
+  >("dashboard");
+
   return (
     <Routes>
       <Route element={<LayoutUser />}>
@@ -20,11 +26,20 @@ const AllRouter = () => {
         {/* Thêm các route khác cần Header/Footer ở đây */}
       </Route>
       <Route element={<LayoutStaff />}>
-        <Route path="/staff" element={<HomePageStaff />} />
-        <Route path="/staff/dashboard" element={<HomePageStaff />} />
+        <Route
+          path="/staff"
+          element={
+            <HomePageStaff activeTab={activeTab} setActiveTab={setActiveTab} />
+          }
+        />
+        <Route
+          path="/staff/dashboard"
+          element={
+            <HomePageStaff activeTab={activeTab} setActiveTab={setActiveTab} />
+          }
+        />
 
         {/* <Route path="/aboutUs" element={<AboutUs />} /> */}
-        {/* Thêm các route khác cần Header/Footer ở đây */}
       </Route>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />

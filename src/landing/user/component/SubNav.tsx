@@ -38,18 +38,32 @@ const SubNav: React.FC<SubNavProps> = ({
 
   return (
     <>
-      <div 
+      <div
         className={`cursor-pointer w-full sticky top-[80px] md:top-[88px] z-40 bg-black/50 backdrop-blur-md transition-transform duration-700 ease-in-out will-change-transform select-none ${
           shouldShow ? "translate-y-0" : "-translate-y-full"
         }`}
         onMouseEnter={() => setIsSelfHovered(true)}
-        onMouseLeave={() => { setIsSelfHovered(false); setHoveredItem(null); }}
+        onMouseLeave={() => {
+          setIsSelfHovered(false);
+          setHoveredItem(null);
+        }}
       >
         <nav className="w-full px-4">
-          <ul className="flex list-none items-center justify-center gap-6 md:gap-10 text-sm md:text-base text-white py-3 md:py-4" onMouseLeave={() => setHoveredItem(null)}>
+          <ul
+            className="flex list-none items-center justify-center gap-6 md:gap-10 text-sm md:text-base text-white py-3 md:py-4"
+            onMouseLeave={() => setHoveredItem(null)}
+          >
             <li onMouseEnter={() => setHoveredItem(0)}>
               <Link
-                className={`no-underline font-medium transition-all duration-300 ${hoveredItem !== null && hoveredItem !== 0 ? 'text-white/50' : 'text-white'} ${hoveredItem === 0 ? 'brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]' : 'hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]'}`}
+                className={`no-underline font-medium transition-all duration-300 ${
+                  hoveredItem !== null && hoveredItem !== 0
+                    ? "text-white/50"
+                    : "text-white"
+                } ${
+                  hoveredItem === 0
+                    ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
+                    : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
+                }`}
                 to="/"
               >
                 Home
@@ -57,7 +71,15 @@ const SubNav: React.FC<SubNavProps> = ({
             </li>
             <li onMouseEnter={() => setHoveredItem(1)}>
               <Link
-                className={`no-underline font-medium transition-all duration-300 ${hoveredItem !== null && hoveredItem !== 1 ? 'text-white/50' : 'text-white'} ${hoveredItem === 1 ? 'brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]' : 'hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]'}`}
+                className={`no-underline font-medium transition-all duration-300 ${
+                  hoveredItem !== null && hoveredItem !== 1
+                    ? "text-white/50"
+                    : "text-white"
+                } ${
+                  hoveredItem === 1
+                    ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
+                    : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
+                }`}
                 to="/vehicles"
               >
                 Vehicles
@@ -65,7 +87,15 @@ const SubNav: React.FC<SubNavProps> = ({
             </li>
             <li onMouseEnter={() => setHoveredItem(2)}>
               <Link
-                className={`no-underline font-medium transition-all duration-300 ${hoveredItem !== null && hoveredItem !== 2 ? 'text-white/50' : 'text-white'} ${hoveredItem === 2 ? 'brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]' : 'hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]'}`}
+                className={`no-underline font-medium transition-all duration-300 ${
+                  hoveredItem !== null && hoveredItem !== 2
+                    ? "text-white/50"
+                    : "text-white"
+                } ${
+                  hoveredItem === 2
+                    ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
+                    : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
+                }`}
                 to="/aboutus"
               >
                 About Us
@@ -73,7 +103,15 @@ const SubNav: React.FC<SubNavProps> = ({
             </li>
             <li onMouseEnter={() => setHoveredItem(3)}>
               <Link
-                className={`no-underline font-medium transition-all duration-300 ${hoveredItem !== null && hoveredItem !== 3 ? 'text-white/50' : 'text-white'} ${hoveredItem === 3 ? 'brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]' : 'hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]'}`}
+                className={`no-underline font-medium transition-all duration-300 ${
+                  hoveredItem !== null && hoveredItem !== 3
+                    ? "text-white/50"
+                    : "text-white"
+                } ${
+                  hoveredItem === 3
+                    ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
+                    : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
+                }`}
                 to="/contactus"
               >
                 Contact Us
