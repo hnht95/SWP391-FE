@@ -64,7 +64,7 @@ const Footer = () => {
                   <img
                     src={logoWeb}
                     alt="ZaMi Logo"
-                    className="w-16 md:w-20 h-auto object-contain"
+                    className="w-16 md:w-20 h-auto object-contain select-none"
                     style={{ filter: "brightness(0) invert(1)" }}
                   />
                 </div>

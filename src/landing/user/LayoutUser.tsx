@@ -8,7 +8,7 @@ const LayoutUser = () => {
   const [isHeaderHovered, setIsHeaderHovered] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   return (
-    <div className="bg-black min-h-screen">
+    <div className="bg-white min-h-screen">
       <Header
         onHoverChange={setIsHeaderHovered}
         onSearchOpenChange={setIsSearchOpen}
