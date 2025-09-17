@@ -7,6 +7,7 @@ import ForgotPasswordPage from "../auth/forgotPassword/ForgotPasswordPage";
 import LayoutStaff from "../landing/staff/LayoutStaff";
 import HomePageStaff from "../landing/staff/component/HomePageStaff";
 import AboutUs from "../landing/user/component/subnavComponent/AboutUs";
+import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
 
 const AllRouter = () => {
   return (
@@ -15,6 +16,7 @@ const AllRouter = () => {
         <Route path="/" element={<HomePage />} />
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<AboutUs />} />
+        <Route path="/contactus" element={<ContactUs />} />
         {/* Thêm các route khác cần Header/Footer ở đây */}
       </Route>
       <Route element={<LayoutStaff />}>
