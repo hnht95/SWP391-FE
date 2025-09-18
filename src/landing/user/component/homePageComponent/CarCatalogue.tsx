@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-
+import { GoArrowUpRight } from "react-icons/go";
 import VehiclesCard from "../subnavComponent/vehiclesComponent/VehiclesCard";
-
+import BrandCard from "./BrandCard";
 const carData = [
   {
     id: 1,
@@ -367,34 +367,61 @@ const locations = [
   { name: "Vũng Tàu", image: "/images/nha-trang.jpg" },
 ];
 
-export default function CarCatalogue() {
-  const [selectedLocation, setSelectedLocation] = useState("Tp.HCM");
+const brandData = [
+  { name: "Tesla", image: "/brands/tesla.png" },
+  { name: "VinFast", image: "/brands/vinfast.png" },
+  { name: "BMW", image: "/brands/bmw.png" },
+  { name: "Hyundai", image: "/brands/hyundai.png" },
+  { name: "Audi", image: "/brands/audi.png" },
+  { name: "Mercedes-Benz", image: "/brands/mercedes.png" },
+  { name: "Nissan", image: "/brands/nissan.png" },
+  { name: "Kia", image: "/brands/kia.png" },
+  { name: "Porsche", image: "/brands/porsche.png" },
+  { name: "BYD", image: "/brands/byd.png" },
+  { name: "Lucid", image: "/brands/lucid.png" },
+  { name: "Ford", image: "/brands/ford.png" },
+  { name: "Peugeot", image: "/brands/peugeot.png" },
+  { name: "Volvo", image: "/brands/volvo.png" },
+  { name: "Jaguar", image: "/brands/jaguar.png" },
+  { name: "Renault", image: "/brands/renault.png" },
+  { name: "Subaru", image: "/brands/subaru.png" },
+  { name: "Toyota", image: "/brands/toyota.png" },
+  { name: "Fisker", image: "/brands/fisker.png" },
+  { name: "Lotus", image: "/brands/lotus.png" },
+  { name: "Polestar", image: "/brands/polestar.png" },
+  { name: "Genesis", image: "/brands/genesis.png" },
+  { name: "Rolls-Royce", image: "/brands/rolls-royce.png" },
+];
 
+export default function CarCatalogue() {
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [showAllBrands, setShowAllBrands] = useState(false);
+  const displayedBrands = showAllBrands ? brandData : brandData.slice(0, 6);
   const filteredCars = carData.filter(
     (car) => car.location === selectedLocation && car.type === "EV"
   );
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Electric Car Catalogue ⚡</h2>
+      <h2 className="text-2xl font-bold mb-4">Renting Station Location</h2>
       <p className="text-gray-500 mb-6">
-        Explore electric cars available in different locations!
+        Explore station available in different locations!
       </p>
-      {/* Location Selector với hình ảnh */}
-      <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 sm:mx-0 sm:px-0">
+
+      <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 sm:mx-0 sm:px-0">
         {locations.map((loc) => (
           <div
             key={loc.name}
             onClick={() => setSelectedLocation(loc.name)}
             className={`
-              flex-shrink-0 w-60 h-60 rounded-xl overflow-hidden cursor-pointer relative shadow-lg
-              transition-all duration-300 transform hover:scale-105
-              ${
-                selectedLocation === loc.name
-                  ? "ring-4 ring-blue-600 ring-offset-2"
-                  : ""
-              }
-            `}
+        flex-shrink-0 w-[calc(50%-8px)] sm:w-[calc(33.333%-8px)] md:w-60 h-48 rounded-xl overflow-hidden cursor-pointer relative shadow-lg
+        transition-all duration-300 transform hover:scale-105
+        ${
+          selectedLocation === loc.name
+            ? "ring-4 ring-gray-600 ring-offset-2"
+            : ""
+        }
+      `}
           >
             <img
               src={loc.image}
@@ -408,15 +435,31 @@ export default function CarCatalogue() {
         ))}
       </div>
 
-      {/* Car Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6">
-        {filteredCars.length > 0 ? (
-          filteredCars.map((car) => <VehiclesCard key={car.id} car={car} />)
-        ) : (
-          <p className="text-gray-500 col-span-full">
-            No electric cars available in this location.
-          </p>
-        )}
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Explore our premium brands!</h2>
+          <button
+            onClick={() => setShowAllBrands(!showAllBrands)}
+            className="flex items-center text-black-600 hover:text-black-800 font-semibold transition-colors duration-200 cursor-pointer"
+          >
+            {showAllBrands ? "Show Less" : "Show All Brands"}
+            <GoArrowUpRight
+              className={`ml-1 transition-transform duration-300 ${
+                showAllBrands ? "rotate-90" : ""
+              }`}
+            />
+          </button>
+        </div>
+
+        <div
+          className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 mt-6
+          transition-all duration-500 ease-in-out overflow
+          ${showAllBrands ? "max-h-[1100px]" : "max-h-[250px]"}`}
+        >
+          {displayedBrands.map((brand) => (
+            <BrandCard key={brand.name} brand={brand} />
+          ))}
+        </div>
       </div>
     </div>
   );
