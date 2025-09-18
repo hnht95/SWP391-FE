@@ -19,7 +19,6 @@ const VehiclesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>(); // Lấy id từ URL
   const navigate = useNavigate();
 
-  // Tìm xe trong carData dựa trên id
   const car = carData.find((c) => c.id === parseInt(id || ""));
 
   if (!car) {
