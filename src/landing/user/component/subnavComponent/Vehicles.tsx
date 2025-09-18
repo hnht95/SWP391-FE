@@ -1,5 +1,12 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import VehiclesCard from "./vehiclesComponent/VehiclesCard";
+import { carData } from "../../../../data/carData";
+import {
+  FaSearch,
+  FaMapMarkerAlt,
+  FaUsers,
+  FaChevronDown,
+} from "react-icons/fa";
 
 // Định nghĩa kiểu dữ liệu cho một chiếc xe
 interface Car {
@@ -11,374 +18,150 @@ interface Car {
   range: string;
   image: string;
   location: string;
+  station: string; // Thêm station vào interface
   type: string;
 }
-const carData = [
-  {
-    id: 1,
-    name: "Tesla Model S",
-    price: 85,
-    transmission: "Auto",
-    seats: 5,
-    range: "396 mi",
-    image: "/cars/tesla-model-s.png",
-    location: "Tp.HCM",
-    type: "EV",
-  },
-  {
-    id: 2,
-    name: "VinFast VF8",
-    price: 70,
-    transmission: "Auto",
-    seats: 5,
-    range: "292 mi",
-    image: "/cars/vinfast-vf8.png",
-    location: "Hà Nội",
-    type: "EV",
-  },
-  {
-    id: 3,
-    name: "BMW iX",
-    price: 95,
-    transmission: "Auto",
-    seats: 5,
-    range: "324 mi",
-    image: "/cars/bmw-ix.png",
-    location: "Đà Nẵng",
-    type: "EV",
-  },
-  {
-    id: 4,
-    name: "Hyundai Ioniq 5",
-    price: 65,
-    transmission: "Auto",
-    seats: 5,
-    range: "303 mi",
-    image: "/cars/ioniq-5.png",
-    location: "Phan Thiết",
-    type: "EV",
-  },
-  {
-    id: 5,
-    name: "Tesla Model 3",
-    price: 75,
-    transmission: "Auto",
-    seats: 5,
-    range: "358 mi",
-    image: "/cars/tesla-model-3.png",
-    location: "Tp.HCM",
-    type: "EV",
-  },
-  {
-    id: 6,
-    name: "VinFast VF9",
-    price: 90,
-    transmission: "Auto",
-    seats: 7,
-    range: "369 mi",
-    image: "/cars/vinfast-vf9.png",
-    location: "Hà Nội",
-    type: "EV",
-  },
-  {
-    id: 7,
-    name: "Audi e-tron GT",
-    price: 110,
-    transmission: "Auto",
-    seats: 5,
-    range: "238 mi",
-    image: "/cars/audi-e-tron-gt.png",
-    location: "Đà Nẵng",
-    type: "EV",
-  },
-  {
-    id: 8,
-    name: "Mercedes EQS",
-    price: 120,
-    transmission: "Auto",
-    seats: 5,
-    range: "350 mi",
-    image: "/cars/mercedes-eqs.png",
-    location: "Phan Thiết",
-    type: "EV",
-  },
-  {
-    id: 9,
-    name: "Nissan Leaf",
-    price: 50,
-    transmission: "Auto",
-    seats: 5,
-    range: "226 mi",
-    image: "/cars/nissan-leaf.png",
-    location: "Tp.HCM",
-    type: "EV",
-  },
-  {
-    id: 10,
-    name: "Kia EV6",
-    price: 68,
-    transmission: "Auto",
-    seats: 5,
-    range: "310 mi",
-    image: "/cars/kia-ev6.png",
-    location: "Hà Nội",
-    type: "EV",
-  },
-  {
-    id: 11,
-    name: "Porsche Taycan",
-    price: 150,
-    transmission: "Auto",
-    seats: 4,
-    range: "246 mi",
-    image: "/cars/porsche-taycan.png",
-    location: "Đà Nẵng",
-    type: "EV",
-  },
-  {
-    id: 12,
-    name: "BYD Atto 3",
-    price: 55,
-    transmission: "Auto",
-    seats: 5,
-    range: "260 mi",
-    image: "/cars/byd-atto-3.png",
-    location: "Phan Thiết",
-    type: "EV",
-  },
-  {
-    id: 13,
-    name: "Tesla Model X",
-    price: 130,
-    transmission: "Auto",
-    seats: 7,
-    range: "348 mi",
-    image: "/cars/tesla-model-x.png",
-    location: "Tp.HCM",
-    type: "EV",
-  },
-  {
-    id: 14,
-    name: "VinFast VF6",
-    price: 60,
-    transmission: "Auto",
-    seats: 5,
-    range: "248 mi",
-    image: "/cars/vinfast-vf6.png",
-    location: "Hà Nội",
-    type: "EV",
-  },
-  {
-    id: 15,
-    name: "BMW i4",
-    price: 88,
-    transmission: "Auto",
-    seats: 5,
-    range: "301 mi",
-    image: "/cars/bmw-i4.png",
-    location: "Đà Nẵng",
-    type: "EV",
-  },
-  {
-    id: 16,
-    name: "Hyundai Kona Electric",
-    price: 62,
-    transmission: "Auto",
-    seats: 5,
-    range: "258 mi",
-    image: "/cars/hyundai-kona.png",
-    location: "Phan Thiết",
-    type: "EV",
-  },
-  {
-    id: 17,
-    name: "Tesla Cybertruck",
-    price: 140,
-    transmission: "Auto",
-    seats: 6,
-    range: "500 mi",
-    image: "/cars/tesla-cybertruck.png",
-    location: "Tp.HCM",
-    type: "EV",
-  },
-  {
-    id: 18,
-    name: "Lucid Air",
-    price: 125,
-    transmission: "Auto",
-    seats: 5,
-    range: "516 mi",
-    image: "/cars/lucid-air.png",
-    location: "Hà Nội",
-    type: "EV",
-  },
-  {
-    id: 19,
-    name: "Ford Mustang Mach-E",
-    price: 80,
-    transmission: "Auto",
-    seats: 5,
-    range: "312 mi",
-    image: "/cars/ford-mach-e.png",
-    location: "Đà Nẵng",
-    type: "EV",
-  },
-  {
-    id: 20,
-    name: "Peugeot e-2008",
-    price: 58,
-    transmission: "Auto",
-    seats: 5,
-    range: "214 mi",
-    image: "/cars/peugeot-e2008.png",
-    location: "Phan Thiết",
-    type: "EV",
-  },
-  {
-    id: 21,
-    name: "Volvo XC40 Recharge",
-    price: 92,
-    transmission: "Auto",
-    seats: 5,
-    range: "223 mi",
-    image: "/cars/volvo-xc40.png",
-    location: "Tp.HCM",
-    type: "EV",
-  },
-  {
-    id: 22,
-    name: "Jaguar I-PACE",
-    price: 97,
-    transmission: "Auto",
-    seats: 5,
-    range: "234 mi",
-    image: "/cars/jaguar-i-pace.png",
-    location: "Hà Nội",
-    type: "EV",
-  },
-  {
-    id: 23,
-    name: "Peugeot e-208",
-    price: 33,
-    transmission: "Auto",
-    seats: 5,
-    range: "217 mi",
-    image: "/cars/peugeot-e208.png",
-    location: "Tp.HCM",
-    type: "EV",
-  },
-  {
-    id: 24,
-    name: "Renault Zoe",
-    price: 31,
-    transmission: "Auto",
-    seats: 5,
-    range: "245 mi",
-    image: "/cars/renault-zoe.png",
-    location: "Hà Nội",
-    type: "EV",
-  },
-  {
-    id: 25,
-    name: "Subaru Solterra",
-    price: 44,
-    transmission: "Auto",
-    seats: 5,
-    range: "228 mi",
-    image: "/cars/subaru-solterra.png",
-    location: "Huế",
-    type: "EV",
-  },
-  {
-    id: 26,
-    name: "Toyota bZ4X",
-    price: 42,
-    transmission: "Auto",
-    seats: 5,
-    range: "252 mi",
-    image: "/cars/toyota-bz4x.png",
-    location: "Hải Phòng",
-    type: "EV",
-  },
-  {
-    id: 27,
-    name: "Fisker Ocean",
-    price: 68,
-    transmission: "Auto",
-    seats: 5,
-    range: "350 mi",
-    image: "/cars/fisker-ocean.png",
-    location: "Nha Trang",
-    type: "EV",
-  },
-  {
-    id: 28,
-    name: "Lotus Eletre",
-    price: 120,
-    transmission: "Auto",
-    seats: 5,
-    range: "373 mi",
-    image: "/cars/lotus-eletre.png",
-    location: "Tp.HCM",
-    type: "EV",
-  },
-  {
-    id: 29,
-    name: "Polestar 2",
-    price: 55,
-    transmission: "Auto",
-    seats: 5,
-    range: "270 mi",
-    image: "/cars/polestar-2.png",
-    location: "Đà Nẵng",
-    type: "EV",
-  },
-  {
-    id: 30,
-    name: "Polestar 3",
-    price: 85,
-    transmission: "Auto",
-    seats: 5,
-    range: "379 mi",
-    image: "/cars/polestar-3.png",
-    location: "Đà Lạt",
-    type: "EV",
-  },
-  {
-    id: 31,
-    name: "Genesis GV60",
-    price: 68,
-    transmission: "Auto",
-    seats: 5,
-    range: "248 mi",
-    image: "/cars/genesis-gv60.png",
-    location: "Hà Nội",
-    type: "EV",
-  },
-  {
-    id: 32,
-    name: "Rolls-Royce Spectre",
-    price: 400,
-    transmission: "Auto",
-    seats: 4,
-    range: "320 mi",
-    image: "/cars/rolls-royce-spectre.png",
-    location: "Tp.HCM",
-    type: "EV",
-  },
-];
 
 const Vehicles: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("All");
+  const [selectedStation, setSelectedStation] = useState("All");
+  const [selectedSeats, setSelectedSeats] = useState("All");
+
+  // Sử dụng useMemo để tối ưu hóa, chỉ tính toán lại khi carData thay đổi
+  const allLocations = useMemo(() => {
+    return ["All", ...new Set(carData.map((car) => car.location))];
+  }, []);
+
+  const stationsByLocation = useMemo(() => {
+    const stations = carData
+      .filter(
+        (car) => selectedLocation === "All" || car.location === selectedLocation
+      )
+      .map((car) => car.station);
+    return ["All", ...new Set(stations)];
+  }, [selectedLocation]);
+
+  const filterCars = () => {
+    return carData.filter((car) => {
+      // Lọc theo tên xe
+      const matchesSearchTerm = car.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+      // Lọc theo địa điểm
+      const matchesLocation =
+        selectedLocation === "All" || car.location === selectedLocation;
+
+      // Lọc theo trạm đỗ xe (chỉ áp dụng nếu có trạm được chọn)
+      const matchesStation =
+        selectedStation === "All" || car.station === selectedStation;
+
+      // Lọc theo số chỗ ngồi
+      const matchesSeats =
+        selectedSeats === "All" ||
+        (selectedSeats === "4-5" && car.seats >= 4 && car.seats <= 5) ||
+        (selectedSeats === "6-7" && car.seats >= 6 && car.seats <= 7);
+
+      return (
+        matchesSearchTerm && matchesLocation && matchesStation && matchesSeats
+      );
+    });
+  };
+
+  const filteredVehicles = filterCars();
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold text-center mb-12">
+      <h1 className="text-4xl font-bold text-center mb-4">
         Our Fleet of Electric Vehicles
       </h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {carData.map((car: Car) => (
-          <VehiclesCard key={car.id} car={car} />
-        ))}
+      <p className="text-gray-600 text-center mb-12">
+        Search and filter our extensive fleet to find the car that suits your
+        journey.
+      </p>
+
+      {/* Search and Filter Bar */}
+      <div className="bg-gray-100 p-6 rounded-xl shadow-lg mb-12 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+        {/* Search Input */}
+        <div className="relative w-full md:flex-1">
+          <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by car name..."
+            className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {/* Location Dropdown */}
+        <div className="relative w-full md:w-auto">
+          <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <select
+            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
+            value={selectedLocation}
+            onChange={(e) => {
+              setSelectedLocation(e.target.value);
+              setSelectedStation("All"); // Reset station khi thay đổi location
+            }}
+          >
+            {allLocations.map((loc, index) => (
+              <option key={index} value={loc}>
+                {loc}
+              </option>
+            ))}
+          </select>
+          <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* Station Dropdown */}
+        {selectedLocation !== "All" && (
+          <div className="relative w-full md:w-auto transition-opacity duration-300">
+            <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <select
+              className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
+              value={selectedStation}
+              onChange={(e) => setSelectedStation(e.target.value)}
+            >
+              {stationsByLocation.map((station, index) => (
+                <option key={index} value={station}>
+                  {station}
+                </option>
+              ))}
+            </select>
+            <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
+        )}
+
+        {/* Seats Dropdown */}
+        <div className="relative w-full md:w-auto">
+          <FaUsers className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <select
+            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
+            value={selectedSeats}
+            onChange={(e) => setSelectedSeats(e.target.value)}
+          >
+            <option value="All">All Seats</option>
+            <option value="4-5">4-5 Seats</option>
+            <option value="6-7">6-7 Seats</option>
+          </select>
+          <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
       </div>
+
+      {/* Vehicle Grid */}
+      {filteredVehicles.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {filteredVehicles.map((car: Car) => (
+            <VehiclesCard key={car.id} car={car} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center text-gray-500 text-xl py-10">
+          No vehicles found matching your criteria.
+        </div>
+      )}
     </div>
   );
 };

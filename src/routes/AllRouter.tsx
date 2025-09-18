@@ -11,25 +11,45 @@ import Vehicles from "../landing/user/component/subnavComponent/Vehicles";
 import TermsOfService from "../landing/user/component/footerComponent/TermOfService";
 import FAQ from "../landing/user/component/footerComponent/FAQ";
 import PrivacyPolicy from "../landing/user/component/footerComponent/PrivacyPolicy";
+import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
+
+import React, { useState } from "react";
+import VehiclesDetail from "../landing/user/component/subnavComponent/vehiclesComponent/VehiclesDetail";
 
 const AllRouter = () => {
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "handover" | "maintain" | "reports" | "vehicles"
+  >("dashboard");
+
   return (
     <Routes>
       <Route element={<LayoutUser />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<Vehicles />} />
+        <Route path="/vehicles/:id" element={<VehiclesDetail />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/vehicles" element={<AboutUs />} />
+        <Route path="/contactus" element={<ContactUs />} />
         {/* Thêm các route khác cần Header/Footer ở đây */}
       </Route>
       <Route element={<LayoutStaff />}>
-        <Route path="/staff" element={<HomePageStaff />} />
-        <Route path="/staff/dashboard" element={<HomePageStaff />} />
+        <Route
+          path="/staff"
+          element={
+            <HomePageStaff activeTab={activeTab} setActiveTab={setActiveTab} />
+          }
+        />
+        <Route
+          path="/staff/dashboard"
+          element={
+            <HomePageStaff activeTab={activeTab} setActiveTab={setActiveTab} />
+          }
+        />
 
         {/* <Route path="/aboutUs" element={<AboutUs />} /> */}
-        {/* Thêm các route khác cần Header/Footer ở đây */}
       </Route>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />

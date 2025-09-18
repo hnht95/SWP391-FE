@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 
 interface Car {
   id: number;
@@ -10,6 +11,7 @@ interface Car {
   image: string;
   location: string;
   type: string;
+  station?: string; // Tùy chọn, thêm nếu bạn muốn
 }
 
 interface CarCardProps {
@@ -17,6 +19,12 @@ interface CarCardProps {
 }
 
 const VehiclesCard: React.FC<CarCardProps> = ({ car }) => {
+  const navigate = useNavigate(); // Sử dụng hook navigate
+
+  const handleRentNowClick = () => {
+    navigate(`/vehicles/${car.id}`); // Điều hướng đến trang chi tiết
+  };
+
   return (
     <div
       key={car.id}
@@ -34,8 +42,11 @@ const VehiclesCard: React.FC<CarCardProps> = ({ car }) => {
         <span>{car.seats} Seats</span>
         <span>{car.range}</span>
       </div>
-      <button className="w-full bg-black text-white py-2 mt-2 rounded-lg hover:bg-gray-800 transition-all">
-        Rent Now
+      <button
+        onClick={handleRentNowClick} // Thêm sự kiện onClick
+        className="w-full bg-black text-white py-2 mt-2 rounded-lg hover:bg-gray-800 transition-all"
+      >
+        Car Details
       </button>
     </div>
   );

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 import {
   FaFacebook,
@@ -12,6 +13,38 @@ import {
 import { Link } from "react-router-dom";
 
 const Footer = () => {
+  const [isBackToTopVisible, setIsBackToTopVisible] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const toggleVisibility = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Nếu scroll lên thì ẩn ngay lập tức
+      if (currentScrollY < lastScrollY) {
+        setIsBackToTopVisible(false);
+      }
+      // Nếu scroll xuống và > 800px thì hiện
+      else if (currentScrollY > lastScrollY && currentScrollY > 800) {
+        setIsBackToTopVisible(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', toggleVisibility);
+    toggleVisibility();
+
+    return () => window.removeEventListener('scroll', toggleVisibility);
+  }, [lastScrollY]);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
   return (
     <footer className="bg-gradient-to-r from-black via-black to-gray-950 text-white py-12 px-4 relative overflow-hidden">
       {/* Light reflection effects */}
@@ -31,7 +64,7 @@ const Footer = () => {
                   <img
                     src={logoWeb}
                     alt="ZaMi Logo"
-                    className="w-16 md:w-20 h-auto object-contain"
+                    className="w-16 md:w-20 h-auto object-contain select-none"
                     style={{ filter: "brightness(0) invert(1)" }}
                   />
                 </div>
@@ -85,24 +118,28 @@ const Footer = () => {
                 <div className="space-y-2">
                   <Link
                     to="/"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                     className="block text-gray-300 hover:text-gray-200 transition-colors duration-300"
                   >
                     Home
                   </Link>
                   <Link
                     to="/vehicles"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                     className="block text-gray-300 hover:text-gray-200 transition-colors duration-300"
                   >
                     Electric Vehicles
                   </Link>
                   <Link
                     to="/aboutus"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                     className="block text-gray-300 hover:text-gray-200 transition-colors duration-300"
                   >
                     About Us
                   </Link>
                   <Link
-                    to="/contact"
+                    to="/contactus"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                     className="block text-gray-300 hover:text-gray-200 transition-colors duration-300"
                   >
                     Contact Us
@@ -159,15 +196,15 @@ const Footer = () => {
               </div>
               <div className="mt-3 space-y-2 text-gray-300 text-sm">
                 <div className="flex items-center space-x-2">
-                  <FaMapMarkerAlt className="text-emerald-400" />
+                  <FaMapMarkerAlt className="text-gray-400" />
                   <span>136/15 Trần Quang Diệu, Phường Nhiu Lộc</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <FaEnvelope className="text-emerald-400" />
+                  <FaEnvelope className="text-gray-400" />
                   <span>hello@zami.com</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <FaPhone className="text-emerald-400" />
+                  <FaPhone className="text-gray-400" />
                   <span>0917971420</span>
                 </div>
               </div>
@@ -176,9 +213,55 @@ const Footer = () => {
 
           {/* Bottom Border */}
           <div className="mt-8 pt-6 border-t border-gray-700">
-            <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-300">
-              <p>&copy; 2024 ZaMi. All rights reserved.</p>
-              <div className="flex space-x-4 mt-2 md:mt-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center text-sm text-gray-300">
+              {/* Left: Copyright */}
+              <div className="text-center md:text-left">
+                <p>&copy; 2024 ZaMi. All rights reserved.</p>
+              </div>
+              
+              {/* Center: Back to Top Button */}
+              <div className="flex justify-center">
+                <button
+                  className={`
+                    relative bg-black/80 hover:bg-black/90 text-white rounded-full p-3 
+                    shadow-lg hover:shadow-2xl backdrop-blur-sm cursor-pointer select-none
+                    border border-white/20 hover:border-white/60
+                    transition-all duration-500 ease-in-out
+                    hover:scale-110 group
+                    ${isBackToTopVisible ? 
+                      'opacity-100 scale-100 translate-y-0' : 
+                      'opacity-0 scale-90 translate-y-2 pointer-events-none'
+                    }
+                  `}
+                  onClick={scrollToTop}
+                  aria-label="Back to top"
+                >
+                  {/* Glow effect on hover */}
+                  <div className="absolute -inset-1 bg-white/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm"></div>
+                  
+                  <div className="relative flex flex-col items-center">
+                    <svg
+                      className="w-4 h-4 mb-1 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 10l7-7m0 0l7 7m-7-7v18"
+                      />
+                    </svg>
+                    <span className="text-xs font-medium transition-all duration-300 group-hover:drop-shadow-[0_0_6px_rgba(255,255,255,0.9)] group-hover:text-white">
+                      Top
+                    </span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Right: Terms & Privacy */}
+              <div className="flex justify-center md:justify-end space-x-4">
                 <a
                   href="/terms"
                   className="hover:text-gray-200 transition-colors duration-300"
@@ -201,3 +284,4 @@ const Footer = () => {
 };
 
 export default Footer;
+
