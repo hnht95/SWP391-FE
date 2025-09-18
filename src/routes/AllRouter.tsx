@@ -8,6 +8,7 @@ import LayoutStaff from "../landing/staff/LayoutStaff";
 import HomePageStaff from "../landing/staff/component/HomePageStaff";
 import AboutUs from "../landing/user/component/subnavComponent/AboutUs";
 import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
+import UserProfile from "../landing/user/component/UserProfile";
 
 const AllRouter = () => {
   return (
@@ -17,6 +18,7 @@ const AllRouter = () => {
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<AboutUs />} />
         <Route path="/contactus" element={<ContactUs />} />
+        <Route path="/profile" element={<UserProfile />} />
         {/* Thêm các route khác cần Header/Footer ở đây */}
       </Route>
       <Route element={<LayoutStaff />}>
