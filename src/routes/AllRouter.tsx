@@ -12,6 +12,7 @@ import TermsOfService from "../landing/user/component/footerComponent/TermOfServ
 import FAQ from "../landing/user/component/footerComponent/FAQ";
 import PrivacyPolicy from "../landing/user/component/footerComponent/PrivacyPolicy";
 import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
+import UserProfile from "../landing/user/component/headerComponent/userComponent/UserProfile";
 
 import React, { useState } from "react";
 import VehiclesDetail from "../landing/user/component/subnavComponent/vehiclesComponent/VehiclesDetail";
@@ -33,6 +34,7 @@ const AllRouter = () => {
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/vehicles" element={<AboutUs />} />
         <Route path="/contactus" element={<ContactUs />} />
+        <Route path="/profile" element={<UserProfile />} />
         {/* Thêm các route khác cần Header/Footer ở đây */}
       </Route>
       <Route element={<LayoutStaff />}>
