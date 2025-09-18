@@ -1,28 +1,27 @@
 import React, { useState } from "react";
-import Sidebar from "./component/SidebarStaff";
-import { Outlet } from "react-router-dom";
+import SidebarStaff from "./component/SidebarStaff";
+import HomePageStaff from "./component/HomePageStaff";
 
 const LayoutStaff = () => {
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "handover" | "maintain" | "reports"
+  >("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar
+      <SidebarStaff
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
       />
-
-      {/* Main Content */}
       <div
         className={`flex-1 flex flex-col transition-all duration-300 ${
           isSidebarCollapsed ? "ml-16" : "ml-64"
         }`}
       >
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-auto p-6">
-          <Outlet />
-        </main>
+        <HomePageStaff activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
     </div>
   );
