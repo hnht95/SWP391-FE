@@ -7,10 +7,15 @@ import ForgotPasswordPage from "../auth/forgotPassword/ForgotPasswordPage";
 import LayoutStaff from "../landing/staff/LayoutStaff";
 import HomePageStaff from "../landing/staff/component/HomePageStaff";
 import AboutUs from "../landing/user/component/subnavComponent/AboutUs";
+import Vehicles from "../landing/user/component/subnavComponent/Vehicles";
+import TermsOfService from "../landing/user/component/footerComponent/TermOfService";
+import FAQ from "../landing/user/component/footerComponent/FAQ";
+import PrivacyPolicy from "../landing/user/component/footerComponent/PrivacyPolicy";
 import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
-import UserProfile from "../landing/user/component/UserProfile";
+import UserProfile from "../landing/user/component/headerComponent/userComponent/UserProfile";
 
 import React, { useState } from "react";
+import VehiclesDetail from "../landing/user/component/subnavComponent/vehiclesComponent/VehiclesDetail";
 
 const AllRouter = () => {
   const [activeTab, setActiveTab] = useState<
@@ -22,6 +27,11 @@ const AllRouter = () => {
       <Route element={<LayoutUser />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/aboutus" element={<AboutUs />} />
+        <Route path="/vehicles" element={<Vehicles />} />
+        <Route path="/vehicles/:id" element={<VehiclesDetail />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/vehicles" element={<AboutUs />} />
         <Route path="/contactus" element={<ContactUs />} />
         <Route path="/profile" element={<UserProfile />} />
