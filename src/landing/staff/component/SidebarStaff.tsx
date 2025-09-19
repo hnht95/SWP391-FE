@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   MdDashboard,
   MdSwapHoriz,
@@ -12,61 +13,59 @@ import {
   MdDirectionsCar,
 } from "react-icons/md";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
+import { FaUser } from "react-icons/fa";
 
 export interface SidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
-  activeTab: "dashboard" | "handover" | "maintain" | "vehicles" | "reports";
-  setActiveTab: React.Dispatch<
-    React.SetStateAction<
-      "dashboard" | "handover" | "maintain" | "vehicles" | "reports"
-    >
-  >;
 }
 
-const SidebarStaff = ({
-  isCollapsed,
-  onToggleCollapse,
-  activeTab,
-  setActiveTab,
-}: SidebarProps) => {
+const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const menuItems = [
     {
       id: "dashboard",
       label: "Dashboard",
       icon: <MdDashboard className="w-5 h-5" />,
-      tabKey: "dashboard" as const,
+      path: "/staff/dashboard",
     },
     {
-      id: "pickup-return",
+      id: "users",
+      label: "Users",
+      icon: <FaUser className="w-5 h-5" />,
+      path: "/staff/users",
+    },
+    {
+      id: "handover",
       label: "Vehicle Handover",
       icon: <MdSwapHoriz className="w-5 h-5" />,
-      tabKey: "handover" as const,
+      path: "/staff/handover",
     },
     {
-      id: "maintenance",
+      id: "maintain",
       label: "Vehicle Maintenance",
       icon: <MdSettings className="w-5 h-5" />,
-      tabKey: "maintain" as const,
+      path: "/staff/maintain",
     },
     {
       id: "vehicles",
       label: "Vehicles",
       icon: <MdDirectionsCar className="w-5 h-5" />,
-      tabKey: "vehicles" as const,
+      path: "/staff/vehicles",
     },
     {
-      id: "support",
+      id: "reports",
       label: "Customer Support",
       icon: <MdSupport className="w-5 h-5" />,
-      tabKey: "reports" as const,
+      path: "/staff/reports",
     },
   ];
 
   const handleMenuClick = (item: (typeof menuItems)[0]) => {
-    setActiveTab(item.tabKey);
+    navigate(item.path);
   };
 
   return (
@@ -102,7 +101,7 @@ const SidebarStaff = ({
               role="button"
               key={item.id}
               className={`flex w-full items-center px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
-                activeTab === item.tabKey
+                location.pathname === item.path
                   ? "bg-black text-white shadow-md"
                   : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
               }`}
