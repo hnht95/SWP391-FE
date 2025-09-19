@@ -65,34 +65,6 @@ export default function CarCatalogue() {
           </div>
         ))}
       </div>
-
-      {/* Brands Section */}
-      <div className="mt-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Explore our premium brands!</h2>
-          <button
-            onClick={() => setShowAllBrands(!showAllBrands)}
-            className="flex items-center text-black-600 hover:text-black-800 font-semibold transition-colors duration-200 cursor-pointer"
-          >
-            {showAllBrands ? "Show Less" : "Show All Brands"}
-            <GoArrowUpRight
-              className={`ml-1 transition-transform duration-300 ${
-                showAllBrands ? "rotate-90" : ""
-              }`}
-            />
-          </button>
-        </div>
-
-        <div
-          className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 mt-6
-          transition-all duration-500 ease-in-out overflow-hidden
-          ${showAllBrands ? "max-h-[1100px]" : "max-h-[250px]"}`}
-        >
-          {displayedBrands.map((brand) => (
-            <BrandCard key={brand.name} brand={brand} />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

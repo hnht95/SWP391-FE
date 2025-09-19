@@ -19,7 +19,7 @@ const LayoutUser = () => {
       />
 
       {/* Offset only header height; let SubNav overlay carousel */}
-      <div className="pt-[80px] md:pt-[88px]">
+      <div className="pt-[80px] md:pt-[45px]">
         {/* Route con sẽ được render ở đây */}
         <Outlet />
       </div>

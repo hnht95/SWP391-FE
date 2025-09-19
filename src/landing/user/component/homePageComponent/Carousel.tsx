@@ -79,7 +79,7 @@ const CarouselHome: React.FC = () => {
       >
         {carData.map((car) => (
           <div key={car.id} className="relative">
-            <div className="w-full h-[500px] relative">
+            <div className="w-full h-[610px] relative">
               <video
                 src={car.video}
                 autoPlay
