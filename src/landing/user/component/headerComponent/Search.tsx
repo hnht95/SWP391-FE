@@ -69,7 +69,7 @@ const Search: React.FC<SearchProps> = ({
           {/* Search Icon */}
           <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
             <svg 
-              className="w-5 h-5 text-black" 
+              className="w-10 h-10 text-black" 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"

@@ -83,9 +83,9 @@ const SettingsTab = () => {
           className='space-y-6'
         >
           <div className='flex items-center space-x-3'>
-            {section.title === 'Appearance' && <Moon className='w-6 h-6 text-blue-400' />}
-            {section.title === 'Notifications' && <Mail className='w-6 h-6 text-green-400' />}
-            <h4 className='text-xl font-bold text-white'>
+            {section.title === 'Appearance' && <Moon className='w-6 h-6 text-black' />}
+            {section.title === 'Notifications' && <Mail className='w-6 h-6 text-black' />}
+            <h4 className='text-xl font-bold text-black'>
               {section.title}
             </h4>
           </div>
@@ -102,16 +102,16 @@ const SettingsTab = () => {
                   ease: 'easeOut' 
                 }}
                 whileHover={{ y: -2 }}
-                className='flex items-center justify-between p-6 bg-white/5 backdrop-blur-sm rounded-2xl hover:bg-white/10 transition-all duration-300 ease-out border border-white/10 shadow-lg hover:shadow-xl group cursor-pointer'
+                    className='flex items-center justify-between p-6 bg-white rounded-2xl hover:bg-gray-50 transition-all duration-300 ease-out border border-gray-200 shadow-lg hover:shadow-xl group cursor-pointer'
               >
                 <div className='flex items-center space-x-4'>
-                  <div className='text-white group-hover:scale-110 transition-transform duration-300'>
-                    {setting.icon}
-                  </div>
-                  <div>
-                    <p className='font-semibold text-white text-lg group-hover:text-gray-200 transition-colors duration-300'>{setting.label}</p>
-                    <p className='text-gray-300 mt-1 leading-relaxed'>{setting.description}</p>
-                  </div>
+                      <div className='text-black group-hover:scale-110 transition-transform duration-300'>
+                        {setting.icon}
+                      </div>
+                      <div>
+                        <p className='font-semibold text-black text-lg group-hover:text-gray-700 transition-colors duration-300'>{setting.label}</p>
+                        <p className='text-gray-600 mt-1 leading-relaxed'>{setting.description}</p>
+                      </div>
                 </div>
                 
                 <Toggle
@@ -129,20 +129,13 @@ const SettingsTab = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.4, ease: 'easeOut' }}
-        className='p-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl border border-white/20 shadow-lg'
+        className='p-6 bg-white rounded-2xl border border-gray-200 shadow-lg'
       >
         <div className='flex items-center space-x-3 mb-4'>
-          <Star className='w-6 h-6 text-yellow-400' />
-          <h4 className='text-xl font-bold text-white'>Premium Features</h4>
+          <Star className='w-6 h-6 text-black' />
+          <h4 className='text-xl font-bold text-black'>Premium Features</h4>
         </div>
-        <p className='text-gray-300 mb-4'>Unlock advanced features and enhanced security with ZaMi Premium.</p>
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className='px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg'
-        >
-          Upgrade to Premium
-        </motion.button>
+        <p className='text-gray-600 mb-4'>Unlock advanced features and enhanced security with ZaMi Premium.</p>
       </motion.div>
 
       {/* Action Buttons */}
@@ -155,14 +148,14 @@ const SettingsTab = () => {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className='flex-1 py-4 bg-white text-black rounded-2xl font-medium hover:bg-gray-100 transition-all duration-300 ease-out shadow-lg flex items-center justify-center space-x-2'
+              className='flex-1 py-4 bg-black text-white rounded-2xl font-medium hover:bg-gray-800 transition-all duration-300 ease-out shadow-lg flex items-center justify-center space-x-2'
         >
           <span>Save Changes</span>
         </motion.button>
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className='flex-1 py-4 bg-white/10 text-white rounded-2xl font-medium hover:bg-white/20 transition-all duration-300 ease-out border border-white/20 shadow-lg flex items-center justify-center space-x-2'
+              className='flex-1 py-4 bg-gray-50 text-black rounded-2xl font-medium hover:bg-gray-100 transition-all duration-300 ease-out border border-gray-300 shadow-lg flex items-center justify-center space-x-2'
         >
           <RotateCcw className='w-4 h-4' />
           <span>Reset to Default</span>

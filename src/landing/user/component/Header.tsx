@@ -162,10 +162,10 @@ export default function Header({
                     onHoverChange && onHoverChange(false);
                     onSearchOpenChange && onSearchOpenChange(true);
                   }}
-                  className="group flex items-center gap-1 text-white transition duration-200 px-2 hover:brightness-200 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)] cursor-pointer"
+                  className="group flex items-center gap-2 text-white transition duration-200 px-3 py-1 hover:brightness-200 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)] cursor-pointer"
                 >
                   <svg
-                    className="w-4 h-4 text-white group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
+                    className="w-6 h-5 text-white group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -178,7 +178,7 @@ export default function Header({
                     />
                   </svg>
                   <span
-                    className="text-[12px] font-normal group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
+                    className="text-[16px] font-medium group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
                     style={{ fontFamily: '"MBCorpo Text", sans-serif' }}
                   >
                     Search
@@ -213,7 +213,7 @@ export default function Header({
                     setSearchValue("");
                     onSearchOpenChange && onSearchOpenChange(false);
                   }}
-                  className="text-white text-[12px] font-normal px-2 py-1 rounded hover:bg-white/10 transition-colors duration-200"
+                  className="text-white text-[14px] font-normal px-3 py-1.5 rounded cursor-pointer border border-transparent hover:border-white hover:bg-white/5 transition-all duration-300 ease-in-out"
                   style={{ fontFamily: '"MBCorpo Text", sans-serif' }}
                 >
                   Close Search
