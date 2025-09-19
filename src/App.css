@@ -1,1 +1,8 @@
 @import "tailwindcss";
+div[role="button"] {
+  cursor: pointer;
+}
+/* width */
+::-webkit-scrollbar {
+  display: none;
+}
