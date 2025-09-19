@@ -1,3 +1,5 @@
+import vf8 from "../assets/vehicles/vf8.png";
+import vf9 from "../assets/vehicles/vf9.png";
 export const carData = [
   {
     id: 1,
@@ -18,7 +20,7 @@ export const carData = [
     transmission: "Auto",
     seats: 5,
     range: "292 mi",
-    image: "/cars/vinfast-vf8.png",
+    image: vf8,
     location: "Hà Nội",
     station: "Station D - Cầu Giấy", // Thêm thuộc tính station
     type: "EV",
@@ -66,7 +68,7 @@ export const carData = [
     transmission: "Auto",
     seats: 7,
     range: "369 mi",
-    image: "/cars/vinfast-vf9.png",
+    image: vf9,
     location: "Hà Nội",
     station: "Station E - Hoàn Kiếm",
     type: "EV",
