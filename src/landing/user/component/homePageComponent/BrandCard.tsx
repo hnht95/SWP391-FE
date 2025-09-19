@@ -1,3 +1,4 @@
+// src/components/common/BrandCard.tsx (hoặc nơi bạn lưu trữ nó)
 import React from "react";
 
 interface Brand {
@@ -11,13 +12,12 @@ interface BrandCardProps {
 
 const BrandCard: React.FC<BrandCardProps> = ({ brand }) => {
   return (
-    <div className="flex flex-col items-center justify-center p-4 rounded-xl shadow-md transition-all duration-300 hover:shadow-xl cursor-pointer">
+    <div className="flex flex-col items-center justify-center p-2 mx-4 flex-shrink-0">
       <img
         src={brand.image}
         alt={brand.name}
-        className="w-24 h-24 object-contain mb-2"
+        className="w-20 h-20 object-contain mb-1 filter grayscale hover:grayscale-0 transition-all duration-300" // Làm mờ logo và sáng lên khi hover
       />
-      <span className="text-lg font-semibold text-gray-800">{brand.name}</span>
     </div>
   );
 };
