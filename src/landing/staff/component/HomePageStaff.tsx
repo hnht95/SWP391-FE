@@ -1,31 +1,23 @@
-import React from "react";
-import DashboardStaff from "../homepageStaffComponent/DashboardStaff";
-import VehicleHandover from "../homepageStaffComponent/VehicleHandover";
-import VehicleMaintain from "../homepageStaffComponent/VehicleMaintain";
-import StaffReport from "../homepageStaffComponent/StaffReport";
-import VehiclesStaff from "../homepageStaffComponent/VehiclesStaff";
+import { useState } from "react";
+import { Outlet } from "react-router-dom";
+import SidebarStaff from "./SidebarStaff";
 
-export interface HomePageStaffProps {
-  activeTab: "dashboard" | "handover" | "maintain" | "reports" | "vehicles";
-  setActiveTab: React.Dispatch<
-    React.SetStateAction<
-      "dashboard" | "handover" | "maintain" | "reports" | "vehicles"
-    >
-  >;
-}
+const HomePageStaff = () => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
-const HomePageStaff = (props: HomePageStaffProps) => {
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
+  };
   return (
-    <main className="flex-1 px-8 py-3 overflow-auto">
-      {/* Tab Content */}
-      <div>
-        {props.activeTab === "dashboard" && <DashboardStaff />}
-        {props.activeTab === "handover" && <VehicleHandover />}
-        {props.activeTab === "maintain" && <VehicleMaintain />}
-        {props.activeTab === "reports" && <StaffReport />}
-        {props.activeTab === "vehicles" && <VehiclesStaff />}
+    <div className="flex-1 px-8 py-3 overflow-auto">
+      <SidebarStaff
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
+      />
+      <div className="flex-1 transition-all duration-300 ">
+        <Outlet />
       </div>
-    </main>
+    </div>
   );
 };
 
