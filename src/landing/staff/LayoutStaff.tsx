@@ -3,9 +3,9 @@ import SidebarStaff from "./component/SidebarStaff";
 import HomePageStaff from "./component/HomePageStaff";
 
 const LayoutStaff = () => {
-  const [activeTab, setActiveTab] = useState<
-    "dashboard" | "handover" | "maintain" | "reports"
-  >("dashboard");
+  // const [activeTab, setActiveTab] = useState<
+  //   "dashboard" | "handover" | "maintain" | "reports"
+  // >("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
@@ -13,15 +13,15 @@ const LayoutStaff = () => {
       <SidebarStaff
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        // activeTab={activeTab}
+        // setActiveTab={setActiveTab}
       />
       <div
         className={`flex-1 flex flex-col transition-all duration-300 ${
           isSidebarCollapsed ? "ml-16" : "ml-64"
         }`}
       >
-        <HomePageStaff activeTab={activeTab} setActiveTab={setActiveTab} />
+        <HomePageStaff />
       </div>
     </div>
   );

@@ -21,18 +21,18 @@ import {
   MdPriorityHigh,
   MdMore,
 } from "react-icons/md";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
+// import {
+//   PieChart,
+//   Pie,
+//   Cell,
+//   ResponsiveContainer,
+//   BarChart,
+//   Bar,
+//   XAxis,
+//   YAxis,
+//   CartesianGrid,
+//   Tooltip,
+// } from "recharts";
 
 interface Vehicle {
   id: string;
@@ -221,36 +221,36 @@ const VehiclesStaff = () => {
     lowBattery: vehicles.filter((v) => v.status === "low_battery").length,
   };
 
-  const pieData = [
-    { name: "Available", value: stats.available, color: "#10B981" },
-    { name: "Rented", value: stats.rented, color: "#6B7280" },
-    { name: "Maintenance", value: stats.maintenance, color: "#EF4444" },
-    { name: "Low Battery", value: stats.lowBattery, color: "#F59E0B" },
-  ];
+  // const pieData = [
+  //   { name: "Available", value: stats.available, color: "#10B981" },
+  //   { name: "Rented", value: stats.rented, color: "#6B7280" },
+  //   { name: "Maintenance", value: stats.maintenance, color: "#EF4444" },
+  //   { name: "Low Battery", value: stats.lowBattery, color: "#F59E0B" },
+  // ];
 
-  const barData = [
-    {
-      name: "Scooter",
-      available: vehicles.filter(
-        (v) => v.type === "scooter" && v.status === "available"
-      ).length,
-      total: vehicles.filter((v) => v.type === "scooter").length,
-    },
-    {
-      name: "Sport",
-      available: vehicles.filter(
-        (v) => v.type === "sport" && v.status === "available"
-      ).length,
-      total: vehicles.filter((v) => v.type === "sport").length,
-    },
-    {
-      name: "Standard",
-      available: vehicles.filter(
-        (v) => v.type === "standard" && v.status === "available"
-      ).length,
-      total: vehicles.filter((v) => v.type === "standard").length,
-    },
-  ];
+  // const barData = [
+  //   {
+  //     name: "Scooter",
+  //     available: vehicles.filter(
+  //       (v) => v.type === "scooter" && v.status === "available"
+  //     ).length,
+  //     total: vehicles.filter((v) => v.type === "scooter").length,
+  //   },
+  //   {
+  //     name: "Sport",
+  //     available: vehicles.filter(
+  //       (v) => v.type === "sport" && v.status === "available"
+  //     ).length,
+  //     total: vehicles.filter((v) => v.type === "sport").length,
+  //   },
+  //   {
+  //     name: "Standard",
+  //     available: vehicles.filter(
+  //       (v) => v.type === "standard" && v.status === "available"
+  //     ).length,
+  //     total: vehicles.filter((v) => v.type === "standard").length,
+  //   },
+  // ];
 
   const handleVehicleClick = (vehicle: Vehicle) => {
     setSelectedVehicle(vehicle);
@@ -342,7 +342,7 @@ const VehiclesStaff = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
+        {/* <div className="bg-white rounded-xl p-6 border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Vehicle Status Distribution
           </h3>
@@ -376,9 +376,9 @@ const VehiclesStaff = () => {
               </div>
             ))}
           </div>
-        </div>
+        </div> */}
 
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
+        {/* <div className="bg-white rounded-xl p-6 border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Availability by Type
           </h3>
@@ -392,7 +392,7 @@ const VehiclesStaff = () => {
               <Bar dataKey="total" fill="#E5E7EB" name="Total" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </div> */}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 mb-6">

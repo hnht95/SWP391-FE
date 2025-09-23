@@ -33,16 +33,15 @@ const BrandsSlider: React.FC = () => {
 
   return (
     <div className="w-full text-black overflow-hidden py-16">
-      <div className="relative z-10 container mx-auto text-center px-4">
+      <div className="relative z-10 container mx-auto text-center">
         <h2 className="text-4xl font-extrabold mb-4 text-black flex items-center justify-center">
-          <span className="mr-2 text-2xl">✨</span> Rent by Brands{" "}
-          <span className="ml-2 text-2xl">✨</span>
+          Rent by Brands{" "}
         </h2>
         <p className="text-lg text-gray-500 mb-12">
           Here's a list of some of the most popular cars globally
         </p>
 
-        <div className="w-full bg-black bg-opacity-40 rounded-lg p-4">
+        <div className="w-full bg-black/80 bg-opacity-40  p-4">
           <div
             ref={sliderRef}
             className="flex overflow-hidden py-4 justify-center"
