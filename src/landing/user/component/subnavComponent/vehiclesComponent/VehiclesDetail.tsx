@@ -1,22 +1,15 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { carData } from "../../../../../data/carData";
-
-interface Car {
-  id: number;
-  name: string;
-  price: number;
-  transmission: string;
-  seats: number;
-  range: string;
-  image: string;
-  location: string;
-  station?: string;
-  type: string;
-}
+import ImageGallery from "./vehiclesDetailComponent/ImageGallery";
+import Specifications from "./vehiclesDetailComponent/Specifications";
+import Description from "./vehiclesDetailComponent/Description";
+import CarFeatures from "./vehiclesDetailComponent/CarFeatures";
+import RentalDocument from "./vehiclesDetailComponent/RentalDocument";
+import RentalOptions from "./vehiclesDetailComponent/RentalOptions";
 
 const VehiclesDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>(); // Lấy id từ URL
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const car = carData.find((c) => c.id === parseInt(id || ""));
@@ -35,63 +28,52 @@ const VehiclesDetail: React.FC = () => {
     );
   }
 
+  const carImages = [
+    car.image,
+    "https://via.placeholder.com/1000x700/87CEEB/FFFFFF?text=Interior+View",
+    "https://via.placeholder.com/1000x700/90EE90/000000?text=Rear+View",
+    "https://via.placeholder.com/1000x700/F08080/FFFFFF?text=Dashboard",
+  ];
+
+  const similarCars = carData
+    .filter((c) => c.id !== car.id && c.type === car.type)
+    .slice(0, 3);
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col lg:flex-row items-center">
-        {/* Car Image */}
-        <div className="lg:w-1/2 w-full mb-6 lg:mb-0">
-          <img
-            src={car.image}
-            alt={car.name}
-            className="w-full h-auto object-contain rounded-xl"
-          />
+    <div className="container mx-auto px-4 py-8 md:py-16">
+      {/* Main Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-8">
+        {/* Left Column: Image Gallery, Features, and Rental Documents */}
+        <div className="lg:col-span-6 flex flex-col gap-4">
+          <ImageGallery images={carImages} vehicleName={car.name} />
+          <Description description={car.description} />
+          <CarFeatures />
+
+          <RentalDocument />
         </div>
 
-        {/* Car Details */}
-        <div className="lg:w-1/2 w-full lg:pl-12">
-          <h1 className="text-4xl font-bold mb-2">{car.name}</h1>
-          <p className="text-xl text-gray-700 mb-4">${car.price}/day</p>
+        {/* Right Column: Vehicle Info, Specs, Description, and Renting Options */}
+        <div className="lg:col-span-4 flex flex-col gap-6">
+          <div className="bg-white p-4 rounded-lg shadow-md">
+            <h1 className="text-3xl font-bold mb-2">{car.name}</h1>
 
-          <div className="grid grid-cols-2 gap-4 text-gray-600 mb-6">
-            <p>
-              <strong>Transmission:</strong> {car.transmission}
-            </p>
-            <p>
-              <strong>Seats:</strong> {car.seats}
-            </p>
-            <p>
-              <strong>Range:</strong> {car.range}
-            </p>
-            <p>
-              <strong>Location:</strong> {car.location}
-            </p>
-            {car.station && (
-              <p>
-                <strong>Station:</strong> {car.station}
+            <Specifications
+              transmission={car.transmission}
+              seats={car.seats}
+              fuelType={car.type}
+              fuelConsumption="7L/100km"
+              mileage="50,000 km"
+              engine="2.0L"
+            />
+
+            <div className="mt-6 space-y-4">
+              <p className="text-2xl font-semibold text-green-600 mb-4">
+                {car.price} $/day
               </p>
-            )}
-            <p>
-              <strong>Type:</strong> {car.type}
-            </p>
-          </div>
-
-          <p className="text-gray-500 mb-8">
-            This {car.name} offers a smooth and powerful ride, perfect for both
-            city commutes and long road trips. With its spacious interior and
-            advanced features, you'll experience comfort and efficiency like
-            never before.
-          </p>
-
-          <div className="flex space-x-4">
-            <button className="flex-1 bg-black text-white font-bold py-3 rounded-lg hover:bg-gray-800 transition-all">
-              Book Now
-            </button>
-            <button
-              onClick={() => navigate(-1)}
-              className="flex-1 bg-gray-200 text-black font-bold py-3 rounded-lg hover:bg-gray-300 transition-all"
-            >
-              Go Back
-            </button>
+              <button className="w-full py-3 bg-black cursor-pointer text-white font-semibold rounded-lg hover:bg-grey-700 transition-colors">
+                Rent Now
+              </button>
+            </div>
           </div>
         </div>
       </div>
