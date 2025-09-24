@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import VehiclesCard from "./vehiclesComponent/VehiclesCard";
 import { carData } from "../../../../data/carData";
 import {
@@ -23,10 +24,21 @@ interface Car {
 }
 
 const Vehicles: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  
+  // Initialize state from URL params
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [selectedStation, setSelectedStation] = useState("All");
   const [selectedSeats, setSelectedSeats] = useState("All");
+
+  // Set initial search term from URL params
+  useEffect(() => {
+    const urlSearchTerm = searchParams.get('search');
+    if (urlSearchTerm) {
+      setSearchTerm(decodeURIComponent(urlSearchTerm));
+    }
+  }, [searchParams]);
 
   // Sử dụng useMemo để tối ưu hóa, chỉ tính toán lại khi carData thay đổi
   const allLocations = useMemo(() => {
@@ -44,12 +56,45 @@ const Vehicles: React.FC = () => {
 
   const filterCars = () => {
     return carData.filter((car) => {
-      // Lọc theo tên xe
-      const matchesSearchTerm = car.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      // Enhanced search logic with better precision
+      let matchesSearchTerm = true;
+      if (searchTerm.trim()) {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        const carName = car.name.toLowerCase();
+        const carBrand = car.name.split(' ')[0].toLowerCase();
+        
+        // 1. Exact full match (highest priority)
+        if (carName === lowerSearchTerm) {
+          matchesSearchTerm = true;
+        }
+        // 2. Contains full search term (high priority)  
+        else if (carName.includes(lowerSearchTerm)) {
+          matchesSearchTerm = true;
+        }
+        // 3. Brand only match (e.g., "vinfast" matches all VinFast cars)
+        else if (lowerSearchTerm === carBrand) {
+          matchesSearchTerm = true;
+        }
+        // 4. Partial brand match (e.g., "vin" matches "vinfast")
+        else if (carBrand.includes(lowerSearchTerm) && lowerSearchTerm.length >= 3) {
+          matchesSearchTerm = true;
+        }
+        // 5. Smart word matching (more strict)
+        else {
+          const searchWords = lowerSearchTerm.split(' ').filter(word => word.length >= 2);
+          const carWords = carName.split(' ').filter(word => word.length >= 2);
+          
+          // All search words must match at least one car word
+          matchesSearchTerm = searchWords.length > 0 && searchWords.every(searchWord => 
+            carWords.some(carWord => 
+              carWord.startsWith(searchWord) || 
+              (searchWord.length >= 3 && carWord.includes(searchWord))
+            )
+          );
+        }
+      }
 
-      // Lọc theo địa điểm
+      // Location filter
       const matchesLocation =
         selectedLocation === "All" || car.location === selectedLocation;
 
