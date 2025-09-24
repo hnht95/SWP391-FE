@@ -19,6 +19,7 @@ import PrivacyPolicy from "../landing/user/component/footerComponent/PrivacyPoli
 import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
 import UserProfile from "../landing/user/component/headerComponent/userComponent/UserProfile";
 import VehiclesDetail from "../landing/user/component/subnavComponent/vehiclesComponent/VehiclesDetail";
+import ContractStaff from "../landing/staff/homepageStaffComponent/ContractStaff";
 
 const AllRouter = () => {
   return (
@@ -43,6 +44,7 @@ const AllRouter = () => {
         <Route path="/staff/maintain" element={<VehicleMaintain />} />
         <Route path="/staff/vehicles" element={<VehiclesStaff />} />
         <Route path="/staff/reports" element={<StaffReport />} />
+        <Route path="/staff/contracts" element={<ContractStaff />} />
       </Route>
 
       <Route path="/login" element={<LoginPage />} />
