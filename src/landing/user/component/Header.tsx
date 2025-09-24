@@ -1,7 +1,14 @@
-import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import User from "./headerComponent/User";
+import Search from "./headerComponent/Search";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
+import {
+  HEADER_TIMING,
+  HEADER_DIMENSIONS,
+  HEADER_STYLES,
+  TRANSITION_CLASSES
+} from "../../../constants/headerConstants";
+import { SEARCH_TEXTS } from "../../../constants/searchConstants";
 
 interface HeaderProps {
   onHoverChange?: (isHovered: boolean) => void;
@@ -13,63 +20,7 @@ export default function Header({
   onSearchOpenChange,
 }: HeaderProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [currentPlaceholder, setCurrentPlaceholder] = useState(0);
-  const [displayText, setDisplayText] = useState("");
-  const [isTyping, setIsTyping] = useState(true);
-  const [charIndex, setCharIndex] = useState(0);
-  const [searchValue, setSearchValue] = useState("");
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  const placeholders = [
-    "Search for cars...",
-    "Search for locations...",
-    "Search for services...",
-    "Search for policies...",
-    "Search for dealers...",
-    "Search for parts...",
-  ];
-
-  // Typing animation for search placeholder - only when search is empty
-  useEffect(() => {
-    if (!isSearchOpen || searchValue.length > 0) return;
-
-    const currentText = placeholders[currentPlaceholder];
-    const timer = setTimeout(
-      () => {
-        if (isTyping && charIndex < currentText.length) {
-          setDisplayText(currentText.slice(0, charIndex + 1));
-          setCharIndex(charIndex + 1);
-        } else if (isTyping && charIndex === currentText.length) {
-          setTimeout(() => setIsTyping(false), 2000);
-        } else if (!isTyping && charIndex > 0) {
-          setDisplayText(currentText.slice(0, charIndex - 1));
-          setCharIndex(charIndex - 1);
-        } else if (!isTyping && charIndex === 0) {
-          setCurrentPlaceholder((prev) => (prev + 1) % placeholders.length);
-          setIsTyping(true);
-        }
-      },
-      isTyping ? 100 : 50
-    );
-
-    return () => clearTimeout(timer);
-  }, [
-    charIndex,
-    isTyping,
-    currentPlaceholder,
-    isSearchOpen,
-    searchValue,
-    placeholders,
-  ]);
-
-  // Reset animation when search value changes
-  useEffect(() => {
-    if (searchValue.length === 0 && isSearchOpen) {
-      setDisplayText("");
-      setCharIndex(0);
-      setIsTyping(true);
-    }
-  }, [searchValue, isSearchOpen]);
 
   // Prevent scrolling when search is open
   useEffect(() => {
@@ -85,15 +36,6 @@ export default function Header({
     };
   }, [isSearchOpen]);
 
-  // Focus search input when opening search overlay
-  useEffect(() => {
-    if (isSearchOpen) {
-      // Allow DOM to paint before focusing
-      requestAnimationFrame(() => {
-        searchInputRef.current?.focus();
-      });
-    }
-  }, [isSearchOpen]);
 
   // When search opens, ensure subnav doesn't open via header hover
   useEffect(() => {
@@ -105,19 +47,54 @@ export default function Header({
     }
   }, [isSearchOpen, onHoverChange, onSearchOpenChange]);
 
-  // Header is always visible (fixed)
-  const shouldShowContent = true;
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchValue(e.target.value);
+  // Helper functions for conditional classes
+  const getHeaderClasses = () => {
+    const baseClasses = `fixed top-0 left-0 w-full bg-black shadow-xl px-6 z-50 ${TRANSITION_CLASSES.BASE} select-none`;
+    const paddingClass = HEADER_DIMENSIONS.PADDING_LARGE;
+    return `${baseClasses} ${paddingClass}`;
   };
+
+  const getLogoClasses = () => {
+    return `object-contain transition-all duration-${HEADER_TIMING.GENERAL_DURATION} ${HEADER_DIMENSIONS.LARGE_HEIGHT}`;
+  };
+
+  const getElementVisibilityClass = (isSearchOpen: boolean) => {
+    if (!isSearchOpen) return TRANSITION_CLASSES.VISIBLE;
+    return `${TRANSITION_CLASSES.HIDDEN_UP} ${TRANSITION_CLASSES.DISABLED}`;
+  };
+
+  const getSearchTriggerClasses = (isSearchOpen: boolean) => {
+    return `flex items-center ${TRANSITION_CLASSES.BASE} ${getElementVisibilityClass(isSearchOpen)} pr-10 md:pr-12`;
+  };
+
+  const getCloseSearchClasses = (isSearchOpen: boolean) => {
+    const visibilityClass = isSearchOpen 
+      ? TRANSITION_CLASSES.VISIBLE 
+      : `${TRANSITION_CLASSES.HIDDEN_UP} ${TRANSITION_CLASSES.DISABLED}`;
+    return `${TRANSITION_CLASSES.BASE} ${visibilityClass}`;
+  };
+
+  const getHeaderSpaceClasses = () => {
+    return `bg-transparent transition-all duration-${HEADER_TIMING.GENERAL_DURATION} ${HEADER_DIMENSIONS.HEADER_SPACE_LARGE}`;
+  };
+
+  const getSearchAreaClasses = (isSearchOpen: boolean) => {
+    const visibilityClass = isSearchOpen ? 'h-full opacity-100' : 'h-0 opacity-0';
+    return `bg-black/70 backdrop-blur-sm ${TRANSITION_CLASSES.BASE} ${visibilityClass}`;
+  };
+
+  const getSearchContentClasses = (isSearchOpen: boolean) => {
+    const visibilityClass = isSearchOpen
+      ? TRANSITION_CLASSES.VISIBLE
+      : 'opacity-0 transform -translate-y-4';
+    return `px-4 pt-8 ${TRANSITION_CLASSES.BASE} delay-200 ${visibilityClass}`;
+  };
+
 
   return (
     <>
       <header
-        className={`fixed top-0 left-0 w-full bg-black shadow-xl px-6 z-50 transition-all duration-700 ease-in-out select-none ${
-          shouldShowContent ? "py-3" : "py-2"
-        }`}
+        className={getHeaderClasses()}
         onMouseEnter={() => {
           if (!isSearchOpen) {
             onHoverChange && onHoverChange(true);
@@ -137,10 +114,8 @@ export default function Header({
               <img
                 src={logoWeb}
                 alt="ZaMi Logo"
-                className={`object-contain transition-all duration-300 ${
-                  shouldShowContent ? "h-14 md:h-16" : "h-10 md:h-12"
-                }`}
-                style={{ filter: "brightness(0) invert(1)" }}
+                className={getLogoClasses()}
+                style={{ filter: HEADER_STYLES.LOGO_FILTER }}
               />
             </div>
 
@@ -148,13 +123,7 @@ export default function Header({
             <div className="flex-1 flex items-center justify-end relative">
               {/* Search trigger - keep position; reserve space for Login on the far right */}
               <div
-                className={`flex items-center transition-all duration-700 ease-in-out will-change-transform ${
-                  shouldShowContent && !isSearchOpen
-                    ? "opacity-100 transform translate-y-0"
-                    : isSearchOpen
-                    ? "opacity-0 transform -translate-y-8"
-                    : "opacity-0 transform translate-y-4 pointer-events-none"
-                } pr-10 md:pr-12`}
+                className={getSearchTriggerClasses(isSearchOpen)}
               >
                 <button
                   onClick={() => {
@@ -179,7 +148,7 @@ export default function Header({
                   </svg>
                   <span
                     className="text-[16px] font-medium group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
-                    style={{ fontFamily: '"MBCorpo Text", sans-serif' }}
+                    style={{ fontFamily: HEADER_STYLES.FONT_FAMILY }}
                   >
                     Search
                   </span>
@@ -188,35 +157,24 @@ export default function Header({
 
               {/* Login/User - stick to the far right */}
               <div
-                className={`absolute right-0 transition-all duration-700 ease-in-out will-change-transform ${
-                  shouldShowContent && !isSearchOpen
-                    ? "opacity-100 transform translate-y-0"
-                    : isSearchOpen
-                    ? "opacity-0 transform -translate-y-8"
-                    : "opacity-0 transform translate-y-4 pointer-events-none"
-                }`}
+                className={`absolute right-0 ${getSearchTriggerClasses(isSearchOpen)}`}
               >
                 <User />
               </div>
 
               {/* Close Search with fly-down animation */}
               <div
-                className={`transition-all duration-700 ease-in-out will-change-transform ${
-                  isSearchOpen
-                    ? "opacity-100 transform translate-y-0"
-                    : "opacity-0 transform -translate-y-8 pointer-events-none"
-                }`}
+                className={getCloseSearchClasses(isSearchOpen)}
               >
                 <button
                   onClick={() => {
                     setIsSearchOpen(false);
-                    setSearchValue("");
                     onSearchOpenChange && onSearchOpenChange(false);
                   }}
                   className="text-white text-[14px] font-normal px-3 py-1.5 rounded cursor-pointer border border-transparent hover:border-white hover:bg-white/5 transition-all duration-300 ease-in-out"
-                  style={{ fontFamily: '"MBCorpo Text", sans-serif' }}
+                  style={{ fontFamily: HEADER_STYLES.FONT_FAMILY }}
                 >
-                  Close Search
+                  {SEARCH_TEXTS.CLOSE_SEARCH}
                 </button>
               </div>
             </div>
@@ -226,172 +184,35 @@ export default function Header({
 
       {/* Search overlay - expands from top to bottom */}
       <div
-        className={`fixed top-0 left-0 w-full z-30 transition-all duration-700 ease-in-out ${
+        className={`fixed top-0 left-0 w-full z-30 ${TRANSITION_CLASSES.BASE} ${
           isSearchOpen ? "h-screen" : "h-0"
         } overflow-hidden`}
       >
         {/* Header space - bigger to match header size */}
         <div
-          className={`bg-transparent transition-all duration-300 ${
-            shouldShowContent ? "h-[60px] md:h-[64px]" : "h-[48px] md:h-[52px]"
-          }`}
+          className={getHeaderSpaceClasses()}
         ></div>
 
         {/* Search area with expanding animation */}
         <div
-          className={`bg-black/50 backdrop-blur-sm transition-all duration-700 ease-in-out ${
-            isSearchOpen ? "h-full opacity-100" : "h-0 opacity-0"
-          }`}
+          className={getSearchAreaClasses(isSearchOpen)}
         >
           <div
-            className={`px-4 pt-8 transition-all duration-700 ease-in-out delay-200 ${
-              isSearchOpen
-                ? "opacity-100 transform translate-y-0"
-                : "opacity-0 transform -translate-y-4"
-            }`}
+            className={getSearchContentClasses(isSearchOpen)}
           >
-            {/* Search box like the image */}
+            {/* Search component */}
             <div className="max-w-4xl mx-auto">
-              <div className="relative">
-                <div className="relative bg-transparent border-b-2 border-white pb-2">
-                  <div className="flex items-center">
-                    {/* Search Icon - White color */}
-                    <svg
-                      className="w-6 h-6 text-white mr-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
+              <Search 
+                className="w-full"
+                placeholder="Tìm kiếm xe điện, địa điểm, dịch vụ..."
+                onSearchComplete={() => setIsSearchOpen(false)}
+                isSearchOpen={isSearchOpen}
+              />
+            </div>
 
-                    {/* Search Input */}
-                    <input
-                      type="text"
-                      value={searchValue}
-                      onChange={handleSearchChange}
-                      ref={searchInputRef}
-                      className="flex-1 bg-transparent text-white text-lg focus:outline-none placeholder-gray-400"
-                      placeholder=""
-                    />
-
-                    {/* Search Button */}
-                    <button className="ml-4 px-8 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-100 transition-colors duration-200">
-                      Search
-                    </button>
-                  </div>
-
-                  {/* Animated Placeholder - Only show when input is empty */}
-                  {searchValue.length === 0 && (
-                    <div className="absolute left-10 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                      <span className="text-gray-400 text-lg">
-                        {displayText}
-                        <span className="animate-pulse">|</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Search suggestions like Mercedes */}
-              <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 text-white">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Vehicles</h3>
-                  <ul className="space-y-2 text-gray-300">
-                    <li>
-                      <Link
-                        to="/"
-                        className="hover:text-white transition-colors"
-                      >
-                        New Cars
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="/"
-                        className="hover:text-white transition-colors"
-                      >
-                        Electric Cars
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="/"
-                        className="hover:text-white transition-colors"
-                      >
-                        Test Drive
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Services</h3>
-                  <ul className="space-y-2 text-gray-300">
-                    <li>
-                      <Link
-                        to="/"
-                        className="hover:text-white transition-colors"
-                      >
-                        Maintenance
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="/"
-                        className="hover:text-white transition-colors"
-                      >
-                        Parts
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="/"
-                        className="hover:text-white transition-colors"
-                      >
-                        Support
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Company</h3>
-                  <ul className="space-y-2 text-gray-300">
-                    <li>
-                      <Link
-                        to="/about"
-                        className="hover:text-white transition-colors"
-                      >
-                        About
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="/contact"
-                        className="hover:text-white transition-colors"
-                      >
-                        Contact
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="/"
-                        className="hover:text-white transition-colors"
-                      >
-                        Careers
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-              </div>
             </div>
           </div>
         </div>
-      </div>
     </>
   );
 }

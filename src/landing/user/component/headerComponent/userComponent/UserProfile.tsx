@@ -1,5 +1,9 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { ImProfile } from "react-icons/im";
+import { FaCar } from "react-icons/fa";
+import { BiSolidNotepad } from "react-icons/bi";
+import { IoSettingsSharp } from "react-icons/io5";
 import ProfileTab from "./userProfileComponent/userTabComponent/ProfileTab";
 import SettingsTab from "./userProfileComponent/userTabComponent/SettingsTab";
 import ActivityTab from "./userProfileComponent/userTabComponent/ActivityTab";
@@ -32,10 +36,10 @@ const UserProfile = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const tabs = [
-    { id: "profile", label: "Profile", icon: "👤" },
-    { id: "booking", label: "Booking History", icon: "🚗" },
-    { id: "activity", label: "Activity", icon: "📋" },
-    { id: "settings", label: "Settings", icon: "⚙️" },
+    { id: "profile", label: "Profile", icon: <ImProfile className="w-4 h-4" /> },
+    { id: "booking", label: "Booking History", icon: <FaCar className="w-4 h-4" /> },
+    { id: "activity", label: "Activity", icon: <BiSolidNotepad className="w-4 h-4" /> },
+    { id: "settings", label: "Settings", icon: <IoSettingsSharp className="w-4 h-4" /> },
   ] as const;
 
   const renderTabContent = () => {
@@ -182,10 +186,17 @@ const UserProfile = () => {
           </div>
 
           {/* Fixed Content Area - Không scroll */}
-          <div className="flex-1 p-6 space-y-6 overflow-hidden"
+          <div className="flex-1 p-4 flex flex-col justify-between overflow-hidden"
                onWheel={(e) => {
                  e.preventDefault();
                  e.stopPropagation();
+               }}
+               onTouchMove={(e) => {
+                 e.preventDefault();
+               }}
+               style={{ 
+                 touchAction: 'none',
+                 overscrollBehavior: 'none'
                }}>
             {/* Navigation Tabs */}
             <nav className="space-y-2">
@@ -198,14 +209,14 @@ const UserProfile = () => {
                     setActiveTab(tab.id);
                     setIsSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-all duration-300 ease-in-out ${
+                  className={`w-full flex items-center space-x-3 px-3 py-2.5 text-left rounded-lg transition-all duration-300 ease-in-out ${
                     activeTab === tab.id
                       ? "bg-black text-white shadow-lg"
                       : "text-gray-600 hover:bg-gray-200 hover:text-black"
                   }`}
                 >
-                  <span className="text-lg">{tab.icon}</span>
-                  <span className="font-medium">{tab.label}</span>
+                  <span className="flex items-center justify-center">{tab.icon}</span>
+                  <span className="font-medium text-sm">{tab.label}</span>
                   {activeTab === tab.id && (
                     <motion.div
                       layoutId="activeIndicator"
@@ -223,20 +234,20 @@ const UserProfile = () => {
             </nav>
 
             {/* Quick Stats */}
-            <div className="pt-6 border-t border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-xs font-semibold text-gray-700 mb-2">
                 Quick Stats
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-500 text-sm">Member Since</span>
-                  <span className="text-black text-sm font-medium">
+                  <span className="text-gray-500 text-xs">Member Since</span>
+                  <span className="text-black text-xs font-medium">
                     Jan 2024
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-500 text-sm">Total Bookings</span>
-                  <span className="text-black text-sm font-medium">12</span>
+                  <span className="text-gray-500 text-xs">Total Bookings</span>
+                  <span className="text-black text-xs font-medium">12</span>
                 </div>
               </div>
             </div>
@@ -303,23 +314,23 @@ const UserProfile = () => {
               className="h-full p-2 lg:p-4 overflow-y-auto" 
               onWheel={(e) => {
                 const target = e.currentTarget;
-                const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 1;
-                const atTop = target.scrollTop <= 1;
+                const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 5;
+                const atTop = target.scrollTop <= 5;
                 
-                // Nếu scroll xuống và đã ở cuối, cho phép scroll tiếp
+                // Nếu scroll xuống và đã gần cuối, cho phép scroll tiếp xuống footer
                 if (e.deltaY > 0 && atBottom) {
-                  // Không preventDefault, để scroll event bubble up
+                  // Cho phép scroll event đi tiếp để scroll xuống footer
                   return;
                 }
-                // Nếu scroll lên và đã ở đầu, cho phép scroll tiếp
+                // Nếu scroll lên và đã gần đầu, cho phép scroll tiếp lên
                 if (e.deltaY < 0 && atTop) {
                   return;
                 }
-                // Ngược lại, ngăn scroll bubble up
+                // Chỉ ngăn propagation khi đang scroll trong content
                 e.stopPropagation();
               }}
               style={{ 
-                overscrollBehavior: 'none'
+                overscrollBehavior: 'auto'
               }}>
               <motion.div
                 key={activeTab}

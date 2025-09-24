@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { User, Settings, Activity } from 'lucide-react'
 import ProfileTab from './userTabComponent/ProfileTab'
 import SettingsTab from './userTabComponent/SettingsTab'
 import ActivityTab from './userTabComponent/ActivityTab'
@@ -23,9 +24,9 @@ const UserTabs = ({ user }: UserTabsProps) => {
   const [activeTab, setActiveTab] = useState<TabType>('profile')
 
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: '👤' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
-    { id: 'activity', label: 'Activity', icon: '📋' }
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'activity', label: 'Activity', icon: Activity }
   ] as const
 
   const renderTabContent = () => {
@@ -58,7 +59,7 @@ const UserTabs = ({ user }: UserTabsProps) => {
             }`}
           >
             <div className='flex items-center justify-center space-x-2'>
-              <span className='text-base'>{tab.icon}</span>
+              <tab.icon size={16} />
               <span>{tab.label}</span>
             </div>
             

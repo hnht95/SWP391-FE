@@ -1,3 +1,4 @@
+import React from "react";
 import greenCar from "../../../../assets/loginImage/greenCar.png";
 
 const WhyChooseUs = () => {
@@ -18,8 +19,8 @@ const WhyChooseUs = () => {
             className="max-w-3xl w-full object-contain"
           />
 
-          {/* Advantages */}
-          <div className="absolute top-10 left-0 flex flex-col items-end text-right space-y-20">
+          {/* Advantages - Desktop View */}
+          <div className="hidden md:block absolute top-10 left-0 flex flex-col items-end text-right space-y-20">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-black"></span>
               <p className="text-sm">
@@ -34,7 +35,7 @@ const WhyChooseUs = () => {
             </div>
           </div>
 
-          <div className="absolute top-10 right-0 flex flex-col items-start text-left space-y-20">
+          <div className="hidden md:block absolute top-10 right-0 flex flex-col items-start text-left space-y-20">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-black"></span>
               <p className="text-sm">
@@ -49,7 +50,7 @@ const WhyChooseUs = () => {
             </div>
           </div>
 
-          <div className="absolute top-0 md:top-2 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-64">
+          <div className="hidden md:block absolute top-0 md:top-2 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-64">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-black"></span>
               <p className="text-sm">
@@ -57,6 +58,32 @@ const WhyChooseUs = () => {
                 <br />
                 Auto Warranties
               </p>
+            </div>
+          </div>
+
+          {/* Advantages - Mobile View */}
+          <div className="md:hidden absolute -bottom-1/4 left-1/2 -translate-x-1/2 w-full px-4">
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div className="flex flex-col items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-black mb-1"></span>
+                <p className="text-xs">Easier Rent on Your Budget</p>
+              </div>
+              <div className="flex flex-col items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-black mb-1"></span>
+                <p className="text-xs">Most Flexible Payment Plans</p>
+              </div>
+              <div className="flex flex-col items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-black mb-1"></span>
+                <p className="text-xs">Competitive Pricing</p>
+              </div>
+              <div className="flex flex-col items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-black mb-1"></span>
+                <p className="text-xs">Your Choice of Mechanic</p>
+              </div>
+              <div className="flex flex-col items-center justify-center col-span-2">
+                <span className="w-2 h-2 rounded-full bg-black mb-1"></span>
+                <p className="text-xs">The Best Extended Auto Warranties</p>
+              </div>
             </div>
           </div>
         </div>
