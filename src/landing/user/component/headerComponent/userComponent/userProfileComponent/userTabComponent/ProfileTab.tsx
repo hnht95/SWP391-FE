@@ -7,7 +7,7 @@ interface UserData {
   email: string
   phone: string
   avatar?: string
-  role: 'User' | 'Admin' | 'Renter'
+  role: 'User' | 'Staff' | 'Admin'
 }
 
 interface ProfileTabProps {
@@ -75,10 +75,10 @@ const ProfileTab = ({ user }: ProfileTabProps) => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
-        className='flex items-center space-x-6 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg'
+        className='flex items-center space-x-6 p-6 bg-white rounded-2xl border border-gray-200 shadow-lg'
       >
         <div className='relative group'>
-          <div className='w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 shadow-lg'>
+          <div className='w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-200 to-gray-400 shadow-lg'>
             {user.avatar ? (
               <img
                 src={user.avatar}
@@ -86,20 +86,20 @@ const ProfileTab = ({ user }: ProfileTabProps) => {
                 className='w-full h-full object-cover'
               />
             ) : (
-              <div className='w-full h-full flex items-center justify-center'>
-                <User className='w-10 h-10 text-white' />
-              </div>
+                  <div className='w-full h-full flex items-center justify-center'>
+                    <User className='w-10 h-10 text-black' />
+                  </div>
             )}
           </div>
         </div>
         <div className='flex-1'>
-          <h4 className='text-xl font-bold text-white'>{user.name}</h4>
-          <p className='text-gray-300 text-sm'>{user.email}</p>
-          <div className='flex items-center mt-2'>
-            <span className='px-3 py-1 bg-white text-black text-xs font-medium rounded-full'>
-              {user.role}
-            </span>
-          </div>
+              <h4 className='text-xl font-bold text-black'>{user.name}</h4>
+              <p className='text-gray-600 text-sm'>{user.email}</p>
+              <div className='flex items-center mt-2'>
+                <span className='px-3 py-1 bg-black text-white text-xs font-medium rounded-full'>
+                  {user.role}
+                </span>
+              </div>
         </div>
       </motion.div>
 
@@ -112,22 +112,22 @@ const ProfileTab = ({ user }: ProfileTabProps) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1, duration: 0.4, ease: 'easeOut' }}
             whileHover={{ y: -2 }}
-            className='flex items-center space-x-4 p-6 bg-white/5 backdrop-blur-sm rounded-2xl hover:bg-white/10 transition-all duration-300 ease-in-out border border-white/10 shadow-lg group cursor-pointer'
+                className='flex items-center space-x-4 p-6 bg-white rounded-2xl hover:bg-gray-50 transition-all duration-300 ease-in-out border border-gray-200 shadow-lg group cursor-pointer'
           >
-            <div className='text-white group-hover:scale-110 transition-transform duration-300'>
-              {field.icon}
-            </div>
-            <div className='flex-1'>
-              <p className='text-sm text-gray-400 font-medium'>{field.label}</p>
-              <p className='text-white font-semibold mt-1 group-hover:text-gray-200 transition-colors duration-300'>{field.value}</p>
-            </div>
+                <div className='text-black group-hover:scale-110 transition-transform duration-300'>
+                  {field.icon}
+                </div>
+                <div className='flex-1'>
+                  <p className='text-sm text-gray-600 font-medium'>{field.label}</p>
+                  <p className='text-black font-semibold mt-1 group-hover:text-gray-700 transition-colors duration-300'>{field.value}</p>
+                </div>
           </motion.div>
         ))}
       </div>
 
       {/* Additional Info Section */}
       <div className='space-y-4'>
-        <h4 className='text-xl font-bold text-white'>Account Summary</h4>
+            <h4 className='text-xl font-bold text-black'>Account Summary</h4>
         <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
           {additionalInfo.map((info, index) => (
             <motion.div
@@ -136,14 +136,14 @@ const ProfileTab = ({ user }: ProfileTabProps) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: (index + 5) * 0.1, duration: 0.4, ease: 'easeOut' }}
               whileHover={{ y: -4, scale: 1.02 }}
-              className={`p-6 ${info.bgColor} rounded-2xl border ${info.borderColor} shadow-lg hover:shadow-xl transition-all duration-300 ease-out cursor-pointer`}
+                  className={`p-6 bg-white rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 ease-out cursor-pointer`}
             >
               <div className='flex items-center space-x-3'>
-                <Calendar className={`w-5 h-5 ${info.color}`} />
-                <div>
-                  <p className={`text-sm ${info.color} font-medium`}>{info.label}</p>
-                  <p className='text-white font-bold text-lg mt-1'>{info.value}</p>
-                </div>
+                    <Calendar className={`w-5 h-5 text-black`} />
+                    <div>
+                      <p className={`text-sm text-gray-600 font-medium`}>{info.label}</p>
+                      <p className='text-black font-bold text-lg mt-1'>{info.value}</p>
+                    </div>
               </div>
             </motion.div>
           ))}
@@ -160,7 +160,7 @@ const ProfileTab = ({ user }: ProfileTabProps) => {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className='flex-1 py-4 bg-white/10 text-white rounded-2xl font-medium hover:bg-white/20 transition-all duration-300 ease-in-out border border-white/20 shadow-lg'
+              className='flex-1 py-4 bg-gray-50 text-black rounded-2xl font-medium hover:bg-gray-100 transition-all duration-300 ease-in-out border border-gray-300 shadow-lg'
         >
           Change Password
         </motion.button>

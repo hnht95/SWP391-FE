@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 import {
   FaFacebook,
@@ -13,37 +12,6 @@ import {
 import { Link } from "react-router-dom";
 
 const Footer = () => {
-  const [isBackToTopVisible, setIsBackToTopVisible] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
-
-  useEffect(() => {
-    const toggleVisibility = () => {
-      const currentScrollY = window.scrollY;
-      
-      // Nếu scroll lên thì ẩn ngay lập tức
-      if (currentScrollY < lastScrollY) {
-        setIsBackToTopVisible(false);
-      }
-      // Nếu scroll xuống và > 800px thì hiện
-      else if (currentScrollY > lastScrollY && currentScrollY > 800) {
-        setIsBackToTopVisible(true);
-      }
-      
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', toggleVisibility);
-    toggleVisibility();
-
-    return () => window.removeEventListener('scroll', toggleVisibility);
-  }, [lastScrollY]);
-
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  };
 
   return (
     <footer className="bg-gradient-to-r from-black via-black to-gray-950 text-white py-12 px-4 relative overflow-hidden">
@@ -219,45 +187,9 @@ const Footer = () => {
                 <p>&copy; 2024 ZaMi. All rights reserved.</p>
               </div>
               
-              {/* Center: Back to Top Button */}
+              {/* Center: Empty space where back to top button was */}
               <div className="flex justify-center">
-                <button
-                  className={`
-                    relative bg-black/80 hover:bg-black/90 text-white rounded-full p-3 
-                    shadow-lg hover:shadow-2xl backdrop-blur-sm cursor-pointer select-none
-                    border border-white/20 hover:border-white/60
-                    transition-all duration-500 ease-in-out
-                    hover:scale-110 group
-                    ${isBackToTopVisible ? 
-                      'opacity-100 scale-100 translate-y-0' : 
-                      'opacity-0 scale-90 translate-y-2 pointer-events-none'
-                    }
-                  `}
-                  onClick={scrollToTop}
-                  aria-label="Back to top"
-                >
-                  {/* Glow effect on hover */}
-                  <div className="absolute -inset-1 bg-white/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm"></div>
-                  
-                  <div className="relative flex flex-col items-center">
-                    <svg
-                      className="w-4 h-4 mb-1 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 10l7-7m0 0l7 7m-7-7v18"
-                      />
-                    </svg>
-                    <span className="text-xs font-medium transition-all duration-300 group-hover:drop-shadow-[0_0_6px_rgba(255,255,255,0.9)] group-hover:text-white">
-                      Top
-                    </span>
-                  </div>
-                </button>
+                {/* Back to top button moved to global component */}
               </div>
 
               {/* Right: Terms & Privacy */}

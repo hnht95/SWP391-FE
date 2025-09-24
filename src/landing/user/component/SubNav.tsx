@@ -39,7 +39,7 @@ const SubNav: React.FC<SubNavProps> = ({
   return (
     <>
       <div
-        className={`cursor-pointer w-full sticky top-[80px] md:top-[88px] z-40 bg-black/50 backdrop-blur-md transition-transform duration-700 ease-in-out will-change-transform select-none ${
+        className={`w-full sticky top-[80px] md:top-[88px] z-40 bg-black/50 backdrop-blur-md transition-transform duration-700 ease-in-out will-change-transform select-none ${
           shouldShow ? "translate-y-0" : "-translate-y-full"
         }`}
         onMouseEnter={() => setIsSelfHovered(true)}
@@ -55,7 +55,7 @@ const SubNav: React.FC<SubNavProps> = ({
           >
             <li onMouseEnter={() => setHoveredItem(0)}>
               <Link
-                className={`no-underline font-medium transition-all duration-300 ${
+                className={`no-underline font-medium transition-all duration-300 cursor-pointer ${
                   hoveredItem !== null && hoveredItem !== 0
                     ? "text-white/50"
                     : "text-white"
@@ -71,7 +71,7 @@ const SubNav: React.FC<SubNavProps> = ({
             </li>
             <li onMouseEnter={() => setHoveredItem(1)}>
               <Link
-                className={`no-underline font-medium transition-all duration-300 ${
+                className={`no-underline font-medium transition-all duration-300 cursor-pointer ${
                   hoveredItem !== null && hoveredItem !== 1
                     ? "text-white/50"
                     : "text-white"
@@ -87,7 +87,7 @@ const SubNav: React.FC<SubNavProps> = ({
             </li>
             <li onMouseEnter={() => setHoveredItem(2)}>
               <Link
-                className={`no-underline font-medium transition-all duration-300 ${
+                className={`no-underline font-medium transition-all duration-300 cursor-pointer ${
                   hoveredItem !== null && hoveredItem !== 2
                     ? "text-white/50"
                     : "text-white"
@@ -103,7 +103,7 @@ const SubNav: React.FC<SubNavProps> = ({
             </li>
             <li onMouseEnter={() => setHoveredItem(3)}>
               <Link
-                className={`no-underline font-medium transition-all duration-300 ${
+                className={`no-underline font-medium transition-all duration-300 cursor-pointer ${
                   hoveredItem !== null && hoveredItem !== 3
                     ? "text-white/50"
                     : "text-white"

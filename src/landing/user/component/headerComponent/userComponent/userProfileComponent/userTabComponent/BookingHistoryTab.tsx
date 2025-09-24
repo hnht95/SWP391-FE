@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Car, Calendar, MapPin, CreditCard, Clock } from 'lucide-react'
+import { Calendar, MapPin, CreditCard, Clock } from 'lucide-react'
 
 interface Booking {
   id: string
@@ -122,7 +122,7 @@ const BookingHistoryTab = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1, duration: 0.4, ease: 'easeOut' }}
             whileHover={{ y: -2 }}
-            className='bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6 hover:bg-white/10 transition-all duration-300 ease-in-out shadow-lg hover:shadow-xl group cursor-pointer'
+            className='bg-white rounded-2xl border border-gray-200 p-6 hover:bg-gray-50 transition-all duration-300 ease-in-out shadow-lg hover:shadow-xl group cursor-pointer'
           >
             <div className='flex items-start space-x-4'>
               {/* Car Image */}
@@ -139,10 +139,10 @@ const BookingHistoryTab = () => {
                 {/* Header */}
                 <div className='flex items-start justify-between'>
                   <div>
-                    <h4 className='text-lg font-semibold text-white group-hover:text-gray-200 transition-colors duration-300'>
+                    <h4 className='text-lg font-semibold text-black group-hover:text-gray-700 transition-colors duration-300'>
                       {booking.carName}
                     </h4>
-                    <p className='text-gray-400 text-sm'>Booking ID: {booking.id}</p>
+                    <p className='text-gray-600 text-sm'>Booking ID: {booking.id}</p>
                   </div>
                   
                   {/* Status Badge */}
@@ -155,51 +155,51 @@ const BookingHistoryTab = () => {
                 {/* Details Grid */}
                 <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
                   {/* Duration */}
-                  <div className='flex items-center space-x-2 text-gray-300'>
-                    <Calendar className='w-4 h-4' />
+                  <div className='flex items-center space-x-2'>
+                    <Calendar className='w-4 h-4 text-gray-600' />
                     <div>
-                      <p className='text-xs text-gray-500'>Duration</p>
-                      <p className='text-sm font-medium'>{booking.duration}</p>
+                      <p className='text-xs text-gray-500 font-medium'>Duration</p>
+                      <p className='text-sm font-bold text-black'>{booking.duration}</p>
                     </div>
                   </div>
 
                   {/* Pickup */}
-                  <div className='flex items-center space-x-2 text-gray-300'>
-                    <MapPin className='w-4 h-4' />
+                  <div className='flex items-center space-x-2'>
+                    <MapPin className='w-4 h-4 text-gray-600' />
                     <div>
-                      <p className='text-xs text-gray-500'>Pickup</p>
-                      <p className='text-sm font-medium truncate'>{booking.pickupLocation}</p>
+                      <p className='text-xs text-gray-500 font-medium'>Pickup</p>
+                      <p className='text-sm font-bold text-black truncate'>{booking.pickupLocation}</p>
                     </div>
                   </div>
 
                   {/* Cost */}
-                  <div className='flex items-center space-x-2 text-gray-300'>
-                    <CreditCard className='w-4 h-4' />
+                  <div className='flex items-center space-x-2'>
+                    <CreditCard className='w-4 h-4 text-gray-600' />
                     <div>
-                      <p className='text-xs text-gray-500'>Total Cost</p>
-                      <p className='text-sm font-medium'>{formatCurrency(booking.totalCost)}</p>
+                      <p className='text-xs text-gray-500 font-medium'>Total Cost</p>
+                      <p className='text-sm font-bold text-black'>{formatCurrency(booking.totalCost)}</p>
                     </div>
                   </div>
 
                   {/* Dates */}
-                  <div className='flex items-center space-x-2 text-gray-300'>
-                    <Clock className='w-4 h-4' />
+                  <div className='flex items-center space-x-2'>
+                    <Clock className='w-4 h-4 text-gray-600' />
                     <div>
-                      <p className='text-xs text-gray-500'>Period</p>
-                      <p className='text-sm font-medium'>{new Date(booking.startDate).toLocaleDateString('vi-VN')}</p>
+                      <p className='text-xs text-gray-500 font-medium'>Period</p>
+                      <p className='text-sm font-bold text-black'>{new Date(booking.startDate).toLocaleDateString('vi-VN')}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Return Location */}
-                <div className='pt-2 border-t border-white/10'>
+                <div className='pt-2 border-t border-gray-200'>
                   <div className='flex items-center justify-between text-sm'>
-                    <span className='text-gray-400'>Return to: {booking.returnLocation}</span>
+                    <span className='text-black font-semibold'>Return to: {booking.returnLocation}</span>
                     {booking.status === 'upcoming' && (
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className='px-3 py-1 bg-white/10 text-white rounded-lg text-xs hover:bg-white/20 transition-colors duration-300'
+                        className='px-3 py-1 bg-gray-50 text-black rounded-lg text-xs hover:bg-gray-100 transition-colors duration-300'
                       >
                         View Details
                       </motion.button>
@@ -222,7 +222,7 @@ const BookingHistoryTab = () => {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className='px-6 py-3 bg-white/10 text-white rounded-2xl font-medium hover:bg-white/20 transition-all duration-300 ease-in-out border border-white/20 shadow-lg'
+          className='px-6 py-3 bg-gray-50 text-black rounded-2xl font-medium hover:bg-gray-100 transition-all duration-300 ease-in-out border border-gray-300 shadow-lg'
         >
           Load More Bookings
         </motion.button>

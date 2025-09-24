@@ -9,7 +9,7 @@ interface UserProps {
 }
 
 const User: React.FC<UserProps> = ({ 
-  userName = "John Doe", 
+  userName = "MiCheo lỏ", 
   userAvatar, 
   onLogout,
   isLoggedIn = true
