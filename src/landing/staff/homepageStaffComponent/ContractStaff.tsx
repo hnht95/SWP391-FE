@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MdAdd,
   MdSearch,
@@ -7,7 +8,6 @@ import {
   MdCheckCircle,
   MdVisibility,
   MdEdit,
-  MdDownload,
   MdNotifications,
   MdBusiness,
   MdDirectionsCar,
@@ -1814,7 +1814,12 @@ const ContractStaff = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <div className="mb-8">
+      <motion.div
+        className="mb-8"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -1827,181 +1832,218 @@ const ContractStaff = () => {
           <div className="flex items-center space-x-3">
             {/* Notification Dropdown */}
             <div className="relative" ref={notificationRef}>
-              <button
+              <motion.button
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="relative bg-white border border-gray-300 px-4 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center space-x-2"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <MdNotifications className="w-5 h-5" />
                 <span>Notifications</span>
                 {allAlerts.length > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[1.5rem] h-6 flex items-center justify-center">
+                  <motion.span
+                    className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[1.5rem] h-6 flex items-center justify-center"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
                     {allAlerts.length}
-                  </span>
+                  </motion.span>
                 )}
-                <MdKeyboardArrowDown
-                  className={`w-4 h-4 transition-transform ${
-                    showNotifications ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
+                <motion.div
+                  animate={{ rotate: showNotifications ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <MdKeyboardArrowDown className="w-4 h-4" />
+                </motion.div>
+              </motion.button>
 
               {/* Notification Dropdown */}
-              {showNotifications && (
-                <div className="absolute right-0 top-full mt-2 w-96 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-96 overflow-y-auto">
-                  <div className="p-4 border-b border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Notifications
-                      </h3>
-                      <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-                        {allAlerts.length} alerts
-                      </span>
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div
+                    className="absolute right-0 top-full mt-2 w-96 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-96 overflow-y-auto"
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="p-4 border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Notifications
+                        </h3>
+                        <motion.span
+                          className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.1 }}
+                        >
+                          {allAlerts.length} alerts
+                        </motion.span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="max-h-80 overflow-y-auto">
-                    {sortedAlerts.length > 0 ? (
-                      <div className="divide-y divide-gray-100">
-                        {sortedAlerts.map((alert) => (
-                          <div
-                            key={alert.id}
-                            className={`p-4 hover:bg-gray-50 transition-colors ${getPriorityColor(
-                              alert.priority
-                            )}`}
-                          >
-                            <div className="flex items-start space-x-3">
-                              <div className="flex-shrink-0 mt-1">
-                                {getAlertIcon(alert.type)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <p className="text-sm font-medium text-gray-900 truncate">
-                                    {alert.companyName}
-                                  </p>
-                                  <span
-                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      alert.priority === "high"
-                                        ? "bg-red-100 text-red-800"
-                                        : alert.priority === "medium"
-                                        ? "bg-yellow-100 text-yellow-800"
-                                        : "bg-blue-100 text-blue-800"
-                                    }`}
-                                  >
-                                    {alert.priority}
-                                  </span>
+                    <div className="max-h-80 overflow-y-auto">
+                      {sortedAlerts.length > 0 ? (
+                        <div className="divide-y divide-gray-100">
+                          {sortedAlerts.map((alert) => (
+                            <div
+                              key={alert.id}
+                              className={`p-4 hover:bg-gray-50 transition-colors ${getPriorityColor(
+                                alert.priority
+                              )}`}
+                            >
+                              <div className="flex items-start space-x-3">
+                                <div className="flex-shrink-0 mt-1">
+                                  {getAlertIcon(alert.type)}
                                 </div>
-                                <p className="text-sm text-gray-700 mb-1">
-                                  {alert.message}
-                                </p>
-                                <div className="flex items-center justify-between">
-                                  <p className="text-xs text-gray-500">
-                                    Contract: {alert.contractId}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <p className="text-sm font-medium text-gray-900 truncate">
+                                      {alert.companyName}
+                                    </p>
+                                    <span
+                                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        alert.priority === "high"
+                                          ? "bg-red-100 text-red-800"
+                                          : alert.priority === "medium"
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : "bg-blue-100 text-blue-800"
+                                      }`}
+                                    >
+                                      {alert.priority}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-1">
+                                    {alert.message}
                                   </p>
-                                  <p className="text-xs text-gray-500">
-                                    {alert.date}
-                                  </p>
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs text-gray-500">
+                                      Contract: {alert.contractId}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {alert.date}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-8 text-center">
-                        <MdNotifications className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                          No notifications
-                        </h3>
-                        <p className="text-gray-500">
-                          All contracts are up to date
-                        </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center">
+                          <MdNotifications className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            No notifications
+                          </h3>
+                          <p className="text-gray-500">
+                            All contracts are up to date
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {sortedAlerts.length > 0 && (
+                      <div className="p-4 border-t border-gray-100">
+                        <button className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                          View All Notifications
+                        </button>
                       </div>
                     )}
-                  </div>
-
-                  {sortedAlerts.length > 0 && (
-                    <div className="p-4 border-t border-gray-100">
-                      <button className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium">
-                        View All Notifications
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            <button
+            <motion.button
               onClick={() => setIsCreateOpen(true)}
               className="bg-gray-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               <MdAdd className="w-5 h-5" />
               <span>New Contract</span>
-            </button>
-            <button className="bg-white border border-gray-300 px-4 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center space-x-2">
-              <MdDownload className="w-5 h-5" />
-              <span>Export</span>
-            </button>
+            </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <MdBusiness className="w-6 h-6 text-blue-600" />
+      <motion.div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        {[
+          {
+            title: "Total Contracts",
+            value: stats.total,
+            icon: MdBusiness,
+            color: "blue",
+            subtitle: "All business contracts",
+          },
+          {
+            title: "Active Contracts",
+            value: stats.active,
+            icon: MdCheckCircle,
+            color: "green",
+            subtitle: "Currently active",
+          },
+          {
+            title: "Expiring Soon",
+            value: stats.expiring,
+            icon: MdWarning,
+            color: "yellow",
+            subtitle: "Need renewal",
+          },
+          {
+            title: "Monthly Revenue",
+            value: `${(stats.monthlyRevenue / 1000000).toFixed(0)}M`,
+            icon: MdAttachMoney,
+            color: "purple",
+            subtitle: "VND from active contracts",
+          },
+        ].map((stat, index) => (
+          <motion.div
+            key={stat.title}
+            className="bg-white rounded-xl p-6 border border-gray-100"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 + index * 0.1 }}
+            whileHover={{
+              y: -5,
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <motion.div
+                className={`w-12 h-12 bg-${stat.color}-100 rounded-lg flex items-center justify-center`}
+                whileHover={{ rotate: 5 }}
+              >
+                <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
+              </motion.div>
+              <motion.span
+                className="text-2xl font-bold text-gray-900"
+                initial={{ scale: 1 }}
+                whileHover={{ scale: 1.1 }}
+              >
+                {stat.value}
+              </motion.span>
             </div>
-            <span className="text-2xl font-bold text-gray-900">
-              {stats.total}
-            </span>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2">Total Contracts</h3>
-          <p className="text-xs text-gray-500">All business contracts</p>
-        </div>
+            <h3 className="text-gray-600 text-sm mb-2">{stat.title}</h3>
+            <p className="text-xs text-gray-500">{stat.subtitle}</p>
+          </motion.div>
+        ))}
+      </motion.div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <MdCheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-            <span className="text-2xl font-bold text-gray-900">
-              {stats.active}
-            </span>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2">Active Contracts</h3>
-          <p className="text-xs text-gray-500">Currently active</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <MdWarning className="w-6 h-6 text-yellow-600" />
-            </div>
-            <span className="text-2xl font-bold text-gray-900">
-              {stats.expiring}
-            </span>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2">Expiring Soon</h3>
-          <p className="text-xs text-gray-500">Need renewal</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <MdAttachMoney className="w-6 h-6 text-purple-600" />
-            </div>
-            <span className="text-lg font-bold text-gray-900">
-              {(stats.monthlyRevenue / 1000000).toFixed(0)}M
-            </span>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2">Monthly Revenue</h3>
-          <p className="text-xs text-gray-500">VND from active contracts</p>
-        </div>
-      </div>
-
-      {/* Contract List - Rest of the component remains the same */}
-      <div className="bg-white rounded-xl border border-gray-100 mb-6">
+      {/* Contract List */}
+      <motion.div
+        className="bg-white rounded-xl border border-gray-100 mb-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+      >
         <div className="p-6 border-b border-gray-100">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
             <h3 className="text-lg font-semibold text-gray-900">
@@ -2020,73 +2062,85 @@ const ContractStaff = () => {
                 />
               </div>
 
-              <button
+              <motion.button
                 onClick={() => setShowFilters(!showFilters)}
                 className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <MdFilterList className="w-5 h-5" />
                 <span>Filters</span>
-              </button>
+              </motion.button>
             </div>
           </div>
 
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="expiring">Expiring Soon</option>
-                    <option value="expired">Expired</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                className="mt-4 pt-4 border-t border-gray-100"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <select
+                      value={selectedStatus}
+                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="active">Active</option>
+                      <option value="expiring">Expiring Soon</option>
+                      <option value="expired">Expired</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contract
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Company
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Vehicles
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Monthly Fee
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                {[
+                  "Contract",
+                  "Company",
+                  "Duration",
+                  "Vehicles",
+                  "Monthly Fee",
+                  "Status",
+                  "Actions",
+                ].map((header, index) => (
+                  <motion.th
+                    key={header}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7 + index * 0.05 }}
+                  >
+                    {header}
+                  </motion.th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredContracts.map((contract) => (
-                <tr
+              {filteredContracts.map((contract, index) => (
+                <motion.tr
                   key={contract.id}
                   className="hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => openDetail(contract)}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.8 + index * 0.1 }}
+                  whileHover={{ x: 5 }}
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
@@ -2155,24 +2209,12 @@ const ContractStaff = () => {
                       </button>
                     </div>
                   </td>
-                </tr>
+                </motion.tr>
               ))}
             </tbody>
           </table>
         </div>
-
-        {filteredContracts.length === 0 && (
-          <div className="text-center py-12">
-            <MdBusiness className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No contracts found
-            </h3>
-            <p className="text-gray-500">
-              Try adjusting your search or filter criteria
-            </p>
-          </div>
-        )}
-      </div>
+      </motion.div>
 
       {/* Contract Detail Modal - Rest remains the same */}
       {isDetailOpen && selectedContract && (

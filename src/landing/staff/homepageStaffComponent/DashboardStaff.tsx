@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MdDirectionsCar,
   MdAttachMoney,
@@ -166,7 +167,12 @@ const DashboardStaff = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <div className="mb-8">
+      <motion.div
+        className="mb-8"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center space-x-3 mb-2">
@@ -181,169 +187,200 @@ const DashboardStaff = () => {
 
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <div
+              <motion.div
                 role="button"
                 onClick={() => setIsStationDropdownOpen(!isStationDropdownOpen)}
                 className="flex items-center space-x-2 hover:text-gray-700 transition-colors bg-white rounded-lg px-4 py-3 border border-gray-200 hover:border-gray-300 min-w-[200px]"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <MdLocationOn className="w-4 h-4" />
                 <span className="flex-1 text-left">{selectedStation}</span>
-                <MdKeyboardArrowDown
-                  className={`w-4 h-4 transition-transform ${
-                    isStationDropdownOpen ? "rotate-180" : ""
-                  }`}
-                />
+                <motion.div
+                  animate={{ rotate: isStationDropdownOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <MdKeyboardArrowDown className="w-4 h-4" />
+                </motion.div>
+              </motion.div>
+
+              <AnimatePresence>
+                {isStationDropdownOpen && (
+                  <motion.div
+                    className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10"
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="py-2">
+                      {stations.map((station, index) => (
+                        <motion.button
+                          key={index}
+                          onClick={() => {
+                            setSelectedStation(station);
+                            setIsStationDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                            selectedStation === station
+                              ? "bg-gray-50 text-gray-900 font-medium"
+                              : "text-gray-700"
+                          }`}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          whileHover={{ x: 5 }}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <MdLocationOn className="w-4 h-4" />
+                            <span>{station}</span>
+                            {selectedStation === station && (
+                              <motion.div
+                                className="w-2 h-2 bg-green-500 rounded-full ml-auto"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.1 }}
+                              />
+                            )}
+                          </div>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Stats Cards */}
+      <motion.div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        {[
+          {
+            title: "Total Vehicles",
+            value: stats.vehicles.total,
+            icon: MdDirectionsCar,
+            color: "blue",
+            path: stats.vehicles.path,
+            details: [
+              `Available: ${stats.vehicles.available}`,
+              `Rented: ${stats.vehicles.rented}`,
+            ],
+          },
+          {
+            title: "Today's Revenue",
+            value: `${(stats.revenue.today / 1000000).toFixed(1)}M`,
+            icon: MdAttachMoney,
+            color: "green",
+            path: stats.revenue.path,
+            details: [
+              `Monthly: ${(stats.revenue.thisMonth / 1000000).toFixed(1)}M VND`,
+            ],
+          },
+          {
+            title: "New Customers",
+            value: stats.customers.new,
+            icon: MdPersonAdd,
+            color: "purple",
+            path: stats.customers.path,
+            details: [
+              `Total: ${stats.customers.total}`,
+              `VIP: ${stats.customers.vip}`,
+            ],
+          },
+          {
+            title: "Active Contracts",
+            value: stats.contracts.active,
+            icon: MdBusiness,
+            color: "orange",
+            path: stats.contracts.path,
+            details: [
+              `Total: ${stats.contracts.total}`,
+              `Expiring: ${stats.contracts.expiring}`,
+            ],
+          },
+        ].map((stat, index) => (
+          <motion.div
+            key={stat.title}
+            onClick={() => handleStatsCardClick(stat.path)}
+            className="bg-white rounded-xl p-6 border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all cursor-pointer group"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 + index * 0.1 }}
+            whileHover={{ y: -5 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <motion.div
+                className={`w-12 h-12 bg-${stat.color}-100 rounded-lg flex items-center justify-center group-hover:bg-${stat.color}-200 transition-colors`}
+                whileHover={{ rotate: 5 }}
+              >
+                <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
+              </motion.div>
+              <div className="text-right">
+                <motion.span
+                  className="text-2xl font-bold text-gray-900"
+                  initial={{ scale: 1 }}
+                  whileHover={{ scale: 1.1 }}
+                >
+                  {stat.value}
+                </motion.span>
               </div>
-              {isStationDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                  <div className="py-2">
-                    {stations.map((station, index) => (
-                      <button
-                        key={index}
-                        onClick={() => {
-                          setSelectedStation(station);
-                          setIsStationDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                          selectedStation === station
-                            ? "bg-gray-50 text-gray-900 font-medium"
-                            : "text-gray-700"
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <MdLocationOn className="w-4 h-4" />
-                          <span>{station}</span>
-                          {selectedStation === station && (
-                            <div className="w-2 h-2 bg-green-500 rounded-full ml-auto"></div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
-        </div>
-      </div>
+            <h3 className="text-gray-600 text-sm mb-2 group-hover:text-gray-700 transition-colors">
+              {stat.title}
+            </h3>
+            <div className="flex items-center justify-between text-xs">
+              {stat.details.map((detail, i) => (
+                <span key={i} className={`text-${stat.color}-600`}>
+                  {detail}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div
-          onClick={() => handleStatsCardClick(stats.vehicles.path)}
-          className="bg-white rounded-xl p-6 border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all cursor-pointer group"
+      {/* Main Content Grid */}
+      <motion.div
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+      >
+        {/* Recent Bookings */}
+        <motion.div
+          className="lg:col-span-2 bg-white rounded-xl border border-gray-100"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.7 }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-              <MdDirectionsCar className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="text-right">
-              <span className="text-2xl font-bold text-gray-900">
-                {stats.vehicles.total}
-              </span>
-            </div>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2 group-hover:text-gray-700 transition-colors">
-            Total Vehicles
-          </h3>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-green-600">
-              Available: {stats.vehicles.available}
-            </span>
-            <span className="text-blue-600">
-              Rented: {stats.vehicles.rented}
-            </span>
-          </div>
-        </div>
-
-        <div
-          onClick={() => handleStatsCardClick(stats.revenue.path)}
-          className="bg-white rounded-xl p-6 border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
-              <MdAttachMoney className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="text-right">
-              <span className="text-2xl font-bold text-gray-900">
-                {(stats.revenue.today / 1000000).toFixed(1)}M
-              </span>
-            </div>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2 group-hover:text-gray-700 transition-colors">
-            Today's Revenue
-          </h3>
-          <p className="text-xs text-gray-500">
-            Monthly: {(stats.revenue.thisMonth / 1000000).toFixed(1)}M VND
-          </p>
-        </div>
-        <div
-          onClick={() => handleStatsCardClick(stats.customers.path)}
-          className="bg-white rounded-xl p-6 border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-              <MdPersonAdd className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="text-right">
-              <span className="text-2xl font-bold text-gray-900">
-                {stats.customers.new}
-              </span>
-            </div>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2 group-hover:text-gray-700 transition-colors">
-            New Customers
-          </h3>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500">
-              Total: {stats.customers.total}
-            </span>
-            <span className="text-yellow-600">VIP: {stats.customers.vip}</span>
-          </div>
-        </div>
-
-        <div
-          onClick={() => handleStatsCardClick(stats.contracts.path)}
-          className="bg-white rounded-xl p-6 border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 transition-colors">
-              <MdBusiness className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="text-right">
-              <span className="text-2xl font-bold text-gray-900">
-                {stats.contracts.active}
-              </span>
-            </div>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2 group-hover:text-gray-700 transition-colors">
-            Active Contracts
-          </h3>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500">
-              Total: {stats.contracts.total}
-            </span>
-            <span className="text-red-600">
-              Expiring: {stats.contracts.expiring}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100">
           <div className="p-6 border-b border-gray-100">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <motion.h3
+                className="text-lg font-semibold text-gray-900 flex items-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+              >
                 <MdCalendarToday className="w-5 h-5 mr-2" />
                 Recent Bookings
-              </h3>
-              <div
+              </motion.h3>
+              <motion.div
                 role="button"
                 onClick={handleViewAllBookings}
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 View All
-              </div>
+              </motion.div>
             </div>
           </div>
 
@@ -351,31 +388,35 @@ const DashboardStaff = () => {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Booking
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Vehicle
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  {[
+                    "Booking",
+                    "Customer",
+                    "Vehicle",
+                    "Amount",
+                    "Status",
+                    "Actions",
+                  ].map((header, index) => (
+                    <motion.th
+                      key={header}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.8 + index * 0.05 }}
+                    >
+                      {header}
+                    </motion.th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {recentBookings.map((booking, index) => (
-                  <tr
+                  <motion.tr
                     key={index}
                     className="hover:bg-gray-50 transition-colors"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.9 + index * 0.1 }}
+                    whileHover={{ x: 5 }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
@@ -389,12 +430,15 @@ const DashboardStaff = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-700 font-medium text-xs mr-3">
+                        <motion.div
+                          className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-700 font-medium text-xs mr-3"
+                          whileHover={{ scale: 1.1 }}
+                        >
                           {booking.customer
                             .split(" ")
                             .map((n) => n[0])
                             .join("")}
-                        </div>
+                        </motion.div>
                         <div>
                           <div className="text-sm font-medium text-gray-900">
                             {booking.customer}
@@ -422,7 +466,7 @@ const DashboardStaff = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
+                      <motion.span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
                           booking.statusColor === "yellow"
                             ? "bg-yellow-100 text-yellow-800"
@@ -432,36 +476,65 @@ const DashboardStaff = () => {
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                         }`}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 1 + index * 0.1 }}
                       >
                         {booking.status}
-                      </span>
+                      </motion.span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex space-x-2">
-                        <button className="text-gray-600 hover:text-gray-900 transition-colors">
+                        <motion.button
+                          className="text-gray-600 hover:text-gray-900 transition-colors"
+                          whileHover={{ scale: 1.2 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
                           <MdVisibility className="w-4 h-4" />
-                        </button>
-                        <button className="text-gray-600 hover:text-gray-900 transition-colors">
+                        </motion.button>
+                        <motion.button
+                          className="text-gray-600 hover:text-gray-900 transition-colors"
+                          whileHover={{ scale: 1.2 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
                           <MdEdit className="w-4 h-4" />
-                        </button>
+                        </motion.button>
                       </div>
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="space-y-6">
+        {/* Recent Activities */}
+        <motion.div
+          className="space-y-6"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.7 }}
+        >
           <div className="bg-white rounded-xl border border-gray-100 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <motion.h3
+              className="text-lg font-semibold text-gray-900 mb-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+            >
               Recent Activities
-            </h3>
+            </motion.h3>
             <div className="space-y-4">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-3">
-                  <div
+              {recentActivities.map((activity, index) => (
+                <motion.div
+                  key={activity.id}
+                  className="flex items-start space-x-3"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9 + index * 0.1 }}
+                  whileHover={{ x: 5 }}
+                >
+                  <motion.div
                     className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                       activity.status === "success"
                         ? "bg-green-100"
@@ -471,6 +544,7 @@ const DashboardStaff = () => {
                         ? "bg-blue-100"
                         : "bg-gray-100"
                     }`}
+                    whileHover={{ scale: 1.1, rotate: 5 }}
                   >
                     <activity.icon
                       className={`w-4 h-4 ${
@@ -483,7 +557,7 @@ const DashboardStaff = () => {
                           : "text-gray-600"
                       }`}
                     />
-                  </div>
+                  </motion.div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">
                       {activity.title}
@@ -495,15 +569,19 @@ const DashboardStaff = () => {
                       {activity.time}
                     </p>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
-            <button className="w-full mt-4 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            <motion.button
+              className="w-full mt-4 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
               View All Activities
-            </button>
+            </motion.button>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };
