@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 interface UserProps {
   userName?: string;
@@ -15,6 +16,7 @@ const User: React.FC<UserProps> = ({
   isLoggedIn = true
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -82,6 +84,7 @@ const User: React.FC<UserProps> = ({
           }`}
           role="menu"
           aria-hidden={!isDropdownOpen}
+          onMouseLeave={() => setHoveredItem(null)}
         >
             {/* User Info */}
             <div className="px-4 py-3 border-b border-gray-200">
@@ -89,47 +92,76 @@ const User: React.FC<UserProps> = ({
               <p className="text-xs text-gray-500">Member</p>
             </div>
 
-            {/* Profile Button */}
-            <button
-              onClick={handleProfileClick}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200 flex items-center space-x-2"
-            >
-              <svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
+            <div className="relative">
+              {/* Moving white dot indicator - Always render when dropdown is open */}
+              <motion.div
+                className="absolute right-3 top-3 w-2.5 h-2.5 bg-white rounded-full shadow-md border border-gray-200"
+                style={{ 
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.1)'
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ 
+                  y: hoveredItem === 'profile' ? 0 : hoveredItem === 'logout' ? 40 : 20,
+                  opacity: hoveredItem ? 1 : 0,
+                  scale: hoveredItem ? 1 : 0.5
+                }}
+                transition={{
+                  type: "spring",
+                  stiffness: 500,
+                  damping: 15,
+                  mass: 0.8,
+                  bounce: 0.6
+                }}
+              />
+
+              {/* Profile Button */}
+              <motion.button
+                onClick={handleProfileClick}
+                onMouseEnter={() => setHoveredItem('profile')}
+                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200 flex items-center space-x-2 relative"
+                whileHover={{ x: 2 }}
+                transition={{ duration: 0.2 }}
               >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                />
-              </svg>
-              <span>View Profile</span>
-            </button>
-            
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 flex items-center space-x-2"
-            >
-              <svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
+                <svg 
+                  className="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+                  />
+                </svg>
+                <span>View Profile</span>
+              </motion.button>
+              
+              {/* Logout Button */}
+              <motion.button
+                onClick={handleLogout}
+                onMouseEnter={() => setHoveredItem('logout')}
+                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 flex items-center space-x-2 relative"
+                whileHover={{ x: 2 }}
+                transition={{ duration: 0.2 }}
               >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-                />
-              </svg>
-              <span>Logout</span>
-            </button>
+                <svg 
+                  className="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
+                  />
+                </svg>
+                <span>Logout</span>
+              </motion.button>
+            </div>
         </div>
       )}
 

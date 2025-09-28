@@ -10,8 +10,9 @@ export const carData = [
     range: "396 mi",
     image: "/cars/tesla-model-s.png",
     location: "Tp.HCM",
-    station: "Station A - Quận 1", // Thêm thuộc tính station
+    station: "Station A - Quận 1",
     type: "EV",
+    status: "active",
   },
   {
     id: 2,
@@ -22,8 +23,9 @@ export const carData = [
     range: "292 mi",
     image: vf8,
     location: "Hà Nội",
-    station: "Station D - Cầu Giấy", // Thêm thuộc tính station
+    station: "Station D - Cầu Giấy",
     type: "EV",
+    status: "active",
   },
   {
     id: 3,
@@ -36,6 +38,7 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station F - Hải Châu",
     type: "EV",
+    status: "maintenance",
   },
   {
     id: 4,
@@ -48,6 +51,7 @@ export const carData = [
     location: "Phan Thiết",
     station: "Station H - Mũi Né",
     type: "EV",
+    status: "active",
   },
   {
     id: 5,
@@ -60,6 +64,7 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station B - Quận 3",
     type: "EV",
+    status: "active",
   },
   {
     id: 6,
@@ -72,6 +77,7 @@ export const carData = [
     location: "Hà Nội",
     station: "Station E - Hoàn Kiếm",
     type: "EV",
+    status: "rented",
   },
   {
     id: 7,
@@ -84,6 +90,7 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station G - Sơn Trà",
     type: "EV",
+    status: "active",
   },
   {
     id: 8,
@@ -96,6 +103,7 @@ export const carData = [
     location: "Phan Thiết",
     station: "Station I - Phan Thiết City",
     type: "EV",
+    status: "active",
   },
   {
     id: 9,
@@ -108,6 +116,7 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station C - Thủ Đức",
     type: "EV",
+    status: "active",
   },
   {
     id: 10,
@@ -120,6 +129,7 @@ export const carData = [
     location: "Hà Nội",
     station: "Station D - Cầu Giấy",
     type: "EV",
+    status: "inactive",
   },
   {
     id: 11,
@@ -132,6 +142,7 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station F - Hải Châu",
     type: "EV",
+    status: "maintenance",
   },
   {
     id: 12,
@@ -144,6 +155,7 @@ export const carData = [
     location: "Phan Thiết",
     station: "Station H - Mũi Né",
     type: "EV",
+    status: "rented",
   },
   {
     id: 13,
@@ -156,6 +168,7 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station B - Quận 3",
     type: "EV",
+    status: "maintenance",
   },
   {
     id: 14,
@@ -168,6 +181,7 @@ export const carData = [
     location: "Hà Nội",
     station: "Station E - Hoàn Kiếm",
     type: "EV",
+    status: "active",
   },
   {
     id: 15,
@@ -180,6 +194,7 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station G - Sơn Trà",
     type: "EV",
+    status: "active",
   },
   {
     id: 16,
@@ -192,6 +207,7 @@ export const carData = [
     location: "Phan Thiết",
     station: "Station H - Mũi Né",
     type: "EV",
+    status: "active",
   },
   {
     id: 17,
@@ -204,6 +220,7 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station A - Quận 1",
     type: "EV",
+    status: "active",
   },
   {
     id: 18,
@@ -216,6 +233,7 @@ export const carData = [
     location: "Hà Nội",
     station: "Station D - Cầu Giấy",
     type: "EV",
+    status: "active",
   },
   {
     id: 19,
@@ -228,6 +246,7 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station F - Hải Châu",
     type: "EV",
+    status: "active",
   },
   {
     id: 20,
@@ -240,6 +259,7 @@ export const carData = [
     location: "Phan Thiết",
     station: "Station I - Phan Thiết City",
     type: "EV",
+    status: "rented",
   },
   {
     id: 21,
@@ -252,6 +272,7 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station A - Quận 1",
     type: "EV",
+    status: "active",
   },
   {
     id: 22,
@@ -264,6 +285,7 @@ export const carData = [
     location: "Hà Nội",
     station: "Station E - Hoàn Kiếm",
     type: "EV",
+    status: "active",
   },
   {
     id: 23,
@@ -276,6 +298,7 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station B - Quận 3",
     type: "EV",
+    status: "active",
   },
   {
     id: 24,
@@ -288,6 +311,7 @@ export const carData = [
     location: "Hà Nội",
     station: "Station D - Cầu Giấy",
     type: "EV",
+    status: "active",
   },
   {
     id: 25,
@@ -300,6 +324,7 @@ export const carData = [
     location: "Huế",
     station: "Station J - Trung tâm TP",
     type: "EV",
+    status: "inactive",
   },
   {
     id: 26,
@@ -312,6 +337,7 @@ export const carData = [
     location: "Hải Phòng",
     station: "Station K - Đồ Sơn",
     type: "EV",
+    status: "active",
   },
   {
     id: 27,
@@ -324,6 +350,7 @@ export const carData = [
     location: "Nha Trang",
     station: "Station L - Bãi biển",
     type: "EV",
+    status: "active",
   },
   {
     id: 28,
@@ -336,6 +363,7 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station C - Thủ Đức",
     type: "EV",
+    status: "active",
   },
   {
     id: 29,
@@ -348,6 +376,7 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station G - Sơn Trà",
     type: "EV",
+    status: "active",
   },
   {
     id: 30,
@@ -360,6 +389,7 @@ export const carData = [
     location: "Đà Lạt",
     station: "Station M - Hồ Xuân Hương",
     type: "EV",
+    status: "active",
   },
   {
     id: 31,
@@ -372,6 +402,7 @@ export const carData = [
     location: "Hà Nội",
     station: "Station E - Hoàn Kiếm",
     type: "EV",
+    status: "active",
   },
   {
     id: 32,
@@ -384,5 +415,6 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station B - Quận 3",
     type: "EV",
+    status: "active",
   },
 ];

@@ -1,19 +1,9 @@
 import { useMemo } from 'react';
 import { carData } from '../data/carData';
 import { SEARCH_SCORES } from '../constants/searchConstants';
+import type { Car } from '../types/car';
 
-interface Car {
-  id: number;
-  name: string;
-  price: number;
-  transmission: string;
-  seats: number;
-  range: string;
-  image: string;
-  location: string;
-  station?: string;
-  type: string;
-}
+export type { Car };
 
 interface ScoredResult {
   car: Car;
@@ -31,8 +21,9 @@ export const useSearchResults = (searchTerm: string): Car[] => {
     
     const lowerSearchTerm = searchTerm.toLowerCase();
     
-    // Score and filter results
+    // Filter only active vehicles first, then score and filter results
     const scoredResults: ScoredResult[] = carData
+      .filter(car => car.status === 'active') // Only show active vehicles
       .map((car) => ({
         car,
         score: calculateSearchScore(car, lowerSearchTerm)
