@@ -114,7 +114,7 @@ const ActivityTab = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1, duration: 0.4, ease: 'easeOut' }}
             whileHover={{ y: -2 }}
-            className='flex items-start space-x-4 p-6 bg-white/5 backdrop-blur-sm rounded-2xl hover:bg-white/10 transition-all duration-300 ease-out group cursor-pointer border border-white/10 shadow-lg hover:shadow-xl'
+                className='flex items-start space-x-4 p-6 bg-white rounded-2xl hover:bg-gray-50 transition-all duration-300 ease-out group cursor-pointer border border-gray-200 shadow-lg hover:shadow-xl'
           >
             {/* Activity Icon */}
             <div className={`flex-shrink-0 p-3 rounded-2xl ${getStatusColor(activity.status)} group-hover:scale-110 transition-all duration-300 ease-out shadow-md`}>
@@ -125,17 +125,17 @@ const ActivityTab = () => {
             <div className='flex-1 min-w-0'>
               <div className='flex items-start justify-between'>
                 <div className='flex-1 pr-4'>
-                  <h4 className='text-lg font-semibold text-white group-hover:text-gray-200 transition-colors duration-300'>
-                    {activity.title}
-                  </h4>
-                  <p className='text-gray-300 mt-2 leading-relaxed'>
-                    {activity.description}
-                  </p>
-                  <div className='flex items-center mt-3 space-x-4'>
-                    <p className='text-xs text-gray-400 font-medium'>
-                      {activity.timestamp}
-                    </p>
-                  </div>
+                      <h4 className='text-lg font-semibold text-black group-hover:text-gray-700 transition-colors duration-300'>
+                        {activity.title}
+                      </h4>
+                      <p className='text-gray-600 mt-2 leading-relaxed'>
+                        {activity.description}
+                      </p>
+                      <div className='flex items-center mt-3 space-x-4'>
+                        <p className='text-xs text-gray-500 font-medium'>
+                          {activity.timestamp}
+                        </p>
+                      </div>
                 </div>
 
                 {/* Status Badge */}
@@ -159,7 +159,7 @@ const ActivityTab = () => {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className='px-8 py-4 bg-white/10 text-white rounded-2xl font-medium hover:bg-white/20 transition-all duration-300 ease-out border border-white/20 shadow-lg'
+              className='px-8 py-4 bg-gray-50 text-black rounded-2xl font-medium hover:bg-gray-100 transition-all duration-300 ease-out border border-gray-300 shadow-lg'
         >
           Load More Activities
         </motion.button>

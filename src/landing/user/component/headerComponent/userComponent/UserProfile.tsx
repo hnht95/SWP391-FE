@@ -1,5 +1,9 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { ImProfile } from "react-icons/im";
+import { FaCar } from "react-icons/fa";
+import { BiSolidNotepad } from "react-icons/bi";
+import { IoSettingsSharp } from "react-icons/io5";
 import ProfileTab from "./userProfileComponent/userTabComponent/ProfileTab";
 import SettingsTab from "./userProfileComponent/userTabComponent/SettingsTab";
 import ActivityTab from "./userProfileComponent/userTabComponent/ActivityTab";
@@ -11,7 +15,7 @@ interface UserData {
   email: string;
   phone: string;
   avatar?: string;
-  role: "User" | "Admin" | "Renter";
+  role: "User" | "Staff" | "Admin";
 }
 
 const mockUser: UserData = {
@@ -21,7 +25,7 @@ const mockUser: UserData = {
   phone: "+84 123 456 789",
   avatar:
     "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-  role: "Renter",
+  role: "User",
 };
 
 type TabType = "profile" | "booking" | "activity" | "settings";
@@ -32,10 +36,10 @@ const UserProfile = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const tabs = [
-    { id: "profile", label: "Profile", icon: "👤" },
-    { id: "booking", label: "Booking History", icon: "🚗" },
-    { id: "activity", label: "Activity", icon: "📋" },
-    { id: "settings", label: "Settings", icon: "⚙️" },
+    { id: "profile", label: "Profile", icon: <ImProfile className="w-4 h-4" /> },
+    { id: "booking", label: "Booking History", icon: <FaCar className="w-4 h-4" /> },
+    { id: "activity", label: "Activity", icon: <BiSolidNotepad className="w-4 h-4" /> },
+    { id: "settings", label: "Settings", icon: <IoSettingsSharp className="w-4 h-4" /> },
   ] as const;
 
   const renderTabContent = () => {
@@ -67,22 +71,15 @@ const UserProfile = () => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4, ease: "easeInOut" }}
-      className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-100"
+      className="min-h-screen bg-gray-50"
     >
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-15">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.1),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,rgba(0,0,0,0.2),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.05)_0%,transparent_30%,rgba(0,0,0,0.1)_70%)]" />
-      </div>
-
       <div className="relative z-10 flex min-h-screen">
         {/* Mobile Menu Button */}
         <div className="lg:hidden fixed top-4 left-4 z-50">
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 bg-black/30 backdrop-blur-sm rounded-lg text-white border border-white/10"
+            className="p-2 bg-gray-100 rounded-lg text-black border border-gray-300"
           >
             <svg
               className="w-6 h-6"
@@ -115,72 +112,92 @@ const UserProfile = () => {
           />
         )}
 
-        {/* Sidebar */}
+        {/* Fixed Sidebar - Không scroll */}
         <motion.div
           initial={{ x: -50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.4, ease: "easeInOut" }}
-          className={`w-80 bg-black/20 backdrop-blur-sm border-r border-white/10 fixed lg:relative h-full z-40 transform transition-transform duration-300 ${
+          className={`w-80 bg-white border-r border-gray-200 fixed lg:sticky lg:top-0 h-screen z-40 transform transition-transform duration-300 ${
             isSidebarOpen
               ? "translate-x-0"
               : "-translate-x-full lg:translate-x-0"
-          }`}
+          } flex flex-col overflow-hidden`}
+          onWheel={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          style={{ 
+            overscrollBehavior: 'contain',
+            touchAction: 'none'
+          }}
         >
-          <div className="p-6 space-y-6">
-            {/* User Info in Sidebar */}
-            <div className="text-center space-y-4">
-              <div className="relative group mx-auto w-24 h-24">
-                <div className="w-full h-full rounded-full overflow-hidden bg-gray-200 shadow-lg">
-                  {user.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt={user.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                      <span className="text-white text-2xl font-bold">
-                        {user.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </div>
+          {/* User Info - Fixed tại đầu sidebar */}
+          <div className="p-6 text-center space-y-4 flex-shrink-0 border-b border-gray-200">
+            <div className="relative group mx-auto w-24 h-24">
+              <div className="w-full h-full rounded-full overflow-hidden bg-gray-200 shadow-lg">
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-400 flex items-center justify-center">
+                    <span className="text-black text-2xl font-bold">
+                      {user.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={handleEditAvatar}
-                  className="absolute bottom-0 right-0 w-7 h-7 bg-white text-black rounded-full shadow-lg hover:bg-gray-100 transition-colors duration-300 ease-in-out flex items-center justify-center"
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleEditAvatar}
+                className="absolute bottom-0 right-0 w-7 h-7 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 transition-colors duration-300 ease-in-out flex items-center justify-center"
+              >
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <svg
-                    className="w-3 h-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                    />
-                  </svg>
-                </motion.button>
-              </div>
-
-              <div>
-                <h2 className="text-xl font-bold text-white">{user.name}</h2>
-                <p className="text-gray-300 text-sm">{user.email}</p>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white text-black mt-2 border border-gray-200">
-                  {user.role}
-                </span>
-              </div>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                  />
+                </svg>
+              </motion.button>
             </div>
 
+            <div>
+              <h2 className="text-xl font-bold text-black">{user.name}</h2>
+              <p className="text-gray-600 text-sm">{user.email}</p>
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-black text-white mt-2 border border-gray-800">
+                {user.role}
+              </span>
+            </div>
+          </div>
+
+          {/* Fixed Content Area - Không scroll */}
+          <div className="flex-1 p-4 flex flex-col justify-between overflow-hidden"
+               onWheel={(e) => {
+                 e.preventDefault();
+                 e.stopPropagation();
+               }}
+               onTouchMove={(e) => {
+                 e.preventDefault();
+               }}
+               style={{ 
+                 touchAction: 'none',
+                 overscrollBehavior: 'none'
+               }}>
             {/* Navigation Tabs */}
             <nav className="space-y-2">
               {tabs.map((tab) => (
@@ -190,20 +207,20 @@ const UserProfile = () => {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     setActiveTab(tab.id);
-                    setIsSidebarOpen(false); // Close sidebar on mobile after selecting tab
+                    setIsSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-all duration-300 ease-in-out ${
+                  className={`w-full flex items-center space-x-3 px-3 py-2.5 text-left rounded-lg transition-all duration-300 ease-in-out ${
                     activeTab === tab.id
-                      ? "bg-white/20 text-white shadow-lg"
-                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      ? "bg-black text-white shadow-lg"
+                      : "text-gray-600 hover:bg-gray-200 hover:text-black"
                   }`}
                 >
-                  <span className="text-lg">{tab.icon}</span>
-                  <span className="font-medium">{tab.label}</span>
+                  <span className="flex items-center justify-center">{tab.icon}</span>
+                  <span className="font-medium text-sm">{tab.label}</span>
                   {activeTab === tab.id && (
                     <motion.div
                       layoutId="activeIndicator"
-                      className="ml-auto w-2 h-2 bg-white rounded-full border border-gray-300"
+                      className="ml-auto w-2 h-2 bg-white rounded-full"
                       initial={false}
                       transition={{
                         type: "spring",
@@ -217,78 +234,115 @@ const UserProfile = () => {
             </nav>
 
             {/* Quick Stats */}
-            <div className="pt-6 border-t border-white/10">
-              <h3 className="text-sm font-semibold text-gray-300 mb-3">
+            <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-xs font-semibold text-gray-700 mb-2">
                 Quick Stats
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-sm">Member Since</span>
-                  <span className="text-white text-sm font-medium">
+                  <span className="text-gray-500 text-xs">Member Since</span>
+                  <span className="text-black text-xs font-medium">
                     Jan 2024
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-sm">Total Bookings</span>
-                  <span className="text-white text-sm font-medium">12</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-sm">Status</span>
-                  <span className="text-white text-sm font-medium">Active</span>
+                  <span className="text-gray-500 text-xs">Total Bookings</span>
+                  <span className="text-black text-xs font-medium">12</span>
                 </div>
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Main Content */}
+        {/* Main Content - Có thể scroll */}
         <motion.div
           initial={{ x: 50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.4, ease: "easeInOut" }}
-          className="flex-1 overflow-hidden lg:ml-0"
+          className="flex-1 lg:ml-0 flex flex-col h-screen"
         >
-          {/* Header */}
-          <div className="bg-black/20 backdrop-blur-sm border-b border-white/10 p-4 lg:p-6">
+          {/* Header - Fixed */}
+          <div className="bg-gray-50 p-4 lg:p-6 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="lg:pl-0 pl-12">
-                <h1 className="text-xl lg:text-2xl font-bold text-white mb-1">
-                  {tabs.find((tab) => tab.id === activeTab)?.label || "Profile"}
-                </h1>
-                <p className="text-gray-300 text-xs lg:text-sm">
-                  {activeTab === "profile" &&
-                    "Manage your personal information"}
-                  {activeTab === "booking" &&
-                    "View your rental booking history"}
-                  {activeTab === "activity" && "View your recent activities"}
-                  {activeTab === "settings" &&
-                    "Configure your account preferences"}
-                </p>
+                <motion.div
+                  key={`title-${activeTab}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                  <h1 className="text-xl lg:text-2xl font-bold text-black mb-1">
+                    {tabs.find((tab) => tab.id === activeTab)?.label || "Profile"}
+                  </h1>
+                </motion.div>
+                <motion.div
+                  key={`description-${activeTab}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                  <p className="text-gray-600 text-xs lg:text-sm">
+                    {activeTab === "profile" &&
+                      "Manage your personal information"}
+                    {activeTab === "booking" &&
+                      "View your rental booking history"}
+                    {activeTab === "activity" && "View your recent activities"}
+                    {activeTab === "settings" &&
+                      "Configure your account preferences"}
+                  </p>
+                </motion.div>
               </div>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleEditProfile}
-                className="px-3 lg:px-4 py-2 bg-white text-black rounded-lg font-medium hover:bg-gray-100 transition-colors duration-300 ease-in-out text-sm lg:text-base border border-gray-200"
-              >
-                Edit Profile
-              </motion.button>
+              {activeTab === 'profile' && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleEditProfile}
+                  className="px-3 lg:px-4 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors duration-300 ease-in-out text-sm lg:text-base border border-black"
+                >
+                  Edit Profile
+                </motion.button>
+              )}
             </div>
           </div>
 
-          {/* Content Area */}
-          <div className="p-4 lg:p-6 h-full overflow-y-auto">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 lg:p-6"
-            >
-              {renderTabContent()}
-            </motion.div>
+          {/* Content Area - Chỉ nội dung tab scroll */}
+          <div className="flex-1 overflow-hidden">
+            <div 
+              className="h-full p-2 lg:p-4 overflow-y-auto" 
+              onWheel={(e) => {
+                const target = e.currentTarget;
+                const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 5;
+                const atTop = target.scrollTop <= 5;
+                
+                // Nếu scroll xuống và đã gần cuối, cho phép scroll tiếp xuống footer
+                if (e.deltaY > 0 && atBottom) {
+                  // Cho phép scroll event đi tiếp để scroll xuống footer
+                  return;
+                }
+                // Nếu scroll lên và đã gần đầu, cho phép scroll tiếp lên
+                if (e.deltaY < 0 && atTop) {
+                  return;
+                }
+                // Chỉ ngăn propagation khi đang scroll trong content
+                e.stopPropagation();
+              }}
+              style={{ 
+                overscrollBehavior: 'auto'
+              }}>
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="bg-gray-50 rounded-xl p-3 lg:p-4"
+              >
+                {renderTabContent()}
+              </motion.div>
+            </div>
           </div>
         </motion.div>
       </div>

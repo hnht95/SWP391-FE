@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { carData } from "../../../../../data/carData";
 import ImageGallery from "./vehiclesDetailComponent/ImageGallery";
@@ -6,12 +6,12 @@ import Specifications from "./vehiclesDetailComponent/Specifications";
 import Description from "./vehiclesDetailComponent/Description";
 import CarFeatures from "./vehiclesDetailComponent/CarFeatures";
 import RentalDocument from "./vehiclesDetailComponent/RentalDocument";
-import RentalOptions from "./vehiclesDetailComponent/RentalOptions";
+import RentingModal from "./vehiclesDetailComponent/RentingModal";
 
 const VehiclesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-
+  const [showRentingModal, setShowRentingModal] = useState(false);
   const car = carData.find((c) => c.id === parseInt(id || ""));
 
   if (!car) {
@@ -70,13 +70,22 @@ const VehiclesDetail: React.FC = () => {
               <p className="text-2xl font-semibold text-green-600 mb-4">
                 {car.price} $/day
               </p>
-              <button className="w-full py-3 bg-black cursor-pointer text-white font-semibold rounded-lg hover:bg-grey-700 transition-colors">
+              <button
+                onClick={() => setShowRentingModal(true)}
+                className="w-full py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-colors"
+              >
                 Rent Now
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      <RentingModal
+        isOpen={showRentingModal}
+        onClose={() => setShowRentingModal(false)}
+        carId={car.id}
+      />
     </div>
   );
 };

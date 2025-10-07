@@ -6,7 +6,7 @@ interface UserData {
   email: string
   phone: string
   avatar?: string
-  role: 'User' | 'Admin'
+  role: 'User' | 'Staff' | 'Admin'
 }
 
 interface UserProfileCardProps {
