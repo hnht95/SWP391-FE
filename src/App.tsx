@@ -1,11 +1,15 @@
 import "./App.css";
 import { BrowserRouter as Router } from "react-router-dom";
 import AllRouter from "./routes/AllRouter";
+import ClickToTop from "./landing/user/component/headerComponent/ClickToTop";
+import ScrollToTopButton from "./landing/user/component/homePageComponent/ScrollToTopButton";
 
 function App() {
   return (
     <Router>
-      <div className="p-1 text-amber-300">
+      <ScrollToTopButton />
+      <div className="w-full  h-screen bg-white rounded shadow">
+        <ClickToTop />
         <AllRouter />
       </div>
     </Router>

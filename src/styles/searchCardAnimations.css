@@ -1,0 +1,124 @@
+/* Search Card Animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInStagger {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth entrance animation for search cards */
+.search-card-enter {
+  animation: slideInUp 0.4s ease-out forwards;
+}
+
+.search-card-enter-stagger {
+  animation: slideInStagger 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+/* Container animation */
+.search-results-container {
+  animation: fadeInScale 0.3s ease-out forwards;
+}
+
+/* Smooth Scroll Magic ✨ */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Custom Scrollbar - Ma thuật! */
+.smooth-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.smooth-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.smooth-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.5));
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.smooth-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.7));
+  transform: scale(1.2);
+}
+
+/* Scroll Animation Effects */
+.smooth-scroll:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Magic Floating Effect */
+@keyframes floatScroll {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+.smooth-scroll:active {
+  animation: floatScroll 0.6s ease-in-out infinite;
+}
+
+/* Momentum Scrolling for iOS */
+.smooth-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Smooth Focus Transitions */
+.smooth-scroll:focus-within {
+  outline: 2px solid rgba(255, 255, 255, 0.2);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Responsive animations */
+@media (prefers-reduced-motion: reduce) {
+  .search-card-enter,
+  .search-card-enter-stagger,
+  .search-results-container,
+  .smooth-scroll {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
