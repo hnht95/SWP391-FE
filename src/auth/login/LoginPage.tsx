@@ -2,11 +2,14 @@ import { useState } from "react";
 import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { motion } from "framer-motion";
 import AuthLayout from "../AuthLayout";
-import { login } from "../../service/apiUser/API";
+
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { login } from "../../service/apiUser/API";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { login: authLogin } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -43,16 +46,34 @@ const LoginPage = () => {
     try {
       const response = await login(username, password);
 
-      if (response?.token) {
-        localStorage.setItem("token", response.token);
-      }
+      if (response?.success && response?.data) {
+        const { token, user } = response.data;
 
-      if (response?.user) {
-        localStorage.setItem("user", JSON.stringify(response.user));
+        if (token && user) {
+          authLogin({ token, user });
+          const { role } = user;
+
+          if (role === "admin") {
+            navigate("/admin");
+          } else if (role === "staff") {
+            navigate("/staff");
+          } else if (role === "renter") {
+            navigate("/");
+          } else {
+            navigate("/");
+          }
+        } else {
+          setErrors({
+            username: "",
+            password: "Invalid login response - missing token or user data",
+          });
+        }
+      } else {
+        setErrors({
+          username: "",
+          password: "Login failed - invalid response",
+        });
       }
-      console.log(response);
-      // Navigate to staff dashboard
-      navigate("/staff");
     } catch (error: unknown) {
       const errorMessage = (error as Error)?.message || "Login failed";
       setErrors({
@@ -64,7 +85,6 @@ const LoginPage = () => {
     }
   };
 
-  // Animation variants cho form inputs
   const inputVariants = {
     initial: { opacity: 0, x: -20 },
     animate: {
@@ -95,7 +115,6 @@ const LoginPage = () => {
           },
         }}
       >
-        {/* Username Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium text-black select-none">
             Email or Username
@@ -129,7 +148,6 @@ const LoginPage = () => {
           )}
         </motion.div>
 
-        {/* Password Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium select-none text-black">
             Password
@@ -173,7 +191,6 @@ const LoginPage = () => {
           )}
         </motion.div>
 
-        {/* Forgot Password */}
         <motion.div
           variants={inputVariants}
           className="flex items-center justify-between select-none"
@@ -188,7 +205,6 @@ const LoginPage = () => {
           </motion.a>
         </motion.div>
 
-        {/* Sign In Button */}
         <motion.button
           type="submit"
           disabled={loading}

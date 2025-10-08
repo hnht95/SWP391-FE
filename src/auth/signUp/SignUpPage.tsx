@@ -9,8 +9,9 @@ import {
 } from "react-icons/fa";
 import { motion } from "framer-motion";
 import AuthLayout from "../AuthLayout";
-import { register } from "../../service/apiUser/API";
+
 import { useNavigate } from "react-router-dom";
+import { register } from "../../service/apiUser/API";
 
 const SignUpPage = () => {
   const navigate = useNavigate();
@@ -121,7 +122,6 @@ const SignUpPage = () => {
 
       await register(userData);
 
-      // Registration successful
       alert(`Account created successfully for ${fullName}!`);
       navigate("/login");
     } catch (error: unknown) {
@@ -155,7 +155,7 @@ const SignUpPage = () => {
       bottomText="Already have an account?"
       bottomLink="/login"
       bottomLinkText="Sign in here"
-      animationKey="signup" // Key để trigger animation
+      animationKey="signup"
     >
       <motion.form
         className="w-full space-y-4"
@@ -170,7 +170,6 @@ const SignUpPage = () => {
           },
         }}
       >
-        {/* Full Name Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium text-black select-none">
             Full Name
@@ -196,7 +195,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Email Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium text-black select-none">
             Email Address
@@ -223,7 +221,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Phone Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium text-black select-none">
             Phone Number
@@ -250,7 +247,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Password Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium select-none text-black">
             Password
@@ -284,7 +280,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Confirm Password Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium select-none text-black">
             Confirm Password
@@ -326,7 +321,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Gender Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium select-none text-black">
             Gender
@@ -360,7 +354,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Terms and Conditions */}
         <motion.div variants={inputVariants}>
           <label className="flex items-start space-x-2">
             <input
@@ -385,7 +378,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Sign Up Button */}
         <motion.button
           type="submit"
           disabled={loading}
