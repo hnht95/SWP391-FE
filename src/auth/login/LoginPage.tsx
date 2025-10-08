@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import AuthLayout from "../AuthLayout";
 
 const VALID_USERS = [
@@ -12,6 +13,7 @@ const VALID_USERS = [
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({ username: "", password: "" });
+  const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +48,8 @@ const LoginPage = () => {
     );
 
     if (validUser) {
-      alert(`Login successful! Welcome ${username}`);
+      // Chuyển về trang chủ sau khi đăng nhập thành công
+      navigate('/');
     } else {
       const userExists = VALID_USERS.find((user) => user.username === username);
 

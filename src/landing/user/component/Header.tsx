@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import User from "./headerComponent/User";
 import Search from "./headerComponent/Search";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 import {
@@ -153,13 +152,6 @@ export default function Header({
                     Search
                   </span>
                 </button>
-              </div>
-
-              {/* Login/User - stick to the far right */}
-              <div
-                className={`absolute right-0 ${getSearchTriggerClasses(isSearchOpen)}`}
-              >
-                <User />
               </div>
 
               {/* Close Search with fly-down animation */}

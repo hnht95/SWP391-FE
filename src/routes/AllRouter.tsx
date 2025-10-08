@@ -12,6 +12,13 @@ import VehicleMaintain from "../landing/staff/homepageStaffComponent/VehicleMain
 import StaffReport from "../landing/staff/homepageStaffComponent/StaffReport";
 import VehiclesStaff from "../landing/staff/homepageStaffComponent/VehiclesStaff";
 import StaffUser from "../landing/staff/homepageStaffComponent/StaffUser";
+import LayoutAdmin from "../landing/admin/LayoutAdmin";
+import DashboardAdmin from "../landing/admin/homepageAdminComponent/DashboardAdmin";
+import VehicleManagementAdmin from "../landing/admin/homepageAdminComponent/VehicleManagementAdmin";
+import StationManagementAdmin from "../landing/admin/homepageAdminComponent/StationManagementAdmin";
+import CustomerManagementAdmin from "../landing/admin/homepageAdminComponent/CustomerManagementAdmin";
+import StaffManagementAdmin from "../landing/admin/homepageAdminComponent/StaffManagementAdmin/StaffManagement";
+import ReportsAndAI from "../landing/admin/homepageAdminComponent/ReportsAndAI";
 import AboutUs from "../landing/user/component/subnavComponent/AboutUs";
 import Vehicles from "../landing/user/component/subnavComponent/Vehicles";
 import TermsOfService from "../landing/user/component/footerComponent/TermOfService";
@@ -46,6 +53,16 @@ const AllRouter = () => {
         <Route path="/staff/vehicles" element={<VehiclesStaff />} />
         <Route path="/staff/reports" element={<StaffReport />} />
         <Route path="/staff/contracts" element={<ContractStaff />} />
+      </Route>
+
+      <Route element={<LayoutAdmin />}>
+        <Route path="/admin" element={<DashboardAdmin />} />
+        <Route path="/admin/dashboard" element={<DashboardAdmin />} />
+        <Route path="/admin/vehicles" element={<VehicleManagementAdmin />} />
+        <Route path="/admin/stations" element={<StationManagementAdmin />} />
+        <Route path="/admin/customers" element={<CustomerManagementAdmin />} />
+        <Route path="/admin/staff" element={<StaffManagementAdmin />} />
+        <Route path="/admin/reports" element={<ReportsAndAI />} />
       </Route>
 
       <Route path="/login" element={<LoginPage />} />
