@@ -54,7 +54,7 @@ const UserTabs = ({ user }: UserTabsProps) => {
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 px-4 py-4 text-sm font-medium transition-all duration-300 ease-in-out relative ${
               activeTab === tab.id
-                ? 'text-blue-600 bg-blue-50'
+                ? 'text-white bg-black'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -67,7 +67,7 @@ const UserTabs = ({ user }: UserTabsProps) => {
             {activeTab === tab.id && (
               <motion.div
                 layoutId='activeTab'
-                className='absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600'
+                className='absolute bottom-0 left-0 right-0 h-0.5 bg-white'
                 initial={false}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               />

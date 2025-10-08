@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import LayoutUser from "../landing/user/LayoutUser";
+import LayoutUserProfile from "../landing/user/component/headerComponent/userComponent/LayoutUserProfile";
 import LoginPage from "../auth/login/LoginPage";
 import HomePage from "../landing/user/component/HomePage";
 import SignUpPage from "../auth/signUp/SignUpPage";
@@ -17,7 +18,6 @@ import TermsOfService from "../landing/user/component/footerComponent/TermOfServ
 import FAQ from "../landing/user/component/footerComponent/FAQ";
 import PrivacyPolicy from "../landing/user/component/footerComponent/PrivacyPolicy";
 import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
-import UserProfile from "../landing/user/component/headerComponent/userComponent/UserProfile";
 import VehiclesDetail from "../landing/user/component/subnavComponent/vehiclesComponent/VehiclesDetail";
 import ContractStaff from "../landing/staff/homepageStaffComponent/ContractStaff";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -53,7 +53,7 @@ const AllRouter = () => {
           </ProtectedRoute>
         }
       >
-        <Route index element={<UserProfile />} />
+        <Route index element={<LayoutUserProfile />} />
       </Route>
 
       {/* Booking routes - protected for renters only */}

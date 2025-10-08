@@ -3,7 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import useDebounce from '../../../../hooks/useDebounce'
 import { useSearchResults } from '../../../../hooks/useSearchResults'
 import SearchResultItem from './searchComponent/SearchResultItem'
-import { SEARCH_TIMING, SEARCH_UI, SEARCH_TEXTS } from '../../../../constants/searchConstants'
+import SearchCarCard from './searchComponent/SearchCarCard'
+import UnavailableCarNotification from './searchComponent/UnavailableCarNotification'
+import { SEARCH_TIMING, SEARCH_TEXTS } from '../../../../constants/searchConstants'
+import { checkUnavailableCarSearch } from '../../../../utils/vehicleStatusUtils'
+import { carData } from '../../../../data/carData'
+import type { Car } from '../../../../types/car'
+import '../../../../styles/searchCardAnimations.css'
 
 
 interface SearchProps {
@@ -30,19 +36,29 @@ const Search: React.FC<SearchProps> = ({
   const [isSearching, setIsSearching] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
+  const [unavailableCarInfo, setUnavailableCarInfo] = useState<{
+    car: any
+    message: string
+    brandSuggestions: any[]
+  } | null>(null)
 
   const typingText = placeholder || SEARCH_TEXTS.DEFAULT_PLACEHOLDER
   const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_TIMING.DEBOUNCE_DELAY)
 
   const searchResults = useSearchResults(debouncedSearchQuery)
 
-  // Total selectable items: cars + fixed suggestions
-  const totalItems = searchResults.length > 0 ? searchResults.length + SEARCH_UI.FIXED_SUGGESTIONS_COUNT : 0
+  // Total selectable items: ALL cars + fixed suggestions (1 instead of 2) 
+  const totalItems = searchResults.length > 0 ? searchResults.length + 1 : 0
 
 
   useEffect(() => {
     if (debouncedSearchQuery.trim()) {
       setIsSearching(true)
+      
+      // Check for unavailable car search
+      const unavailableCheck = checkUnavailableCarSearch(debouncedSearchQuery, carData as Car[])
+      setUnavailableCarInfo(unavailableCheck)
+      
       // Don't auto-select first item - let user choose with hover/arrows
       setTimeout(() => {
         setIsSearching(false)
@@ -54,6 +70,7 @@ const Search: React.FC<SearchProps> = ({
       setIsSearching(false)
       setShowResults(false)
       setSelectedIndex(-1)
+      setUnavailableCarInfo(null)
     }
   }, [debouncedSearchQuery])
 
@@ -105,6 +122,7 @@ const Search: React.FC<SearchProps> = ({
       }
       setShowResults(false)
       setSelectedIndex(-1)
+      setUnavailableCarInfo(null)
       onSearchComplete?.()
     } else if (searchQuery.trim()) {
       // User pressed Enter without selecting - search by current query only
@@ -112,6 +130,7 @@ const Search: React.FC<SearchProps> = ({
       navigate(`/vehicles?search=${encodeURIComponent(searchQuery.trim())}`)
       setShowResults(false)
       setSelectedIndex(-1)
+      setUnavailableCarInfo(null)
       onSearchComplete?.()
     } else if (onSearch) {
       onSearch(searchQuery)
@@ -134,16 +153,31 @@ const Search: React.FC<SearchProps> = ({
       case 'ArrowDown':
         e.preventDefault()
         setSelectedIndex(prev => {
+          let newIndex: number
           if (prev === -1) {
             // From input field → go to first suggestion
-            return 0
+            newIndex = 0
           } else if (prev < totalItems - 1) {
             // Navigate down in suggestions
-            return prev + 1
+            newIndex = prev + 1
           } else {
             // From last suggestion → wrap to first suggestion
-            return 0
+            newIndex = 0
           }
+          
+          // Scroll into view after state update
+          setTimeout(() => {
+            const element = document.getElementById(`search-result-${newIndex}`)
+            if (element) {
+              element.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'nearest',
+                inline: 'nearest'
+              })
+            }
+          }, 0)
+          
+          return newIndex
         })
         break
       case 'ArrowUp':
@@ -158,7 +192,21 @@ const Search: React.FC<SearchProps> = ({
             return -1
           } else {
             // Navigate up in suggestions
-            return prev - 1
+            const newIndex = prev - 1
+            
+            // Scroll into view after state update
+            setTimeout(() => {
+              const element = document.getElementById(`search-result-${newIndex}`)
+              if (element) {
+                element.scrollIntoView({ 
+                  behavior: 'smooth', 
+                  block: 'nearest',
+                  inline: 'nearest'
+                })
+              }
+            }, 0)
+            
+            return newIndex
           }
         })
         break
@@ -197,12 +245,26 @@ const Search: React.FC<SearchProps> = ({
     
     setShowResults(false)
     setSelectedIndex(-1)
+    setUnavailableCarInfo(null)
     onSearchComplete?.()
   }
 
   const handleSuggestionClick = () => {
     // Navigate to vehicles list with current search query
     navigate(`/vehicles?search=${encodeURIComponent(searchQuery)}`)
+    setShowResults(false)
+    setSelectedIndex(-1)
+    setUnavailableCarInfo(null)
+    onSearchComplete?.()
+  }
+
+  const handleUnavailableCarSuggestionClick = (car: any) => {
+    // Fill search box with suggested car name and search
+    setSearchQuery(car.name)
+    setUnavailableCarInfo(null)
+    
+    // Navigate to specific car search
+    navigate(`/vehicles?search=${encodeURIComponent(car.name)}`)
     setShowResults(false)
     setSelectedIndex(-1)
     onSearchComplete?.()
@@ -223,7 +285,7 @@ const Search: React.FC<SearchProps> = ({
           <div className="flex items-center">
             {/* Search Icon - White color */}
             <svg
-              className="w-6 h-6 text-white mr-4"
+              className="w-6 h-6 text-white mr-3 ml-2 mt-1"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -245,7 +307,9 @@ const Search: React.FC<SearchProps> = ({
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
               onKeyDown={handleKeyDown}
-              className="flex-1 bg-transparent text-white text-lg focus:outline-none placeholder-gray-400"
+              className={`flex-1 bg-transparent text-white text-lg focus:outline-none placeholder-gray-400 ${
+                searchQuery.length === 0 ? 'caret-transparent' : 'caret-white'
+              }`}
               placeholder=""
             />
 
@@ -268,7 +332,7 @@ const Search: React.FC<SearchProps> = ({
           <div className="absolute left-10 top-1/2 transform -translate-y-1/2 pointer-events-none">
             <span className="text-gray-400 text-lg">
               {displayText}
-              <span className="animate-pulse">|</span>
+              <span className="inline-block w-0.5 h-5 bg-gray-400 ml-0.5 animate-pulse opacity-75"></span>
             </span>
           </div>
         )}
@@ -286,25 +350,57 @@ const Search: React.FC<SearchProps> = ({
               <>
                 {/* Car Results */}
                 {searchResults.length > 0 ? (
-                  searchResults.slice(0, SEARCH_UI.MAX_RESULTS).map((car, index) => (
-                    <SearchResultItem
-                      key={car.id}
-                      text={car.name}
-                      searchTerm={debouncedSearchQuery}
-                      isSelected={selectedIndex === index}
-                      index={index}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleResultClick(car)
+                  <div className="relative">
+                    {/* Scrollable Container */}
+                    <div 
+                      className="space-y-3 search-results-container max-h-[500px] overflow-y-auto overflow-x-hidden p-1 smooth-scroll"
+                      style={{
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent'
                       }}
-                      onMouseEnter={() => setSelectedIndex(index)}
-                      variant="car"
-                    />
-                  ))
+                      id="search-results-list"
+                    >
+                      {searchResults.map((car, index) => (
+                        <div
+                          key={car.id}
+                          id={`search-result-${index}`}
+                          className="search-card-enter-stagger"
+                          style={{
+                            animationDelay: `${Math.min(index, 15) * 80}ms`
+                          }}
+                        >
+                          <SearchCarCard
+                            car={car}
+                            searchTerm={debouncedSearchQuery}
+                            isSelected={selectedIndex === index}
+                            index={index}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleResultClick(car)
+                            }}
+                            onMouseEnter={() => setSelectedIndex(index)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Scroll Indicators - Show when there are many results */}
+                    {searchResults.length > 5 && (
+                      <>
+                        <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-black/60 via-black/30 to-transparent pointer-events-none opacity-90 z-10"></div>
+                        <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-black/60 via-black/30 to-transparent pointer-events-none opacity-90 z-10"></div>
+                      </>
+                    )}
+                  </div>
                 ) : (
-                  <div className="text-gray-400 text-lg py-2">
-                    {SEARCH_TEXTS.NO_RESULTS}
+                  <div className="text-gray-400 text-lg py-4 text-center">
+                    <div className="flex flex-col items-center space-y-2">
+                      <svg className="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.47.901-6.06 2.377C5.482 17.84 5.17 18.319 5.306 19H18.694c.136-.681-.176-1.16-.634-1.623C16.47 15.901 14.34 15 12 15z"/>
+                      </svg>
+                      <div>{SEARCH_TEXTS.NO_RESULTS}</div>
+                    </div>
                   </div>
                 )}
                 
@@ -315,31 +411,44 @@ const Search: React.FC<SearchProps> = ({
                 
                 {/* Fixed Suggestions */}
                 {[
-                  { text: `${searchQuery} - locations` },
-                  { text: `${searchQuery} - services` }
+                  { text: `${searchQuery} - stations` }
                 ].map((suggestion, index) => {
                   const suggestionIndex = searchResults.length + index
                   return (
-                    <SearchResultItem
+                    <div
                       key={suggestion.text}
-                      text={suggestion.text}
-                      searchTerm={debouncedSearchQuery}
-                      isSelected={selectedIndex === suggestionIndex}
-                      index={suggestionIndex}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleSuggestionClick()
-                      }}
-                      onMouseEnter={() => setSelectedIndex(suggestionIndex)}
-                      variant="suggestion"
-                    />
+                      id={`search-result-${suggestionIndex}`}
+                    >
+                      <SearchResultItem
+                        text={suggestion.text}
+                        searchTerm={debouncedSearchQuery}
+                        isSelected={selectedIndex === suggestionIndex}
+                        index={suggestionIndex}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handleSuggestionClick()
+                        }}
+                        onMouseEnter={() => setSelectedIndex(suggestionIndex)}
+                        variant="suggestion"
+                      />
+                    </div>
                   )
                 })}
               </>
             )}
           </div>
         </div>
+      )}
+
+      {/* Unavailable Car Notification */}
+      {unavailableCarInfo && (
+        <UnavailableCarNotification
+          car={unavailableCarInfo.car}
+          message={unavailableCarInfo.message}
+          brandSuggestions={unavailableCarInfo.brandSuggestions}
+          onSuggestionClick={handleUnavailableCarSuggestionClick}
+        />
       )}
 
     </div>
