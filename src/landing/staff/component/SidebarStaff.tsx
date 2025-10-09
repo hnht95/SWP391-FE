@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../../hooks/useAuth";
 import {
   MdDashboard,
   MdSwapHoriz,
@@ -23,8 +24,10 @@ export interface SidebarProps {
 
 const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout, user } = useAuth();
 
   const menuItems = [
     {
@@ -73,6 +76,21 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
 
   const handleMenuClick = (item: (typeof menuItems)[0]) => {
     navigate(item.path);
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Even if logout fails, redirect to login
+      navigate("/login");
+    } finally {
+      setIsLoggingOut(false);
+      setShowProfileMenu(false);
+    }
   };
 
   return (
@@ -152,7 +170,7 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
                   </div>
                   <div className="flex-1 text-left">
                     <p className="text-sm font-medium text-gray-900">
-                      Staff Member
+                      {user?.name || "Staff Member"}
                     </p>
                     <p className="text-xs text-gray-500">Online</p>
                   </div>
@@ -172,8 +190,35 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
                       Settings
                     </button>
                     <div className="border-t border-gray-100 my-1"></div>
-                    <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
-                      Sign Out
+                    <button
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center space-x-2 ${
+                        isLoggingOut
+                          ? "text-red-400 bg-red-25 cursor-not-allowed"
+                          : "text-red-600 hover:bg-red-50"
+                      }`}
+                    >
+                      {isLoggingOut ? (
+                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
+                      ) : (
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                          />
+                        </svg>
+                      )}
+                      <span>
+                        {isLoggingOut ? "Signing out..." : "Sign Out"}
+                      </span>
                     </button>
                   </div>
                 )}

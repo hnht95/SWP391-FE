@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import type { AuthContextType, User } from "../contexts/AuthContext";
+import { logout as logoutApi } from "../service/apiUser/API";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -39,11 +40,20 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.setItem("user", JSON.stringify(newUser));
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+  const logout = async () => {
+    try {
+      // Call logout API to invalidate token on server
+      await logoutApi();
+    } catch (error) {
+      // Even if API call fails, we should still clear local storage
+      console.error("Logout API error:", error);
+    } finally {
+      // Always clear local state and storage
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
   };
 
   const hasRole = (roles: string | string[]): boolean => {

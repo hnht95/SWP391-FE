@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useRoleBasedNavigation } from "../../../../hooks/useRoleBasedNavigation";
 
 interface UserProps {
   userName?: string;
@@ -17,17 +18,33 @@ const User: React.FC<UserProps> = ({
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const navigate = useNavigate();
+  const { getNavigationPaths } = useRoleBasedNavigation();
+  const navigationPaths = getNavigationPaths();
 
-  const handleLogout = () => {
-    if (onLogout) {
-      onLogout();
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      if (onLogout) {
+        await onLogout();
+      }
+      // Navigate to home page after logout
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Even if logout fails, close dropdown and navigate
+      navigate("/");
+    } finally {
+      setIsLoggingOut(false);
+      setIsDropdownOpen(false);
     }
-    setIsDropdownOpen(false);
   };
 
   const handleProfileClick = () => {
-    navigate("/profile");
+    if (navigationPaths.profile) {
+      navigate(navigationPaths.profile);
+    }
     setIsDropdownOpen(false);
   };
 
@@ -84,7 +101,7 @@ const User: React.FC<UserProps> = ({
         {!isLoggedIn && (
           <>
             <span
-              className="text-white font-normal text-[12px] hidden sm:block group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
+              className="text-white font-normal text-[16px] hidden sm:block group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
               style={{ fontFamily: '"MBCorpo Text", sans-serif' }}
             >
               Login
@@ -199,24 +216,33 @@ const User: React.FC<UserProps> = ({
             <motion.button
               onClick={handleLogout}
               onMouseEnter={() => setHoveredItem("logout")}
-              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 flex items-center space-x-2 relative"
-              whileHover={{ x: 2 }}
+              disabled={isLoggingOut}
+              className={`w-full px-4 py-2 text-left text-sm transition-colors duration-200 flex items-center space-x-2 relative ${
+                isLoggingOut
+                  ? "text-red-400 bg-red-25 cursor-not-allowed"
+                  : "text-red-600 hover:bg-red-50"
+              }`}
+              whileHover={isLoggingOut ? {} : { x: 2 }}
               transition={{ duration: 0.2 }}
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                />
-              </svg>
-              <span>Logout</span>
+              {isLoggingOut ? (
+                <div className="w-4 h-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
+              ) : (
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+              )}
+              <span>{isLoggingOut ? "Logging out..." : "Logout"}</span>
             </motion.button>
           </div>
         </div>
