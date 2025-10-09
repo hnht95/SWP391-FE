@@ -5,7 +5,6 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -61,16 +60,7 @@ const handleError = (error: unknown) => {
 export const login = async (email: string, password: string) => {
   try {
     const payload = { email, password };
-    // Create a separate axios instance without withCredentials for login
-    const loginApi = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      // Remove withCredentials for login to avoid CORS issues
-    });
-
-    const response = await loginApi.post("/auth/login", payload);
+    const response = await api.post("/auth/login", payload);
     return response.data;
   } catch (error) {
     handleError(error);
@@ -85,16 +75,16 @@ export const register = async (userData: {
   gender: string;
 }) => {
   try {
-    // Create a separate axios instance without withCredentials for register
-    const registerApi = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      // Remove withCredentials for register to avoid CORS issues
-    });
+    const response = await api.post("/auth/register", userData);
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
 
-    const response = await registerApi.post("/auth/register", userData);
+export const logout = async () => {
+  try {
+    const response = await api.post("/auth/logout");
     return response.data;
   } catch (error) {
     handleError(error);

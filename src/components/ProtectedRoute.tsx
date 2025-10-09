@@ -16,20 +16,36 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { isAuthenticated, hasRole, user } = useAuth();
 
-  // If not authenticated, redirect to login
+  // Handle guest-only routes
+  if (allowedRoles.includes("guest")) {
+    if (isAuthenticated && user) {
+      // Redirect authenticated users to their appropriate dashboard
+      if (user.role === "admin") {
+        return <Navigate to="/admin" replace />;
+      } else if (user.role === "staff") {
+        return <Navigate to="/staff" replace />;
+      } else if (user.role === "renter") {
+        return <Navigate to="/home" replace />;
+      }
+    }
+    // Allow guest access
+    return <>{children}</>;
+  }
+
+  // For authenticated routes, check if user is logged in
   if (!isAuthenticated) {
     return <Navigate to={redirectTo} replace />;
   }
 
-  // If roles are specified and user doesn't have required role
+  // Strict role checking - user must have exactly the required role
   if (allowedRoles.length > 0 && !hasRole(allowedRoles)) {
-    // Redirect based on user's actual role
+    // Redirect to user's appropriate dashboard
     if (user?.role === "admin") {
       return <Navigate to="/admin" replace />;
     } else if (user?.role === "staff") {
       return <Navigate to="/staff" replace />;
     } else if (user?.role === "renter") {
-      return <Navigate to="/" replace />; // Home page for users
+      return <Navigate to="/home" replace />;
     }
 
     return <Navigate to="/login" replace />;

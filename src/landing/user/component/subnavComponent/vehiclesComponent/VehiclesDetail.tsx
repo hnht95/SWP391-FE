@@ -2,11 +2,14 @@ import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { carData } from "../../../../../data/carData";
 import { useAuthRequired } from "../../../../../hooks/useAuthRequired";
+import { useRoleBasedNavigation } from "../../../../../hooks/useRoleBasedNavigation";
 
 const VehiclesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>(); // Lấy id từ URL
   const navigate = useNavigate();
   const { requireAuth, isAuthenticated } = useAuthRequired();
+  const { getNavigationPaths } = useRoleBasedNavigation();
+  const navigationPaths = getNavigationPaths();
 
   const car = carData.find((c) => c.id === parseInt(id || ""));
 
@@ -77,7 +80,9 @@ const VehiclesDetail: React.FC = () => {
                 requireAuth(
                   () => {
                     // This will execute if user is authenticated
-                    navigate("/booking/" + car.id);
+                    if (navigationPaths.booking) {
+                      navigate(navigationPaths.booking(car.id.toString()));
+                    }
                   },
                   {
                     message: `Please login to book ${car.name}`,
