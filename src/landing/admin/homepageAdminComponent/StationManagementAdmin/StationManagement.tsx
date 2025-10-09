@@ -168,8 +168,8 @@ const StationManagement: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <PageTitle
-            title="Quản lý trạm"
-            subtitle={`Tổng cộng ${pagination.total} trạm`}
+            title="Station Management"
+            subtitle={`Total of ${pagination.total} stations`}
             icon={<MdLocationOn className="w-7 h-7 text-gray-700" />}
           />
           <FadeIn delay={0.3} duration={0.6}>
@@ -181,12 +181,12 @@ const StationManagement: React.FC = () => {
                 {isMapVisible ? (
                   <>
                     <MdViewList className="w-5 h-5" />
-                    <span>Hiển thị bảng</span>
+                    <span>Show Table</span>
                   </>
                 ) : (
                   <>
                     <MdMap className="w-5 h-5" />
-                    <span>Hiển thị bản đồ</span>
+                    <span>Show Map</span>
                   </>
                 )}
               </button>
@@ -196,7 +196,7 @@ const StationManagement: React.FC = () => {
                   className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 hover:shadow-lg hover:scale-105"
                 >
                   <MdAdd className="w-5 h-5" />
-                  <span>Thêm trạm</span>
+                  <span>Add Station</span>
                 </button>
               )}
             </div>

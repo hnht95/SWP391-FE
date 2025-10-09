@@ -184,14 +184,14 @@ const MapView: React.FC<MapViewProps> = ({ stations }) => {
   return (
     <div className="map-wrapper w-full ml-0 mr-0 -mx-8">
       {/* Map Header */}
-      <div className="map-header mb-2 -mt-2 px-8 py-3 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-b border-slate-200">
+      <div className="map-header mb-2 -mt-2 px-8 py-3 bg-white border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
-              🗺️ Bản đồ trạm
+              🗺️ Station Map
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              Hiển thị vị trí và trạng thái {stations.length} trạm
+              Displaying location and status of {stations.length} stations
             </p>
           </div>
           
@@ -199,15 +199,15 @@ const MapView: React.FC<MapViewProps> = ({ stations }) => {
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg shadow-sm">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-gray-700 font-medium">Bình thường</span>
+              <span className="text-gray-700 font-medium">Normal</span>
             </div>
             <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg shadow-sm">
               <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              <span className="text-gray-700 font-medium">Bảo trì nhiều</span>
+              <span className="text-gray-700 font-medium">High Maintenance</span>
             </div>
             <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg shadow-sm">
               <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="text-gray-700 font-medium">Thiếu xe / Ngừng</span>
+              <span className="text-gray-700 font-medium">Low Stock / Inactive</span>
             </div>
           </div>
         </div>

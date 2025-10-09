@@ -38,7 +38,7 @@ const StationFilters: React.FC<StationFiltersProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 space-y-4">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         {/* Search */}
         <div className="flex-1 max-w-md">

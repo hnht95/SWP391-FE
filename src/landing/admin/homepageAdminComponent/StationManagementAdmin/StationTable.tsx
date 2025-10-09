@@ -28,7 +28,7 @@ const StationTable: React.FC<StationTableProps> = ({
   if (loading) {
     return (
       <motion.div 
-        className="bg-white rounded-lg shadow-sm border border-slate-200"
+        className="bg-white rounded-lg shadow-sm border border-gray-200"
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
@@ -77,7 +77,7 @@ const StationTable: React.FC<StationTableProps> = ({
   if (stations.length === 0) {
     return (
       <motion.div 
-        className="bg-white rounded-lg shadow-sm border border-slate-200"
+        className="bg-white rounded-lg shadow-sm border border-gray-200"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
@@ -104,31 +104,31 @@ const StationTable: React.FC<StationTableProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Mã trạm
+                Station Code
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Tên trạm
+                Station Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Địa chỉ
+                Address
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ghi chú
+                Note
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Trạng thái
+                Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ngày tạo
+                Created Date
               </th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Thao tác
+                Actions
               </th>
             </tr>
           </thead>
@@ -183,11 +183,11 @@ const StationTable: React.FC<StationTableProps> = ({
                 <td className="px-6 py-4 whitespace-nowrap">
                   {station.isActive ? (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Đang hoạt động
+                      Active
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                      Ngừng hoạt động
+                      Inactive
                     </span>
                   )}
                 </td>
@@ -200,7 +200,7 @@ const StationTable: React.FC<StationTableProps> = ({
                       <button
                         onClick={() => onEdit(station)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Chỉnh sửa"
+                        title="Edit"
                       >
                         <MdEdit className="w-5 h-5" />
                       </button>
@@ -209,7 +209,7 @@ const StationTable: React.FC<StationTableProps> = ({
                       <button
                         onClick={() => onDelete(station)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Xóa"
+                        title="Delete"
                       >
                         <MdDelete className="w-5 h-5" />
                       </button>

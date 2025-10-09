@@ -10,19 +10,26 @@ import {
 import { motion } from "framer-motion";
 import AuthLayout from "../AuthLayout";
 
+import { useNavigate } from "react-router-dom";
+import { register } from "../../service/apiUser/API";
+
 const SignUpPage = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [gender, setGender] = useState("male");
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({
     fullName: "",
     email: "",
     phone: "",
     password: "",
     confirmPassword: "",
+    gender: "",
     terms: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({
       fullName: "",
@@ -30,6 +37,7 @@ const SignUpPage = () => {
       phone: "",
       password: "",
       confirmPassword: "",
+      gender: "",
       terms: "",
     });
 
@@ -54,6 +62,7 @@ const SignUpPage = () => {
       phone: "",
       password: "",
       confirmPassword: "",
+      gender: "",
       terms: "",
     };
 
@@ -101,7 +110,34 @@ const SignUpPage = () => {
       return;
     }
 
-    alert(`Account created successfully for ${fullName}!`);
+    setLoading(true);
+    try {
+      const userData = {
+        name: fullName,
+        email,
+        password,
+        phone,
+        gender,
+      };
+
+      await register(userData);
+
+      alert(`Account created successfully for ${fullName}!`);
+      navigate("/login");
+    } catch (error: unknown) {
+      const errorMessage = (error as Error)?.message || "Registration failed";
+      setErrors({
+        fullName: "",
+        email: errorMessage,
+        phone: "",
+        password: "",
+        confirmPassword: "",
+        gender: "",
+        terms: "",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputVariants = {
@@ -119,7 +155,7 @@ const SignUpPage = () => {
       bottomText="Already have an account?"
       bottomLink="/login"
       bottomLinkText="Sign in here"
-      animationKey="signup" // Key để trigger animation
+      animationKey="signup"
     >
       <motion.form
         className="w-full space-y-4"
@@ -134,7 +170,6 @@ const SignUpPage = () => {
           },
         }}
       >
-        {/* Full Name Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium text-black select-none">
             Full Name
@@ -160,7 +195,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Email Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium text-black select-none">
             Email Address
@@ -187,7 +221,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Phone Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium text-black select-none">
             Phone Number
@@ -214,7 +247,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Password Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium select-none text-black">
             Password
@@ -248,7 +280,6 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Confirm Password Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium select-none text-black">
             Confirm Password
@@ -290,10 +321,71 @@ const SignUpPage = () => {
           )}
         </motion.div>
 
-        {/* Sign Up Button */}
+        <motion.div variants={inputVariants}>
+          <label className="text-sm font-medium select-none text-black">
+            Gender
+          </label>
+          <div className="mt-2 flex space-x-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="gender"
+                value="male"
+                checked={gender === "male"}
+                onChange={(e) => setGender(e.target.value)}
+                className="mr-2"
+              />
+              <span className="text-sm">Male</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="gender"
+                value="female"
+                checked={gender === "female"}
+                onChange={(e) => setGender(e.target.value)}
+                className="mr-2"
+              />
+              <span className="text-sm">Female</span>
+            </label>
+          </div>
+          {errors.gender && (
+            <p className="text-red-500 text-xs mt-1">{errors.gender}</p>
+          )}
+        </motion.div>
+
+        <motion.div variants={inputVariants}>
+          <label className="flex items-start space-x-2">
+            <input
+              name="terms"
+              type="checkbox"
+              className="mt-1"
+              onChange={() => setErrors((prev) => ({ ...prev, terms: "" }))}
+            />
+            <span className="text-sm text-gray-700">
+              I agree to the{" "}
+              <a href="#" className="text-black underline hover:text-gray-800">
+                Terms and Conditions
+              </a>{" "}
+              and{" "}
+              <a href="#" className="text-black underline hover:text-gray-800">
+                Privacy Policy
+              </a>
+            </span>
+          </label>
+          {errors.terms && (
+            <p className="text-red-500 text-xs mt-1">{errors.terms}</p>
+          )}
+        </motion.div>
+
         <motion.button
           type="submit"
-          className="w-full select-none bg-black text-white font-semibold py-4 lg:py-2 xl:py-4 px-6 rounded-lg shadow-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transform hover:-translate-y-0.5 transition duration-200"
+          disabled={loading}
+          className={`w-full select-none font-semibold py-4 lg:py-2 xl:py-4 px-6 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transform transition duration-200 ${
+            loading
+              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+              : "bg-black text-white hover:bg-gray-800 hover:-translate-y-0.5"
+          }`}
           variants={{
             initial: { opacity: 0 },
             animate: {
@@ -302,7 +394,7 @@ const SignUpPage = () => {
             },
           }}
         >
-          Create Account
+          {loading ? "Creating Account..." : "Create Account"}
         </motion.button>
       </motion.form>
     </AuthLayout>

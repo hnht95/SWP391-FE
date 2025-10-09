@@ -17,7 +17,7 @@ export const createPopupContent = (station: Station): string => {
   };
 
   const statusColor = station.isActive ? '#10b981' : '#ef4444';
-  const statusText = station.isActive ? 'Đang hoạt động' : 'Ngừng hoạt động';
+  const statusText = station.isActive ? 'Active' : 'Inactive';
 
   // Vehicle counts (mock if not available)
   const availableCount = station.availableCount || 0;
@@ -106,7 +106,7 @@ const StationPopup: React.FC<StationPopupProps> = ({ station }) => {
       
       <div className={`mb-3 p-2 rounded ${station.isActive ? 'bg-green-50 border-l-4 border-green-500' : 'bg-red-50 border-l-4 border-red-500'}`}>
         <p className={`text-xs font-semibold ${station.isActive ? 'text-green-800' : 'text-red-800'}`}>
-          {station.isActive ? 'Đang hoạt động' : 'Ngừng hoạt động'}
+          {station.isActive ? 'Active' : 'Inactive'}
         </p>
       </div>
 

@@ -27,10 +27,18 @@ import PrivacyPolicy from "../landing/user/component/footerComponent/PrivacyPoli
 import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
 import VehiclesDetail from "../landing/user/component/subnavComponent/vehiclesComponent/VehiclesDetail";
 import ContractStaff from "../landing/staff/homepageStaffComponent/ContractStaff";
+import { ProtectedRoute } from "../components/ProtectedRoute";
+import BookingPage from "../landing/user/component/BookingPage";
 
 const AllRouter = () => {
   return (
     <Routes>
+      {/* Auth routes */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignUpPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+      {/* Public routes - accessible by guests and logged-in users */}
       <Route element={<LayoutUser />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/aboutus" element={<AboutUs />} />
@@ -42,9 +50,36 @@ const AllRouter = () => {
         <Route path="/contactus" element={<ContactUs />} />
       </Route>
 
-      <Route path="/profile" element={<LayoutUserProfile />} />
+      {/* Protected User routes - only for logged-in renters */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute allowedRoles={["renter"]}>
+            <LayoutUser />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<LayoutUserProfile />} />
+      </Route>
 
-      <Route element={<LayoutStaff />}>
+      {/* Booking routes - protected for renters only */}
+      <Route
+        path="/booking/:vehicleId"
+        element={
+          <ProtectedRoute allowedRoles={["renter"]}>
+            <BookingPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Staff routes */}
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={["staff"]}>
+            <LayoutStaff />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/staff" element={<DashboardStaff />} />
         <Route path="/staff/dashboard" element={<DashboardStaff />} />
         <Route path="/staff/users" element={<StaffUser />} />
@@ -55,6 +90,8 @@ const AllRouter = () => {
         <Route path="/staff/contracts" element={<ContractStaff />} />
       </Route>
 
+      {/* Admin routes - Nested routes with LayoutAdmin */}
+      {/* TODO: Re-enable protection after development */}
       <Route element={<LayoutAdmin />}>
         <Route path="/admin" element={<DashboardAdmin />} />
         <Route path="/admin/dashboard" element={<DashboardAdmin />} />
@@ -65,9 +102,23 @@ const AllRouter = () => {
         <Route path="/admin/reports" element={<ReportsAndAI />} />
       </Route>
 
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignUpPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      {/* Protected version - Uncomment when ready for production
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <LayoutAdmin />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/admin" element={<DashboardAdmin />} />
+        <Route path="/admin/dashboard" element={<DashboardAdmin />} />
+        <Route path="/admin/vehicles" element={<VehicleManagementAdmin />} />
+        <Route path="/admin/stations" element={<StationManagementAdmin />} />
+        <Route path="/admin/customers" element={<CustomerManagementAdmin />} />
+        <Route path="/admin/staff" element={<StaffManagementAdmin />} />
+        <Route path="/admin/reports" element={<ReportsAndAI />} />
+      </Route>
+      */}
     </Routes>
   );
 };

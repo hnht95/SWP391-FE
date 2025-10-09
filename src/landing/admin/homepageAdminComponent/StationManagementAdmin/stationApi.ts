@@ -5,11 +5,11 @@ import type {
   Station,
 } from './types';
 
-// Mock data - Danh sách trạm mẫu
+// Mock data - Sample station list
 let mockStations: Station[] = [
   {
     id: '1',
-    name: 'Trạm Quận 1',
+    name: 'District 1 Station',
     code: 'STA001',
     location: {
       address: '123 Nguyễn Huệ, Quận 1, TP.HCM',
@@ -25,7 +25,7 @@ let mockStations: Station[] = [
   },
   {
     id: '2',
-    name: 'Trạm Quận 7',
+    name: 'District 7 Station',
     code: 'STA002',
     location: {
       address: '456 Phú Mỹ Hưng, Quận 7, TP.HCM',
@@ -41,7 +41,7 @@ let mockStations: Station[] = [
   },
   {
     id: '3',
-    name: 'Trạm Tân Bình',
+    name: 'Tan Binh Station',
     code: 'STA003',
     location: {
       address: '789 Cộng Hòa, Quận Tân Bình, TP.HCM',
@@ -57,7 +57,7 @@ let mockStations: Station[] = [
   },
   {
     id: '4',
-    name: 'Trạm Thủ Đức',
+    name: 'Thu Duc Station',
     code: 'STA004',
     location: {
       address: '321 Võ Văn Ngân, TP. Thủ Đức, TP.HCM',
@@ -73,14 +73,14 @@ let mockStations: Station[] = [
   },
   {
     id: '5',
-    name: 'Trạm Bình Thạnh',
+    name: 'Binh Thanh Station',
     code: 'STA005',
     location: {
       address: '555 Điện Biên Phủ, Quận Bình Thạnh, TP.HCM',
       latitude: 10.8025,
       longitude: 106.7111,
     },
-    note: 'Gần bến xe miền Đông',
+    note: 'Near Mien Dong Bus Station',
     isActive: true,
     createdAt: '2025-02-15T08:30:00Z',
     vehicleCount: 20,
@@ -154,7 +154,7 @@ export const createStation = async (
 
   // Check if code exists
   if (mockStations.some((s) => s.code === payload.code)) {
-    throw new Error(`Mã trạm "${payload.code}" đã tồn tại`);
+    throw new Error(`Station code "${payload.code}" already exists`);
   }
 
   // Create new station
@@ -175,7 +175,7 @@ export const createStation = async (
 
   return {
     data: newStation,
-    message: 'Thêm trạm thành công',
+    message: 'Station added successfully',
   };
 };
 
@@ -191,7 +191,7 @@ export const updateStation = async (
 
   const index = mockStations.findIndex((s) => s.id === id);
   if (index === -1) {
-    throw new Error('Không tìm thấy trạm');
+    throw new Error('Station not found');
   }
 
   // Update station
@@ -218,12 +218,12 @@ export const deleteStation = async (id: string): Promise<{ message: string }> =>
 
   const index = mockStations.findIndex((s) => s.id === id);
   if (index === -1) {
-    throw new Error('Không tìm thấy trạm');
+    throw new Error('Station not found');
   }
 
   mockStations.splice(index, 1);
 
   return {
-    message: 'Xóa trạm thành công',
+    message: 'Station deleted successfully',
   };
 };
