@@ -20,11 +20,25 @@ import PrivacyPolicy from "../landing/user/component/footerComponent/PrivacyPoli
 import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
 import VehiclesDetail from "../landing/user/component/subnavComponent/vehiclesComponent/VehiclesDetail";
 import ContractStaff from "../landing/staff/homepageStaffComponent/ContractStaff";
+import { ProtectedRoute } from "../components/ProtectedRoute";
+import AdminDashboard from "../landing/admin/AdminDashboard";
+import BookingPage from "../landing/user/component/BookingPage";
 
 const AllRouter = () => {
   return (
     <Routes>
-      <Route element={<LayoutUser />}>
+      {/* Auth routes - accessible by everyone */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignUpPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={["guest"]}>
+            <LayoutUser />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/" element={<HomePage />} />
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<Vehicles />} />
@@ -35,9 +49,32 @@ const AllRouter = () => {
         <Route path="/contactus" element={<ContactUs />} />
       </Route>
 
-      <Route path="/profile" element={<LayoutUserProfile />} />
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={["renter"]}>
+            <LayoutUser />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/user/aboutus" element={<AboutUs />} />
+        <Route path="/user/vehicles" element={<Vehicles />} />
+        <Route path="/user/vehicles/:id" element={<VehiclesDetail />} />
+        <Route path="/user/terms" element={<TermsOfService />} />
+        <Route path="/user/faq" element={<FAQ />} />
+        <Route path="/user/privacy" element={<PrivacyPolicy />} />
+        <Route path="/user/contactus" element={<ContactUs />} />
+        <Route path="/profile" element={<LayoutUserProfile />} />
+        <Route path="/booking/:vehicleId" element={<BookingPage />} />
+      </Route>
 
-      <Route element={<LayoutStaff />}>
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={["staff"]}>
+            <LayoutStaff />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/staff" element={<DashboardStaff />} />
         <Route path="/staff/dashboard" element={<DashboardStaff />} />
         <Route path="/staff/users" element={<StaffUser />} />
@@ -48,9 +85,16 @@ const AllRouter = () => {
         <Route path="/staff/contracts" element={<ContractStaff />} />
       </Route>
 
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignUpPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <></>
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/admin" element={<AdminDashboard />} />
+        {/* Add more admin routes later */}
+      </Route>
     </Routes>
   );
 };

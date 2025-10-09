@@ -1,23 +1,15 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { carData } from "../../../../../data/carData";
-
-interface Car {
-  id: number;
-  name: string;
-  price: number;
-  transmission: string;
-  seats: number;
-  range: string;
-  image: string;
-  location: string;
-  station?: string;
-  type: string;
-}
+import { useAuthRequired } from "../../../../../hooks/useAuthRequired";
+import { useRoleBasedNavigation } from "../../../../../hooks/useRoleBasedNavigation";
 
 const VehiclesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>(); // Lấy id từ URL
   const navigate = useNavigate();
+  const { requireAuth, isAuthenticated } = useAuthRequired();
+  const { getNavigationPaths } = useRoleBasedNavigation();
+  const navigationPaths = getNavigationPaths();
 
   const car = carData.find((c) => c.id === parseInt(id || ""));
 
@@ -83,8 +75,23 @@ const VehiclesDetail: React.FC = () => {
           </p>
 
           <div className="flex space-x-4">
-            <button className="flex-1 bg-black text-white font-bold py-3 rounded-lg hover:bg-gray-800 transition-all">
-              Book Now
+            <button
+              onClick={() =>
+                requireAuth(
+                  () => {
+                    // This will execute if user is authenticated
+                    if (navigationPaths.booking) {
+                      navigate(navigationPaths.booking(car.id.toString()));
+                    }
+                  },
+                  {
+                    message: `Please login to book ${car.name}`,
+                  }
+                )
+              }
+              className="flex-1 bg-black text-white font-bold py-3 rounded-lg hover:bg-gray-800 transition-all"
+            >
+              {isAuthenticated ? "Book Now" : "Login to Book"}
             </button>
             <button
               onClick={() => navigate(-1)}
