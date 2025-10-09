@@ -33,13 +33,18 @@ import BookingPage from "../landing/user/component/BookingPage";
 const AllRouter = () => {
   return (
     <Routes>
-      {/* Auth routes */}
+      {/* Auth routes - accessible by everyone */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-      {/* Public routes - accessible by guests and logged-in users */}
-      <Route element={<LayoutUser />}>
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={["guest"]}>
+            <LayoutUser />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/" element={<HomePage />} />
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<Vehicles />} />
@@ -50,29 +55,25 @@ const AllRouter = () => {
         <Route path="/contactus" element={<ContactUs />} />
       </Route>
 
-      {/* Protected User routes - only for logged-in renters */}
       <Route
-        path="/profile"
         element={
           <ProtectedRoute allowedRoles={["renter"]}>
             <LayoutUser />
           </ProtectedRoute>
         }
       >
-        <Route index element={<LayoutUserProfile />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/user/aboutus" element={<AboutUs />} />
+        <Route path="/user/vehicles" element={<Vehicles />} />
+        <Route path="/user/vehicles/:id" element={<VehiclesDetail />} />
+        <Route path="/user/terms" element={<TermsOfService />} />
+        <Route path="/user/faq" element={<FAQ />} />
+        <Route path="/user/privacy" element={<PrivacyPolicy />} />
+        <Route path="/user/contactus" element={<ContactUs />} />
+        <Route path="/profile" element={<LayoutUserProfile />} />
+        <Route path="/booking/:vehicleId" element={<BookingPage />} />
       </Route>
 
-      {/* Booking routes - protected for renters only */}
-      <Route
-        path="/booking/:vehicleId"
-        element={
-          <ProtectedRoute allowedRoles={["renter"]}>
-            <BookingPage />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Staff routes */}
       <Route
         element={
           <ProtectedRoute allowedRoles={["staff"]}>

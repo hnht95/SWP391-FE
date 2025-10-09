@@ -57,9 +57,9 @@ const LoginPage = () => {
           } else if (role === "staff") {
             navigate("/staff");
           } else if (role === "renter") {
-            navigate("/");
+            navigate("/home");
           } else {
-            navigate("/");
+            navigate("/home");
           }
         } else {
           setErrors({
