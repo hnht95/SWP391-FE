@@ -1,0 +1,70 @@
+/* Import Leaflet CSS */
+@import 'leaflet/dist/leaflet.css';
+
+/* Custom marker styles */
+.leaflet-container {
+  font-family: inherit;
+}
+
+.custom-marker {
+  background: none;
+  border: none;
+}
+
+.custom-marker-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: white;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.custom-marker-icon:hover {
+  transform: scale(1.2);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.custom-marker-icon.status-normal {
+  background-color: #10b981;
+}
+
+.custom-marker-icon.status-maintenance {
+  background-color: #f59e0b;
+}
+
+.custom-marker-icon.status-low {
+  background-color: #ef4444;
+}
+
+/* Custom popup styles */
+.leaflet-popup-content-wrapper {
+  border-radius: 0.75rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+}
+
+.leaflet-popup-tip {
+  background: white;
+}
+
+/* Legend styles */
+.leaflet-bottom.leaflet-left {
+  pointer-events: none;
+}
+
+.leaflet-control.leaflet-legend {
+  pointer-events: auto;
+}
+

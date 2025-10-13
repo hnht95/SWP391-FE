@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import User from "./headerComponent/User";
 import Search from "./headerComponent/Search";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 import {
@@ -10,6 +9,7 @@ import {
 } from "../../../constants/headerConstants";
 import { SEARCH_TEXTS } from "../../../constants/searchConstants";
 import { useAuth } from "../../../hooks/useAuth";
+import User from "./headerComponent/User";
 
 interface HeaderProps {
   onHoverChange?: (isHovered: boolean) => void;

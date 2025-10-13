@@ -12,6 +12,13 @@ import VehicleMaintain from "../landing/staff/homepageStaffComponent/VehicleMain
 import StaffReport from "../landing/staff/homepageStaffComponent/StaffReport";
 import VehiclesStaff from "../landing/staff/homepageStaffComponent/VehiclesStaff";
 import StaffUser from "../landing/staff/homepageStaffComponent/StaffUser";
+import LayoutAdmin from "../landing/admin/LayoutAdmin";
+import DashboardAdmin from "../landing/admin/homepageAdminComponent/DashboardAdmin";
+import VehicleManagementAdmin from "../landing/admin/homepageAdminComponent/VehicleManagementAdmin";
+import StationManagementAdmin from "../landing/admin/homepageAdminComponent/StationManagementAdmin";
+import CustomerManagementAdmin from "../landing/admin/homepageAdminComponent/CustomerManagementAdmin";
+import StaffManagementAdmin from "../landing/admin/homepageAdminComponent/StaffManagementAdmin/StaffManagement";
+import ReportsAndAI from "../landing/admin/homepageAdminComponent/ReportsAndAI";
 import AboutUs from "../landing/user/component/subnavComponent/AboutUs";
 import Vehicles from "../landing/user/component/subnavComponent/Vehicles";
 import TermsOfService from "../landing/user/component/footerComponent/TermOfService";
@@ -21,7 +28,6 @@ import ContactUs from "../landing/user/component/subnavComponent/ContactUs";
 import VehiclesDetail from "../landing/user/component/subnavComponent/vehiclesComponent/VehiclesDetail";
 import ContractStaff from "../landing/staff/homepageStaffComponent/ContractStaff";
 import { ProtectedRoute } from "../components/ProtectedRoute";
-import AdminDashboard from "../landing/admin/AdminDashboard";
 import BookingPage from "../landing/user/component/BookingPage";
 
 const AllRouter = () => {
@@ -85,15 +91,35 @@ const AllRouter = () => {
         <Route path="/staff/contracts" element={<ContractStaff />} />
       </Route>
 
+      {/* Admin routes - Nested routes with LayoutAdmin */}
+      {/* TODO: Re-enable protection after development */}
+      <Route element={<LayoutAdmin />}>
+        <Route path="/admin" element={<DashboardAdmin />} />
+        <Route path="/admin/dashboard" element={<DashboardAdmin />} />
+        <Route path="/admin/vehicles" element={<VehicleManagementAdmin />} />
+        <Route path="/admin/stations" element={<StationManagementAdmin />} />
+        <Route path="/admin/customers" element={<CustomerManagementAdmin />} />
+        <Route path="/admin/staff" element={<StaffManagementAdmin />} />
+        <Route path="/admin/reports" element={<ReportsAndAI />} />
+      </Route>
+
+      {/* Protected version - Uncomment when ready for production
       <Route
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
-            <></>
+            <LayoutAdmin />
           </ProtectedRoute>
         }
       >
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin" element={<DashboardAdmin />} />
+        <Route path="/admin/dashboard" element={<DashboardAdmin />} />
+        <Route path="/admin/vehicles" element={<VehicleManagementAdmin />} />
+        <Route path="/admin/stations" element={<StationManagementAdmin />} />
+        <Route path="/admin/customers" element={<CustomerManagementAdmin />} />
+        <Route path="/admin/staff" element={<StaffManagementAdmin />} />
+        <Route path="/admin/reports" element={<ReportsAndAI />} />
       </Route>
+      */}
     </Routes>
   );
 };
