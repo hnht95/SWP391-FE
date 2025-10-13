@@ -63,13 +63,13 @@ const AllRouter = () => {
         }
       >
         <Route path="/home" element={<HomePage />} />
-        <Route path="/user/aboutus" element={<AboutUs />} />
-        <Route path="/user/vehicles" element={<Vehicles />} />
-        <Route path="/user/vehicles/:id" element={<VehiclesDetail />} />
-        <Route path="/user/terms" element={<TermsOfService />} />
-        <Route path="/user/faq" element={<FAQ />} />
-        <Route path="/user/privacy" element={<PrivacyPolicy />} />
-        <Route path="/user/contactus" element={<ContactUs />} />
+        <Route path="/aboutus" element={<AboutUs />} />
+        <Route path="/vehicles" element={<Vehicles />} />
+        <Route path="/vehicles/:id" element={<VehiclesDetail />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/contactus" element={<ContactUs />} />
         <Route path="/profile" element={<LayoutUserProfile />} />
         <Route path="/booking/:vehicleId" element={<BookingPage />} />
       </Route>
