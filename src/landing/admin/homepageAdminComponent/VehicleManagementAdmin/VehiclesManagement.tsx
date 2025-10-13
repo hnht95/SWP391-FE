@@ -1,17 +1,19 @@
 import React, { useState } from "react";
 import { MdAdd, MdDirectionsCar } from "react-icons/md";
-import VehicleFilters from "../component/vehicle/VehicleFilters";
-import VehicleTable from "../component/vehicle/VehicleTable";
-import VehicleDetailModal from "../component/vehicle/VehicleDetailModal";
-import { type Vehicle } from "../component/vehicle/VehicleRow";
-import { PageTransition, FadeIn } from "../component/animations";
-import PageTitle from "../component/PageTitle";
+import VehicleFilters from "../../component/vehicle/VehicleFilters";
+import VehicleTable from "../../component/vehicle/VehicleTable";
+import VehicleDetailModal from "../../component/vehicle/VehicleDetailModal";
+import { AddVehicleModal } from "./index";
+import { type Vehicle } from "../../component/vehicle/VehicleRow";
+import { PageTransition, FadeIn } from "../../component/animations";
+import PageTitle from "../../component/PageTitle";
 
-const VehicleManagementAdmin: React.FC = () => {
+const VehiclesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const vehicles: Vehicle[] = [
     {
@@ -52,24 +54,24 @@ const VehicleManagementAdmin: React.FC = () => {
   };
 
   const handleDelete = (vehicleId: string) => {
-    // TODO: Implement delete logic
     console.log("Delete vehicle:", vehicleId);
   };
 
   const handleTransfer = (vehicle: Vehicle) => {
-    // TODO: Implement transfer logic
     console.log("Transfer vehicle:", vehicle.id);
   };
 
   const handleMarkMaintenance = (vehicle: Vehicle) => {
-    // TODO: Implement maintenance logic
     console.log("Mark maintenance:", vehicle.id);
+  };
+
+  const handleAddSubmit = (data: Omit<Vehicle, "id">) => {
+    console.log("Add vehicle submit:", data);
   };
 
   return (
     <PageTransition>
       <div className="space-y-6">
-        {/* Header - Smooth animation */}
         <div className="flex items-center justify-between">
           <PageTitle
             title="Vehicle Management"
@@ -77,14 +79,13 @@ const VehicleManagementAdmin: React.FC = () => {
             icon={<MdDirectionsCar className="w-7 h-7 text-gray-700" />}
           />
           <FadeIn delay={0.3} duration={0.6}>
-            <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 hover:shadow-lg hover:scale-105">
+            <button onClick={() => setIsAddOpen(true)} className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 hover:shadow-lg hover:scale-105">
               <MdAdd className="w-5 h-5" />
               <span>Add New Vehicle</span>
             </button>
           </FadeIn>
         </div>
 
-        {/* Filters - Fade in */}
         <FadeIn delay={0.5} duration={0.6} direction="up">
           <VehicleFilters
             searchTerm={searchTerm}
@@ -94,7 +95,6 @@ const VehicleManagementAdmin: React.FC = () => {
           />
         </FadeIn>
 
-        {/* Vehicle Table - Slide in smooth */}
         <FadeIn delay={0.7} duration={0.7} direction="up">
           <VehicleTable
             vehicles={vehicles}
@@ -105,7 +105,6 @@ const VehicleManagementAdmin: React.FC = () => {
           />
         </FadeIn>
 
-        {/* Vehicle Detail Modal */}
         <VehicleDetailModal
           vehicle={selectedVehicle}
           isOpen={isModalOpen}
@@ -114,9 +113,17 @@ const VehicleManagementAdmin: React.FC = () => {
             setSelectedVehicle(null);
           }}
         />
+
+        <AddVehicleModal
+          isOpen={isAddOpen}
+          onClose={() => setIsAddOpen(false)}
+          onSubmit={handleAddSubmit}
+        />
       </div>
     </PageTransition>
   );
 };
 
-export default VehicleManagementAdmin;
+export default VehiclesManagement;
+
+

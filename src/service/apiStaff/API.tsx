@@ -1,5 +1,24 @@
 // Staff-specific API functions
-import { apiWithoutCredentials, handleError } from "../API";
+import axios, { AxiosError } from "axios";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+
+const apiWithoutCredentials = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+const handleError = (error: unknown) => {
+  const err = error as AxiosError;
+  console.error("API Error:", {
+    status: err?.response?.status,
+    data: err?.response?.data,
+    message: err?.message,
+    request: err?.request,
+  });
+};
 
 export const login = async (email: string, password: string) => {
   try {
