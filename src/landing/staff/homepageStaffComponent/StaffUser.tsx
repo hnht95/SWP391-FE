@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MdSearch,
   MdPerson,
@@ -158,10 +159,16 @@ const StaffUser = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <div className="mb-8">
+      <motion.div
+        className="mb-8"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
+              <MdPerson className="w-8 h-8 mr-3 text-blue-600" />
               User Management
             </h1>
             <p className="text-gray-600">
@@ -169,78 +176,95 @@ const StaffUser = () => {
             </p>
           </div>
           <div className="flex space-x-3">
-            <button
+            <motion.button
               onClick={openCreate}
               className="bg-gray-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               <MdAdd className="w-5 h-5" />
               <span>Create User</span>
-            </button>
-            <button className="bg-white border border-gray-300 px-4 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center space-x-2">
+            </motion.button>
+            <motion.button
+              className="bg-white border border-gray-300 px-4 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center space-x-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
               <MdDownload className="w-5 h-5" />
               <span>Export</span>
-            </button>
+            </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <MdPerson className="w-6 h-6 text-blue-600" />
+      <motion.div
+        className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        {[
+          {
+            title: "Total Users",
+            value: stats.total,
+            subtitle: "All registered users",
+            icon: MdPerson,
+            color: "blue",
+          },
+          {
+            title: "VIP Users",
+            value: stats.vip,
+            subtitle: "Premium customers",
+            icon: MdStar,
+            color: "yellow",
+          },
+          {
+            title: "Active Users",
+            value: stats.active,
+            subtitle: "Currently active",
+            icon: MdCheckCircle,
+            color: "green",
+          },
+          {
+            title: "Locked Users",
+            value: stats.locked,
+            subtitle: "Account restrictions",
+            icon: MdBlock,
+            color: "red",
+          },
+        ].map((stat, index) => (
+          <motion.div
+            key={stat.title}
+            className="bg-white rounded-xl p-6 border border-gray-100"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 + index * 0.1 }}
+            whileHover={{ y: -5 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div
+                className={`w-12 h-12 bg-${stat.color}-100 rounded-lg flex items-center justify-center`}
+              >
+                <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
+              </div>
+              <span className="text-2xl font-bold text-gray-900">
+                {stat.value}
+              </span>
             </div>
-            <span className="text-2xl font-bold text-gray-900">
-              {stats.total}
-            </span>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2">Total Users</h3>
-          <p className="text-xs text-gray-500">All registered users</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <MdStar className="w-6 h-6 text-yellow-600" />
-            </div>
-            <span className="text-2xl font-bold text-gray-900">
-              {stats.vip}
-            </span>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2">VIP Users</h3>
-          <p className="text-xs text-gray-500">Premium customers</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <MdCheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-            <span className="text-2xl font-bold text-gray-900">
-              {stats.active}
-            </span>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2">Active Users</h3>
-          <p className="text-xs text-gray-500">Currently active</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-              <MdBlock className="w-6 h-6 text-red-600" />
-            </div>
-            <span className="text-2xl font-bold text-gray-900">
-              {stats.locked}
-            </span>
-          </div>
-          <h3 className="text-gray-600 text-sm mb-2">Locked Users</h3>
-          <p className="text-xs text-gray-500">Account restrictions</p>
-        </div>
-      </div>
+            <h3 className="text-gray-600 text-sm mb-2">{stat.title}</h3>
+            <p className="text-xs text-gray-500">{stat.subtitle}</p>
+          </motion.div>
+        ))}
+      </motion.div>
 
       {/* User List Table */}
-      <div className="bg-white rounded-xl border border-gray-100 mb-6">
+      <motion.div
+        className="bg-white rounded-xl border border-gray-100 mb-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
         <div className="p-6 border-b border-gray-100">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
             <h3 className="text-lg font-semibold text-gray-900">User List</h3>
@@ -259,53 +283,63 @@ const StaffUser = () => {
               </div>
 
               {/* Filter Button */}
-              <button
+              <motion.button
                 onClick={() => setShowFilters(!showFilters)}
                 className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <MdFilterList className="w-5 h-5" />
                 <span>Filters</span>
-              </button>
+              </motion.button>
             </div>
           </div>
 
           {/* Filter Options */}
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="locked">Locked</option>
-                    <option value="verify">Need Verify</option>
-                  </select>
-                </div>
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                className="mt-4 pt-4 border-t border-gray-100"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <select
+                      value={selectedStatus}
+                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="active">Active</option>
+                      <option value="locked">Locked</option>
+                      <option value="verify">Need Verify</option>
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    User Type
-                  </label>
-                  <select
-                    value={selectedType}
-                    onChange={(e) => setSelectedType(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="regular">Regular</option>
-                    <option value="vip">VIP</option>
-                  </select>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      User Type
+                    </label>
+                    <select
+                      value={selectedType}
+                      onChange={(e) => setSelectedType(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    >
+                      <option value="all">All Types</option>
+                      <option value="regular">Regular</option>
+                      <option value="vip">VIP</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="overflow-x-auto">
@@ -336,11 +370,15 @@ const StaffUser = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((user) => (
-                <tr
+              {filteredUsers.map((user, index) => (
+                <motion.tr
                   key={user.id}
                   className="hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => openDetail(user)}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ backgroundColor: "#f9fafb" }}
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -396,24 +434,31 @@ const StaffUser = () => {
                     {user.rentalCount}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <button
+                    <motion.button
                       onClick={(e) => {
                         e.stopPropagation();
                         openDetail(user);
                       }}
                       className="text-gray-600 hover:text-gray-900 transition-colors"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                     >
                       <MdVisibility className="w-5 h-5" />
-                    </button>
+                    </motion.button>
                   </td>
-                </tr>
+                </motion.tr>
               ))}
             </tbody>
           </table>
         </div>
 
         {filteredUsers.length === 0 && (
-          <div className="text-center py-12">
+          <motion.div
+            className="text-center py-12"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
             <MdPerson className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               No users found
@@ -421,302 +466,395 @@ const StaffUser = () => {
             <p className="text-gray-500">
               Try adjusting your search or filter criteria
             </p>
-          </div>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
 
       {/* User Detail Modal */}
-      {isDetailOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/40 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">
-                User Details - {selectedUser.id}
-              </h2>
-              <button
-                onClick={closeDetail}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <MdClose className="w-6 h-6" />
-              </button>
-            </div>
+      <AnimatePresence>
+        {isDetailOpen && selectedUser && (
+          <motion.div
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            >
+              {/* Modal Header */}
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  User Details - {selectedUser.id}
+                </h2>
+                <motion.button
+                  onClick={closeDetail}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <MdClose className="w-6 h-6" />
+                </motion.button>
+              </div>
 
-            {/* Modal Content */}
-            <div className="p-6 space-y-6">
-              {/* Personal Information */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <MdPerson className="w-5 h-5 mr-2" />
-                  Personal Information
-                </h3>
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                    {selectedUser.avatar ? (
-                      <img
-                        src={selectedUser.avatar}
-                        alt={selectedUser.name}
-                        className="w-16 h-16 rounded-full object-cover"
-                      />
-                    ) : (
-                      <MdPerson className="w-10 h-10 text-gray-400" />
-                    )}
+              {/* Modal Content */}
+              <div className="p-6 space-y-6">
+                {/* Personal Information */}
+                <motion.div
+                  className="bg-gray-50 rounded-lg p-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <MdPerson className="w-5 h-5 mr-2" />
+                    Personal Information
+                  </h3>
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                      {selectedUser.avatar ? (
+                        <img
+                          src={selectedUser.avatar}
+                          alt={selectedUser.name}
+                          className="w-16 h-16 rounded-full object-cover"
+                        />
+                      ) : (
+                        <MdPerson className="w-10 h-10 text-gray-400" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {selectedUser.name}
+                      </h3>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          selectedUser.type === "vip"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {selectedUser.type === "vip"
+                          ? "VIP Customer"
+                          : "Regular Customer"}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">
-                      {selectedUser.name}
-                    </h3>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        selectedUser.type === "vip"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">
+                        Email
+                      </label>
+                      <p className="text-gray-900 flex items-center">
+                        <MdEmail className="w-4 h-4 mr-1" />
+                        {selectedUser.email}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">
+                        Phone
+                      </label>
+                      <p className="text-gray-900 flex items-center">
+                        <MdPhone className="w-4 h-4 mr-1" />
+                        {selectedUser.phone}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">
+                        CCCD
+                      </label>
+                      <p className="text-gray-900">{selectedUser.cccd}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">
+                        Created At
+                      </label>
+                      <p className="text-gray-900 flex items-center">
+                        <MdCalendarToday className="w-4 h-4 mr-1" />
+                        {selectedUser.createdAt}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Account Status */}
+                <motion.div
+                  className="bg-gray-50 rounded-lg p-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Account Status
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">
+                        Status
+                      </label>
+                      <span
+                        className={`ml-2 px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(
+                          selectedUser.status
+                        )}`}
+                      >
+                        {selectedUser.status === "active" && "Active"}
+                        {selectedUser.status === "locked" && "Locked"}
+                        {selectedUser.status === "verify" && "Need Verify"}
+                      </span>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">
+                        Account Type
+                      </label>
+                      <span
+                        className={`ml-2 px-3 py-1 rounded-full text-xs font-medium ${
+                          selectedUser.type === "vip"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {selectedUser.type === "vip" ? "VIP" : "Regular"}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Rental Statistics */}
+                <motion.div
+                  className="bg-gray-50 rounded-lg p-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Rental Statistics
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">
+                        Total Rentals
+                      </label>
+                      <p className="text-gray-900 font-semibold text-lg">
+                        {selectedUser.rentalCount}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">
+                        Total Revenue
+                      </label>
+                      <p className="text-gray-900 font-semibold text-lg">
+                        {selectedUser.revenue.toLocaleString()} VND
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Feedback */}
+                <motion.div
+                  className="bg-gray-50 rounded-lg p-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <MdInfo className="w-5 h-5 mr-2" />
+                    Feedback & Notes
+                  </h3>
+                  <p className="text-gray-700">
+                    {selectedUser.feedback || "No feedback available."}
+                  </p>
+                </motion.div>
+
+                {/* Quick Actions */}
+                <motion.div
+                  className="bg-gray-50 rounded-lg p-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Quick Actions
+                  </h3>
+                  <div className="flex flex-wrap gap-3">
+                    <motion.button
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      {selectedUser.type === "vip"
-                        ? "VIP Customer"
-                        : "Regular Customer"}
-                    </span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">
-                      Email
-                    </label>
-                    <p className="text-gray-900 flex items-center">
-                      <MdEmail className="w-4 h-4 mr-1" />
-                      {selectedUser.email}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">
-                      Phone
-                    </label>
-                    <p className="text-gray-900 flex items-center">
-                      <MdPhone className="w-4 h-4 mr-1" />
-                      {selectedUser.phone}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">
-                      CCCD
-                    </label>
-                    <p className="text-gray-900">{selectedUser.cccd}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">
-                      Created At
-                    </label>
-                    <p className="text-gray-900 flex items-center">
-                      <MdCalendarToday className="w-4 h-4 mr-1" />
-                      {selectedUser.createdAt}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Account Status */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Account Status
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">
-                      Status
-                    </label>
-                    <span
-                      className={`ml-2 px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(
-                        selectedUser.status
-                      )}`}
+                      <MdLock className="w-4 h-4" />
+                      <span>Reset Password</span>
+                    </motion.button>
+                    <motion.button
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      {selectedUser.status === "active" && "Active"}
-                      {selectedUser.status === "locked" && "Locked"}
-                      {selectedUser.status === "verify" && "Need Verify"}
-                    </span>
+                      <MdBlock className="w-4 h-4" />
+                      <span>
+                        {selectedUser.status === "locked"
+                          ? "Unlock Account"
+                          : "Lock Account"}
+                      </span>
+                    </motion.button>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">
-                      Account Type
-                    </label>
-                    <span
-                      className={`ml-2 px-3 py-1 rounded-full text-xs font-medium ${
-                        selectedUser.type === "vip"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {selectedUser.type === "vip" ? "VIP" : "Regular"}
-                    </span>
-                  </div>
-                </div>
+                </motion.div>
               </div>
 
-              {/* Rental Statistics */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Rental Statistics
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">
-                      Total Rentals
-                    </label>
-                    <p className="text-gray-900 font-semibold text-lg">
-                      {selectedUser.rentalCount}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">
-                      Total Revenue
-                    </label>
-                    <p className="text-gray-900 font-semibold text-lg">
-                      {selectedUser.revenue.toLocaleString()} VND
-                    </p>
-                  </div>
-                </div>
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-gray-100 flex justify-end space-x-3">
+                <motion.button
+                  onClick={closeDetail}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Close
+                </motion.button>
               </div>
-
-              {/* Feedback */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <MdInfo className="w-5 h-5 mr-2" />
-                  Feedback & Notes
-                </h3>
-                <p className="text-gray-700">
-                  {selectedUser.feedback || "No feedback available."}
-                </p>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Quick Actions
-                </h3>
-                <div className="flex flex-wrap gap-3">
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
-                    <MdLock className="w-4 h-4" />
-                    <span>Reset Password</span>
-                  </button>
-                  <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2">
-                    <MdBlock className="w-4 h-4" />
-                    <span>
-                      {selectedUser.status === "locked"
-                        ? "Unlock Account"
-                        : "Lock Account"}
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-100 flex justify-end space-x-3">
-              <button
-                onClick={closeDetail}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Create User Form Modal */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 bg-black/40 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Create New User
-              </h2>
-              <button
-                onClick={closeCreate}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <MdClose className="w-6 h-6" />
-              </button>
-            </div>
-            <form className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone *
-                </label>
-                <input
-                  type="text"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  CCCD/GPLX
-                </label>
-                <input
-                  type="text"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password *
-                </label>
-                <input
-                  type="password"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  User Type
-                </label>
-                <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent">
-                  <option value="regular">Regular</option>
-                  <option value="vip">VIP</option>
-                </select>
-              </div>
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
+      <AnimatePresence>
+        {isCreateOpen && (
+          <motion.div
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            >
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Create New User
+                </h2>
+                <motion.button
                   onClick={closeCreate}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-                >
-                  Create Account
-                </button>
+                  <MdClose className="w-6 h-6" />
+                </motion.button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <form className="p-6 space-y-4">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                    required
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                    required
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone *
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                    required
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    CCCD/GPLX
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                    required
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.6 }}
+                >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    User Type
+                  </label>
+                  <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent">
+                    <option value="regular">Regular</option>
+                    <option value="vip">VIP</option>
+                  </select>
+                </motion.div>
+                <div className="flex justify-end space-x-3 pt-4">
+                  <motion.button
+                    type="button"
+                    onClick={closeCreate}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Cancel
+                  </motion.button>
+                  <motion.button
+                    type="submit"
+                    className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Create Account
+                  </motion.button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

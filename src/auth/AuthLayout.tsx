@@ -52,7 +52,6 @@ const AuthLayout = ({
 
   const car = cars[carIndex];
 
-  // Định nghĩa variants với type Variants
   const formVariants: Variants = {
     initial: {
       opacity: 0,
@@ -123,7 +122,6 @@ const AuthLayout = ({
 
   return (
     <div className="relative h-full overflow-hidden">
-      {/* Background - Ẩn trên mobile/tablet, hiện từ lg */}
       <motion.div
         className={`absolute hidden lg:block top-0 left-0 h-full w-2/3 transition-transform duration-500 z-0 ${
           animating ? "-translate-x-full" : "translate-x-0"
@@ -139,7 +137,6 @@ const AuthLayout = ({
       />
 
       <div className="relative z-10 flex h-full">
-        {/* Form container */}
         <div className="lg:w-2/3 w-full flex lg:mx-20 md:justify-center lg:justify-start items-center">
           <AnimatePresence mode="wait">
             <motion.div
@@ -150,7 +147,6 @@ const AuthLayout = ({
               exit="exit"
               className="flex flex-col h-full md:h-fit justify-center items-start bg-white md:rounded-4xl shadow-2xl w-full md:w-[400px] lg:w-[300px] xl:w-[400px] p-8 pt-0 backdrop-blur-sm border border-gray-100"
             >
-              {/* Header */}
               <motion.div
                 variants={headerVariants}
                 className="w-full flex flex-col select-none items-center justify-center mb-8 lg:mb-4 xl:mb-8"
@@ -173,12 +169,10 @@ const AuthLayout = ({
                 </motion.p>
               </motion.div>
 
-              {/* Form content từ children */}
               <motion.div variants={contentVariants} className="w-full">
                 {children}
               </motion.div>
 
-              {/* Divider */}
               <motion.div
                 variants={itemVariants}
                 className="w-full flex items-center my-6 lg:my-4 xl:my-6 select-none"
@@ -188,7 +182,6 @@ const AuthLayout = ({
                 <div className="flex-grow border-t border-gray-300"></div>
               </motion.div>
 
-              {/* Bottom Link */}
               <motion.div
                 variants={itemVariants}
                 className="w-full text-center select-none"
@@ -209,7 +202,6 @@ const AuthLayout = ({
           </AnimatePresence>
         </div>
 
-        {/* Car image - Ẩn trên mobile/tablet, hiện từ lg */}
         <motion.img
           key={car.img}
           src={car.img}

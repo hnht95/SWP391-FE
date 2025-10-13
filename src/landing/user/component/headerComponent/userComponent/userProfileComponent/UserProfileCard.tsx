@@ -35,7 +35,7 @@ const UserProfileCard = ({ user }: UserProfileCardProps) => {
                 className='w-full h-full object-cover'
               />
             ) : (
-              <div className='w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center'>
+              <div className='w-full h-full bg-gradient-to-br from-gray-300 to-gray-500 flex items-center justify-center'>
                 <span className='text-white text-4xl font-bold'>
                   {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                 </span>
@@ -58,7 +58,7 @@ const UserProfileCard = ({ user }: UserProfileCardProps) => {
 
         {/* User Info */}
         <div className='text-center space-y-2'>
-          <h2 className='text-xl font-bold text-black'>{user.name}</h2>
+          <h2 className='text-2xl font-bold text-gray-900'>{user.name}</h2>
           
           <div className='space-y-1'>
             <p className='text-gray-600 text-sm'>{user.email}</p>
@@ -67,7 +67,7 @@ const UserProfileCard = ({ user }: UserProfileCardProps) => {
 
           {/* Role Badge */}
           <div className='pt-2'>
-            <span className='inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800'>
+            <span className='inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-black text-white'>
               {user.role}
             </span>
           </div>
@@ -78,7 +78,7 @@ const UserProfileCard = ({ user }: UserProfileCardProps) => {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleEditProfile}
-          className='w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all duration-300 ease-in-out shadow-md hover:shadow-lg'
+          className='w-full py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-all duration-300 ease-in-out shadow-md hover:shadow-lg'
         >
           Edit Profile
         </motion.button>

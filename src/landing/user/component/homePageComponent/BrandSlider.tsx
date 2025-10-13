@@ -40,17 +40,17 @@ const BrandsSlider: React.FC = () => {
         <p className="text-lg text-gray-500 mb-12">
           Here's a list of some of the most popular cars globally
         </p>
+      </div>
 
-        <div className="w-full bg-black/80 bg-opacity-40  p-4">
-          <div
-            ref={sliderRef}
-            className="flex overflow-hidden py-4 justify-center"
-            style={{ scrollBehavior: "auto" }}
-          >
-            {brands.map((brandItem, index) => (
-              <BrandCard key={index} brand={brandItem} />
-            ))}
-          </div>
+      <div className="w-full bg-black/80 bg-opacity-40 p-4">
+        <div
+          ref={sliderRef}
+          className="flex overflow-hidden py-4 justify-center"
+          style={{ scrollBehavior: "auto" }}
+        >
+          {brands.map((brandItem, index) => (
+            <BrandCard key={index} brand={brandItem} />
+          ))}
         </div>
       </div>
     </div>

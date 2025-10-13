@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useRoleBasedNavigation } from "../../../hooks/useRoleBasedNavigation";
 
 interface SubNavProps {
   isHeaderHovered?: boolean;
@@ -14,6 +15,8 @@ const SubNav: React.FC<SubNavProps> = ({
   const [isVisible, setIsVisible] = useState(true);
   const [isSelfHovered, setIsSelfHovered] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<number | null>(null);
+  const { getNavigationPaths } = useRoleBasedNavigation();
+  const navigationPaths = getNavigationPaths();
 
   useEffect(() => {
     const onScroll = () => {
@@ -39,7 +42,7 @@ const SubNav: React.FC<SubNavProps> = ({
   return (
     <>
       <div
-        className={`w-full sticky top-[80px] md:top-[88px] z-40 bg-black/50 backdrop-blur-md transition-transform duration-700 ease-in-out will-change-transform select-none ${
+        className={`w-full sticky top-[80px] md:top-[88px] z-60 bg-black/50 backdrop-blur-md transition-transform duration-700 ease-in-out will-change-transform select-none ${
           shouldShow ? "translate-y-0" : "-translate-y-full"
         }`}
         onMouseEnter={() => setIsSelfHovered(true)}
@@ -64,59 +67,65 @@ const SubNav: React.FC<SubNavProps> = ({
                     ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
                     : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
                 }`}
-                to="/"
+                to={navigationPaths.home}
               >
                 Home
               </Link>
             </li>
-            <li onMouseEnter={() => setHoveredItem(1)}>
-              <Link
-                className={`no-underline font-medium transition-all duration-300 cursor-pointer ${
-                  hoveredItem !== null && hoveredItem !== 1
-                    ? "text-white/50"
-                    : "text-white"
-                } ${
-                  hoveredItem === 1
-                    ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
-                    : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
-                }`}
-                to="/vehicles"
-              >
-                Vehicles
-              </Link>
-            </li>
-            <li onMouseEnter={() => setHoveredItem(2)}>
-              <Link
-                className={`no-underline font-medium transition-all duration-300 cursor-pointer ${
-                  hoveredItem !== null && hoveredItem !== 2
-                    ? "text-white/50"
-                    : "text-white"
-                } ${
-                  hoveredItem === 2
-                    ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
-                    : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
-                }`}
-                to="/aboutus"
-              >
-                About Us
-              </Link>
-            </li>
-            <li onMouseEnter={() => setHoveredItem(3)}>
-              <Link
-                className={`no-underline font-medium transition-all duration-300 cursor-pointer ${
-                  hoveredItem !== null && hoveredItem !== 3
-                    ? "text-white/50"
-                    : "text-white"
-                } ${
-                  hoveredItem === 3
-                    ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
-                    : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
-                }`}
-                to="/contactus"
-              >
-                Contact Us
-              </Link>
-            </li>
+            {navigationPaths.vehicles && (
+              <li onMouseEnter={() => setHoveredItem(1)}>
+                <Link
+                  className={`no-underline font-medium transition-all duration-300 cursor-pointer ${
+                    hoveredItem !== null && hoveredItem !== 1
+                      ? "text-white/50"
+                      : "text-white"
+                  } ${
+                    hoveredItem === 1
+                      ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
+                      : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
+                  }`}
+                  to={navigationPaths.vehicles}
+                >
+                  Vehicles
+                </Link>
+              </li>
+            )}
+            {navigationPaths.aboutus && (
+              <li onMouseEnter={() => setHoveredItem(2)}>
+                <Link
+                  className={`no-underline font-medium transition-all duration-300 cursor-pointer ${
+                    hoveredItem !== null && hoveredItem !== 2
+                      ? "text-white/50"
+                      : "text-white"
+                  } ${
+                    hoveredItem === 2
+                      ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
+                      : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
+                  }`}
+                  to={navigationPaths.aboutus}
+                >
+                  About Us
+                </Link>
+              </li>
+            )}
+            {navigationPaths.contactus && (
+              <li onMouseEnter={() => setHoveredItem(3)}>
+                <Link
+                  className={`no-underline font-medium transition-all duration-300 cursor-pointer ${
+                    hoveredItem !== null && hoveredItem !== 3
+                      ? "text-white/50"
+                      : "text-white"
+                  } ${
+                    hoveredItem === 3
+                      ? "brightness-200 drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
+                      : "hover:brightness-200 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
+                  }`}
+                  to={navigationPaths.contactus}
+                >
+                  Contact Us
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
       </div>

@@ -1,19 +1,19 @@
 import { useState } from "react";
 import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import AuthLayout from "../AuthLayout";
-
-const VALID_USERS = [
-  { username: "admin", password: "123456" },
-  { username: "user@example.com", password: "password" },
-  { username: "test", password: "test123" },
-];
+import { useAuth } from "../../hooks/useAuth";
+import { login } from "../../service/apiUser/API";
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const { login: authLogin } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({ username: "", password: "" });
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({ username: "", password: "" });
 
@@ -41,25 +41,49 @@ const LoginPage = () => {
       return;
     }
 
-    const validUser = VALID_USERS.find(
-      (user) => user.username === username && user.password === password
-    );
+    setLoading(true);
+    try {
+      const response = await login(username, password);
 
-    if (validUser) {
-      alert(`Login successful! Welcome ${username}`);
-    } else {
-      const userExists = VALID_USERS.find((user) => user.username === username);
+      if (response?.success && response?.data) {
+        const { token, user } = response.data;
 
-      if (userExists) {
-        newErrors.password = "Incorrect password";
+        if (token && user) {
+          authLogin({ token, user });
+          const { role } = user;
+
+          if (role === "admin") {
+            navigate("/admin");
+          } else if (role === "staff") {
+            navigate("/staff");
+          } else if (role === "renter") {
+            navigate("/home");
+          } else {
+            navigate("/home");
+          }
+        } else {
+          setErrors({
+            username: "",
+            password: "Invalid login response - missing token or user data",
+          });
+        }
       } else {
-        newErrors.username = "Username or email not found";
+        setErrors({
+          username: "",
+          password: "Login failed - invalid response",
+        });
       }
-      setErrors(newErrors);
+    } catch (error: unknown) {
+      const errorMessage = (error as Error)?.message || "Login failed";
+      setErrors({
+        username: "",
+        password: errorMessage,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Animation variants cho form inputs
   const inputVariants = {
     initial: { opacity: 0, x: -20 },
     animate: {
@@ -90,7 +114,6 @@ const LoginPage = () => {
           },
         }}
       >
-        {/* Username Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium text-black select-none">
             Email or Username
@@ -124,7 +147,6 @@ const LoginPage = () => {
           )}
         </motion.div>
 
-        {/* Password Field */}
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium select-none text-black">
             Password
@@ -168,7 +190,6 @@ const LoginPage = () => {
           )}
         </motion.div>
 
-        {/* Forgot Password */}
         <motion.div
           variants={inputVariants}
           className="flex items-center justify-between select-none"
@@ -183,19 +204,27 @@ const LoginPage = () => {
           </motion.a>
         </motion.div>
 
-        {/* Sign In Button */}
         <motion.button
           type="submit"
-          className="w-full select-none bg-black text-white font-semibold py-4 lg:py-2 xl:py-4 px-6 rounded-lg shadow-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transform hover:-translate-y-0.5 transition duration-200"
+          disabled={loading}
+          className={`w-full select-none font-semibold py-4 lg:py-2 xl:py-4 px-6 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transform transition duration-200 ${
+            loading
+              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+              : "bg-black text-white hover:bg-gray-800 hover:-translate-y-0.5"
+          }`}
           variants={inputVariants}
-          whileHover={{
-            scale: 1.02,
-            boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-          }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={
+            loading
+              ? {}
+              : {
+                  scale: 1.02,
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+                }
+          }
+          whileTap={loading ? {} : { scale: 0.98 }}
           transition={{ type: "spring", stiffness: 300 }}
         >
-          Sign In
+          {loading ? "Signing In..." : "Sign In"}
         </motion.button>
       </motion.form>
     </AuthLayout>
