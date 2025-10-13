@@ -11,7 +11,6 @@ import modelSvideo from "../../../../assets/homepage/carousel/video/modelS.mp4";
 import { HiOutlineBolt } from "react-icons/hi2";
 import { IoSpeedometerOutline } from "react-icons/io5";
 import { TbManualGearbox } from "react-icons/tb";
-import { IoIosArrowDropright } from "react-icons/io";
 
 const CarouselHome: React.FC = () => {
   const carData = [
@@ -116,11 +115,6 @@ const CarouselHome: React.FC = () => {
                         </div>
                       ))}
                     </div>
-
-                    <button className="cursor-pointer bg-white text-black px-4 py-2 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors duration-300 flex items-center gap-2">
-                      Learn More
-                      <IoIosArrowDropright />
-                    </button>
                   </div>
                 </div>
               </div>
