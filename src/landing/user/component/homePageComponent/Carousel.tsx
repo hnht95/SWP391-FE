@@ -16,7 +16,7 @@ const CarouselHome: React.FC = () => {
   const carData = [
     {
       id: 1,
-      price: "$89,990",
+      price: "890.000 VND/day",
       brand: "Tesla",
       model: "Model S",
       // image: modelS,
@@ -29,7 +29,7 @@ const CarouselHome: React.FC = () => {
     },
     {
       id: 2,
-      price: "$103,800",
+      price: "1.000.00 VND/day",
       brand: "Porsche",
       model: "Taycan",
       // image: taycan,
@@ -42,7 +42,7 @@ const CarouselHome: React.FC = () => {
     },
     {
       id: 3,
-      price: "$45,000",
+      price: "450.000 VND/day",
       brand: "VinFast",
       model: "VF 9",
       // image: vf9,
@@ -55,7 +55,7 @@ const CarouselHome: React.FC = () => {
     },
     {
       id: 4,
-      price: "$35,000",
+      price: "300.000 VND/day",
       brand: "VinFast",
       model: "VF 3",
       // image: vf3,

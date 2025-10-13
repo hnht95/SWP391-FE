@@ -2,26 +2,28 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import type { Vehicle } from "../../../../../service/apiVehicles/API";
-import { FaBatteryFull, FaCar, FaStar } from "react-icons/fa";
+// import type { Station } from "../../../../../service/apiStations/API";
+import { FaBatteryFull, FaCar, FaStar, FaMapMarkerAlt } from "react-icons/fa";
+import type { Station } from "../../../../../service/apiStation/API";
 
 interface VehiclesCardProps {
   car: Vehicle;
+  station?: Station; // ✅ Receive station from parent
 }
 
-const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
+const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
   const navigate = useNavigate();
 
   const handleViewDetails = () => {
     navigate(`/vehicles/${car._id}`);
   };
 
-  // ✅ Function to get status badge color classes
   const getStatusColor = (status: string) => {
     const statusColors = {
-      available: "bg-green-500 text-white", // ✅ Xanh lá
-      rented: "bg-red-500 text-white", // ✅ Đỏ
-      maintenance: "bg-yellow-500 text-white", // ✅ Vàng
-      reserved: "bg-purple-500 text-white", // ✅ Tím
+      available: "bg-green-500 text-white",
+      rented: "bg-red-500 text-white",
+      maintenance: "bg-yellow-500 text-white",
+      reserved: "bg-purple-500 text-white",
     };
 
     return (
@@ -32,11 +34,11 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300">
-      {/* Image - placeholder nếu không có */}
+      {/* Image */}
       <div className="relative h-48 bg-gray-200 flex items-center justify-center">
         <FaCar className="text-gray-400 text-6xl" />
 
-        {/* ✅ Status Badge với màu động */}
+        {/* Status Badge */}
         <div
           className={`absolute top-2 right-2 px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(
             car.status
@@ -57,6 +59,21 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
           {car.plateNumber} • {car.year}
         </p>
 
+        {/* ✅ Station Location */}
+        {station && (
+          <div className="flex items-start gap-2 mb-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
+            <FaMapMarkerAlt className="text-red-500 mt-1 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 text-sm truncate">
+                {station.name}
+              </p>
+              <p className="text-xs text-gray-500 line-clamp-1">
+                {station.location.address}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Features */}
         <div className="flex items-center justify-between mb-4 text-gray-600 text-sm">
           <div className="flex items-center gap-1">
@@ -67,10 +84,17 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
             <FaCar />
             <span>{car.mileage.toLocaleString()} km</span>
           </div>
-          {car.ratingAvg && (
+
+          {/* Rating */}
+          {car.ratingAvg ? (
             <div className="flex items-center gap-1">
-              <FaStar className="text-yellow-500" />
-              <span>{car.ratingAvg.toFixed(1)}</span>
+              <span className="font-semibold">{car.ratingAvg.toFixed(1)}</span>
+              <FaStar className="text-yellow-400" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <span className="font-semibold text-gray-400">0.0</span>
+              <FaStar className="text-gray-300" />
             </div>
           )}
         </div>

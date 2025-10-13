@@ -6,17 +6,23 @@ import {
   FaMapMarkerAlt,
   FaUsers,
   FaChevronDown,
+  FaCar,
 } from "react-icons/fa";
 import {
   getAllVehicles,
   type Vehicle,
 } from "../../../../service/apiVehicles/API";
+import {
+  getAllStations,
+  type Station,
+} from "../../../../service/apiStation/API";
 
 const Vehicles: React.FC = () => {
   const [searchParams] = useSearchParams();
 
   // ✅ State cho API data
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
 
@@ -24,6 +30,7 @@ const Vehicles: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedBrand, setSelectedBrand] = useState("All");
+  const [selectedStation, setSelectedStation] = useState("All"); // ✅ NEW
 
   // ✅ Set initial search term from URL params
   useEffect(() => {
@@ -33,25 +40,42 @@ const Vehicles: React.FC = () => {
     }
   }, [searchParams]);
 
-  // ✅ Fetch vehicles from API
+  // ✅ Fetch vehicles and stations from API
   useEffect(() => {
-    const fetchVehicles = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError("");
-        const data = await getAllVehicles();
-        console.log("Fetched vehicles:", data);
-        setVehicles(data);
+
+        // Fetch both vehicles and stations in parallel
+        const [vehiclesData, stationsData] = await Promise.all([
+          getAllVehicles(),
+          getAllStations(),
+        ]);
+
+        console.log("Fetched vehicles:", vehiclesData);
+        console.log("Fetched stations:", stationsData);
+
+        setVehicles(vehiclesData);
+        setStations(stationsData);
       } catch (err: any) {
-        console.error("Failed to fetch vehicles:", err);
-        setError(err.message || "Failed to load vehicles. Please try again.");
+        console.error("Failed to fetch data:", err);
+        setError(err.message || "Failed to load data. Please try again.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchVehicles();
+    fetchData();
   }, []);
+
+  // ✅ Create station map for quick lookup
+  const stationMap = useMemo(() => {
+    return stations.reduce((map, station) => {
+      map[station._id] = station;
+      return map;
+    }, {} as Record<string, Station>);
+  }, [stations]);
 
   // ✅ Get unique brands from vehicles
   const allBrands = useMemo(() => {
@@ -59,6 +83,25 @@ const Vehicles: React.FC = () => {
     const brands = vehicles.map((car) => car.brand);
     return ["All", ...new Set(brands)];
   }, [vehicles]);
+
+  // ✅ Get unique stations from vehicles (only stations that have vehicles)
+  const allStations = useMemo(() => {
+    if (stations.length === 0) return ["All"];
+
+    // Get unique station IDs from vehicles
+    const stationIds = new Set(
+      vehicles
+        .map((car) => (typeof car.station === "string" ? car.station : null))
+        .filter(Boolean) as string[]
+    );
+
+    // Filter stations that have vehicles
+    const stationsWithVehicles = stations.filter((station) =>
+      stationIds.has(station._id)
+    );
+
+    return ["All", ...stationsWithVehicles];
+  }, [vehicles, stations]);
 
   // ✅ Get status options
   const statusOptions = [
@@ -94,7 +137,14 @@ const Vehicles: React.FC = () => {
       const matchesBrand =
         selectedBrand === "All" || car.brand === selectedBrand;
 
-      return matchesSearchTerm && matchesStatus && matchesBrand;
+      // ✅ Station filter
+      const matchesStation =
+        selectedStation === "All" ||
+        (typeof car.station === "string" && car.station === selectedStation);
+
+      return (
+        matchesSearchTerm && matchesStatus && matchesBrand && matchesStation
+      );
     });
   };
 
@@ -145,7 +195,7 @@ const Vehicles: React.FC = () => {
       </p>
 
       {/* Search and Filter Bar */}
-      <div className="bg-gray-100 p-6 rounded-xl shadow-lg mb-12 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+      <div className="bg-gray-100 p-6 rounded-xl shadow-lg mb-12 flex flex-col md:flex-row items-center gap-4">
         {/* Search Input */}
         <div className="relative w-full md:flex-1">
           <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -159,10 +209,10 @@ const Vehicles: React.FC = () => {
         </div>
 
         {/* Brand Dropdown */}
-        <div className="relative w-full md:w-auto">
-          <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <div className="relative w-full md:w-48">
+          <FaCar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <select
-            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
+            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer bg-white"
             value={selectedBrand}
             onChange={(e) => setSelectedBrand(e.target.value)}
           >
@@ -175,11 +225,31 @@ const Vehicles: React.FC = () => {
           <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
 
+        {/* ✅ Station Dropdown */}
+        <div className="relative w-full md:w-64">
+          <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <select
+            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer bg-white"
+            value={selectedStation}
+            onChange={(e) => setSelectedStation(e.target.value)}
+          >
+            {allStations.map((station, index) => (
+              <option
+                key={index}
+                value={typeof station === "string" ? station : station._id}
+              >
+                {typeof station === "string" ? "All Stations" : station.name}
+              </option>
+            ))}
+          </select>
+          <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+
         {/* Status Dropdown */}
-        <div className="relative w-full md:w-auto">
+        <div className="relative w-full md:w-48">
           <FaUsers className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <select
-            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
+            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer bg-white"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
           >
@@ -199,7 +269,15 @@ const Vehicles: React.FC = () => {
       {filteredVehicles.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {filteredVehicles.map((car) => (
-            <VehiclesCard key={car._id} car={car} />
+            <VehiclesCard
+              key={car._id}
+              car={car}
+              station={
+                typeof car.station === "string"
+                  ? stationMap[car.station]
+                  : undefined
+              }
+            />
           ))}
         </div>
       ) : (
