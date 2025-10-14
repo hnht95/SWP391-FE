@@ -190,7 +190,7 @@ const DashboardStaff = () => {
               <motion.div
                 role="button"
                 onClick={() => setIsStationDropdownOpen(!isStationDropdownOpen)}
-                className="flex items-center space-x-2 hover:text-gray-700 transition-colors bg-white rounded-lg px-4 py-3 border border-gray-200 hover:border-gray-300 min-w-[200px]"
+                className="flex items-center space-x-2 hover:text-gray-700 transition-colors bg-white rounded-lg px-4 py-3 border border-gray-200 hover:border-gray-300 min-w-[260px]"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
