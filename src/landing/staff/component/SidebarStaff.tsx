@@ -8,7 +8,7 @@ import {
   MdSupport,
   MdChevronLeft,
   MdChevronRight,
-  MdNotifications,
+  // MdNotifications,
   MdKeyboardArrowDown,
   MdPerson,
   MdDirectionsCar,
@@ -152,13 +152,13 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
             </div>
           ) : (
             <div className="space-y-3">
-              <button className="w-full flex items-center justify-center px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
+              {/* <button className="w-full flex items-center justify-center px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
                 <MdNotifications className="w-5 h-5 mr-2" />
                 <span className="text-sm">Notifications</span>
                 <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
                   3
                 </span>
-              </button>
+              </button> */}
 
               <div className="relative">
                 <button

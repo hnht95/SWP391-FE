@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import SidebarUser from "./SidebarUser";
 import ProfileTab from "./userProfileComponent/userTabComponent/ProfileTab";
 import SettingsTab from "./userProfileComponent/userTabComponent/SettingsTab";
@@ -63,8 +62,7 @@ const UserProfile = () => {
   };
 
   return (
-    // ✅ Add pt-[88px] to push content below header
-    <div className="flex min-h-screen bg-gray-50 pt-[60px]">
+    <div className="flex min-h-screen bg-gray-50 ">
       <SidebarUser
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -73,33 +71,17 @@ const UserProfile = () => {
         user={user}
         onSignOut={handleSignOut}
       />
-      <div
-        className={`flex-1 flex flex-col transition-all duration-300 ${
-          isSidebarCollapsed ? "ml-16" : "ml-8"
-        }`}
-      >
+      <div className="flex-1 flex flex-col">
         {/* Header - No changes needed */}
         <div className="bg-white border-b border-gray-200 px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <motion.div
-                key={`title-${activeTab}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
+              <div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-1">
                   {tabs.find((tab) => tab.id === activeTab)?.label || "Profile"}
                 </h1>
-              </motion.div>
-              <motion.div
-                key={`description-${activeTab}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
+              </div>
+              <div>
                 <p className="text-gray-600 text-sm">
                   {activeTab === "profile" &&
                     "Manage your personal information and preferences"}
@@ -110,18 +92,16 @@ const UserProfile = () => {
                   {activeTab === "settings" &&
                     "Configure your account preferences and settings"}
                 </p>
-              </motion.div>
+              </div>
             </div>
 
             {activeTab === "profile" && (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              <button
                 onClick={handleEditProfile}
                 className="px-4 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors duration-200"
               >
                 Edit Profile
-              </motion.button>
+              </button>
             )}
           </div>
         </div>
@@ -129,16 +109,9 @@ const UserProfile = () => {
         {/* Main Content */}
         <div className="flex-1 overflow-auto bg-gray-50">
           <div className="p-8">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
-            >
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               {renderTabContent()}
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
