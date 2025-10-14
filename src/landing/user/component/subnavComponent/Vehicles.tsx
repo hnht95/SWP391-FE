@@ -1,120 +1,188 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import VehiclesCard from "./vehiclesComponent/VehiclesCard";
-import { carData } from "../../../../data/carData";
 import {
   FaSearch,
   FaMapMarkerAlt,
   FaUsers,
   FaChevronDown,
+  FaCar,
 } from "react-icons/fa";
-
-// Định nghĩa kiểu dữ liệu cho một chiếc xe
-interface Car {
-  id: number;
-  name: string;
-  price: number;
-  transmission: string;
-  seats: number;
-  range: string;
-  image: string;
-  location: string;
-  station: string; // Thêm station vào interface
-  type: string;
-}
+import {
+  getAllVehicles,
+  type Vehicle,
+} from "../../../../service/apiVehicles/API";
+import {
+  getAllStations,
+  type Station,
+} from "../../../../service/apiStation/API";
 
 const Vehicles: React.FC = () => {
   const [searchParams] = useSearchParams();
-  
-  // Initialize state from URL params
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("All");
-  const [selectedStation, setSelectedStation] = useState("All");
-  const [selectedSeats, setSelectedSeats] = useState("All");
 
-  // Set initial search term from URL params
+  // ✅ State cho API data
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+
+  // ✅ Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("All");
+  const [selectedBrand, setSelectedBrand] = useState("All");
+  const [selectedStation, setSelectedStation] = useState("All"); // ✅ NEW
+
+  // ✅ Set initial search term from URL params
   useEffect(() => {
-    const urlSearchTerm = searchParams.get('search');
+    const urlSearchTerm = searchParams.get("search");
     if (urlSearchTerm) {
       setSearchTerm(decodeURIComponent(urlSearchTerm));
     }
   }, [searchParams]);
 
-  // Sử dụng useMemo để tối ưu hóa, chỉ tính toán lại khi carData thay đổi
-  const allLocations = useMemo(() => {
-    return ["All", ...new Set(carData.map((car) => car.location))];
+  // ✅ Fetch vehicles and stations from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        // Fetch both vehicles and stations in parallel
+        const [vehiclesData, stationsData] = await Promise.all([
+          getAllVehicles(),
+          getAllStations(),
+        ]);
+
+        console.log("Fetched vehicles:", vehiclesData);
+        console.log("Fetched stations:", stationsData);
+
+        setVehicles(vehiclesData);
+        setStations(stationsData);
+      } catch (err: any) {
+        console.error("Failed to fetch data:", err);
+        setError(err.message || "Failed to load data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const stationsByLocation = useMemo(() => {
-    const stations = carData
-      .filter(
-        (car) => selectedLocation === "All" || car.location === selectedLocation
-      )
-      .map((car) => car.station);
-    return ["All", ...new Set(stations)];
-  }, [selectedLocation]);
+  // ✅ Create station map for quick lookup
+  const stationMap = useMemo(() => {
+    return stations.reduce((map, station) => {
+      map[station._id] = station;
+      return map;
+    }, {} as Record<string, Station>);
+  }, [stations]);
 
+  // ✅ Get unique brands from vehicles
+  const allBrands = useMemo(() => {
+    if (vehicles.length === 0) return ["All"];
+    const brands = vehicles.map((car) => car.brand);
+    return ["All", ...new Set(brands)];
+  }, [vehicles]);
+
+  // ✅ Get unique stations from vehicles (only stations that have vehicles)
+  const allStations = useMemo(() => {
+    if (stations.length === 0) return ["All"];
+
+    // Get unique station IDs from vehicles
+    const stationIds = new Set(
+      vehicles
+        .map((car) => (typeof car.station === "string" ? car.station : null))
+        .filter(Boolean) as string[]
+    );
+
+    // Filter stations that have vehicles
+    const stationsWithVehicles = stations.filter((station) =>
+      stationIds.has(station._id)
+    );
+
+    return ["All", ...stationsWithVehicles];
+  }, [vehicles, stations]);
+
+  // ✅ Get status options
+  const statusOptions = [
+    "All",
+    "available",
+    "reserved",
+    "rented",
+    "maintenance",
+  ];
+
+  // ✅ Filter logic based on actual API fields
   const filterCars = () => {
-    return carData.filter((car) => {
-      // Enhanced search logic with better precision
+    return vehicles.filter((car) => {
+      // Search by brand + model + plate number
       let matchesSearchTerm = true;
       if (searchTerm.trim()) {
         const lowerSearchTerm = searchTerm.toLowerCase();
-        const carName = car.name.toLowerCase();
-        const carBrand = car.name.split(' ')[0].toLowerCase();
-        
-        // 1. Exact full match (highest priority)
-        if (carName === lowerSearchTerm) {
-          matchesSearchTerm = true;
-        }
-        // 2. Contains full search term (high priority)  
-        else if (carName.includes(lowerSearchTerm)) {
-          matchesSearchTerm = true;
-        }
-        // 3. Brand only match (e.g., "vinfast" matches all VinFast cars)
-        else if (lowerSearchTerm === carBrand) {
-          matchesSearchTerm = true;
-        }
-        // 4. Partial brand match (e.g., "vin" matches "vinfast")
-        else if (carBrand.includes(lowerSearchTerm) && lowerSearchTerm.length >= 3) {
-          matchesSearchTerm = true;
-        }
-        // 5. Smart word matching (more strict)
-        else {
-          const searchWords = lowerSearchTerm.split(' ').filter(word => word.length >= 2);
-          const carWords = carName.split(' ').filter(word => word.length >= 2);
-          
-          // All search words must match at least one car word
-          matchesSearchTerm = searchWords.length > 0 && searchWords.every(searchWord => 
-            carWords.some(carWord => 
-              carWord.startsWith(searchWord) || 
-              (searchWord.length >= 3 && carWord.includes(searchWord))
-            )
-          );
-        }
+        const carFullName = `${car.brand} ${car.model}`.toLowerCase();
+        const carPlate = car.plateNumber.toLowerCase();
+
+        matchesSearchTerm =
+          carFullName.includes(lowerSearchTerm) ||
+          carPlate.includes(lowerSearchTerm) ||
+          car.brand.toLowerCase().includes(lowerSearchTerm) ||
+          car.model.toLowerCase().includes(lowerSearchTerm);
       }
 
-      // Location filter
-      const matchesLocation =
-        selectedLocation === "All" || car.location === selectedLocation;
+      // Status filter
+      const matchesStatus =
+        selectedStatus === "All" || car.status === selectedStatus;
 
-      // Lọc theo trạm đỗ xe (chỉ áp dụng nếu có trạm được chọn)
+      // Brand filter
+      const matchesBrand =
+        selectedBrand === "All" || car.brand === selectedBrand;
+
+      // ✅ Station filter
       const matchesStation =
-        selectedStation === "All" || car.station === selectedStation;
-
-      // Lọc theo số chỗ ngồi
-      const matchesSeats =
-        selectedSeats === "All" ||
-        (selectedSeats === "4-5" && car.seats >= 4 && car.seats <= 5) ||
-        (selectedSeats === "6-7" && car.seats >= 6 && car.seats <= 7);
+        selectedStation === "All" ||
+        (typeof car.station === "string" && car.station === selectedStation);
 
       return (
-        matchesSearchTerm && matchesLocation && matchesStation && matchesSeats
+        matchesSearchTerm && matchesStatus && matchesBrand && matchesStation
       );
     });
   };
 
   const filteredVehicles = filterCars();
+
+  // ✅ Loading state
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
+          <p className="mt-4 text-gray-600 text-lg">Loading vehicles...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Error state
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+            <h2 className="text-red-600 text-xl font-bold mb-2">
+              Error Loading Vehicles
+            </h2>
+            <p className="text-red-500 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -127,69 +195,71 @@ const Vehicles: React.FC = () => {
       </p>
 
       {/* Search and Filter Bar */}
-      <div className="bg-gray-100 p-6 rounded-xl shadow-lg mb-12 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+      <div className="bg-gray-100 p-6 rounded-xl shadow-lg mb-12 flex flex-col md:flex-row items-center gap-4">
         {/* Search Input */}
         <div className="relative w-full md:flex-1">
           <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Search by car name..."
+            placeholder="Search by brand, model, or plate number..."
             className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        {/* Location Dropdown */}
-        <div className="relative w-full md:w-auto">
-          <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        {/* Brand Dropdown */}
+        <div className="relative w-full md:w-48">
+          <FaCar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <select
-            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
-            value={selectedLocation}
-            onChange={(e) => {
-              setSelectedLocation(e.target.value);
-              setSelectedStation("All"); // Reset station khi thay đổi location
-            }}
+            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer bg-white"
+            value={selectedBrand}
+            onChange={(e) => setSelectedBrand(e.target.value)}
           >
-            {allLocations.map((loc, index) => (
-              <option key={index} value={loc}>
-                {loc}
+            {allBrands.map((brand, index) => (
+              <option key={index} value={brand}>
+                {brand}
               </option>
             ))}
           </select>
           <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
 
-        {/* Station Dropdown */}
-        {selectedLocation !== "All" && (
-          <div className="relative w-full md:w-auto transition-opacity duration-300">
-            <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            <select
-              className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
-              value={selectedStation}
-              onChange={(e) => setSelectedStation(e.target.value)}
-            >
-              {stationsByLocation.map((station, index) => (
-                <option key={index} value={station}>
-                  {station}
-                </option>
-              ))}
-            </select>
-            <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
-        )}
+        {/* ✅ Station Dropdown */}
+        <div className="relative w-full md:w-64">
+          <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <select
+            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer bg-white"
+            value={selectedStation}
+            onChange={(e) => setSelectedStation(e.target.value)}
+          >
+            {allStations.map((station, index) => (
+              <option
+                key={index}
+                value={typeof station === "string" ? station : station._id}
+              >
+                {typeof station === "string" ? "All Stations" : station.name}
+              </option>
+            ))}
+          </select>
+          <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
 
-        {/* Seats Dropdown */}
-        <div className="relative w-full md:w-auto">
+        {/* Status Dropdown */}
+        <div className="relative w-full md:w-48">
           <FaUsers className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <select
-            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
-            value={selectedSeats}
-            onChange={(e) => setSelectedSeats(e.target.value)}
+            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer bg-white"
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
           >
-            <option value="All">All Seats</option>
-            <option value="4-5">4-5 Seats</option>
-            <option value="6-7">6-7 Seats</option>
+            {statusOptions.map((status, index) => (
+              <option key={index} value={status}>
+                {status === "All"
+                  ? "All Status"
+                  : status.charAt(0).toUpperCase() + status.slice(1)}
+              </option>
+            ))}
           </select>
           <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
@@ -198,8 +268,16 @@ const Vehicles: React.FC = () => {
       {/* Vehicle Grid */}
       {filteredVehicles.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {filteredVehicles.map((car: Car) => (
-            <VehiclesCard key={car.id} car={car} />
+          {filteredVehicles.map((car) => (
+            <VehiclesCard
+              key={car._id}
+              car={car}
+              station={
+                typeof car.station === "string"
+                  ? stationMap[car.station]
+                  : undefined
+              }
+            />
           ))}
         </div>
       ) : (

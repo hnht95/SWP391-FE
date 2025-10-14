@@ -1,59 +1,63 @@
-import axios from "axios";
+import api from "../Utils";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ;
-console.log("API Base URL:", API_BASE_URL);
+// Admin Vehicles API
+export interface AdminVehicle {
+  id: string;
+  brand: string;
+  model: string;
+  licensePlate: string;
+  status: "available" | "rented" | "maintenance";
+  location: string;
+  dailyRate: number;
+  lastService: string; // ISO date
+}
 
+export interface CreateAdminVehicleInput {
+  brand: string;
+  model: string;
+  licensePlate: string;
+  status?: "available" | "rented" | "maintenance";
+  location?: string;
+  dailyRate?: number;
+  lastService?: string; // ISO date
+}
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-
-  headers: {
-    "Content-Type": "application/json",
+export const adminVehiclesAPI = {
+  async list(query?: Record<string, string | number | boolean>) {
+    const qs = query
+      ? `?${new URLSearchParams(Object.entries(query).map(([k, v]) => [k, String(v)])).toString()}`
+      : "";
+    const res = await api.get(`/admin/vehicles${qs}`);
+    return res.data as { data?: AdminVehicle[] } | AdminVehicle[];
   },
-});
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+  async create(payload: CreateAdminVehicleInput) {
+    const res = await api.post(`/admin/vehicles`, payload);
+    return res.data as { data?: AdminVehicle } | AdminVehicle;
   },
-  (error) => Promise.reject(error)
-);
-// const handleError = (error: unknown) => {
-//   const err = error as AxiosError;
-//   console.error("API Error:", {
-//     status: err?.response?.status,
-//     data: err?.response?.data,
-//     message: err?.message,
-//     request: err?.request,
-//   });
 
-//   let errorMessage = err?.message || "Unknown error";
-//   if (err?.response) {
-//     if (typeof err.response.data === "string") {
-//       if (err.response.data.includes("MulterError: Unexpected field")) {
-//         errorMessage =
-//           "Invalid file field names. Please check poster and trailer fields.";
-//       } else {
-//         errorMessage = "Server returned an unexpected response";
-//       }
-//     } else {
-//       const responseData: unknown = err.response.data;
-//       if (typeof responseData === "object" && responseData !== null) {
-//         const rd = responseData as Record<string, unknown>;
-//         if (rd.message && typeof rd.message === "string") {
-//           errorMessage = rd.message;
-//         } else if (rd.errors) {
-//           throw rd;
-//         }
-//       }
-//     }
-//   } else if (err?.request) {
-//     errorMessage = "No response from server";
-//   }
+  async update(id: string, payload: Partial<CreateAdminVehicleInput>) {
+    const res = await api.patch(`/admin/vehicles/${id}`, payload);
+    return res.data as { data?: AdminVehicle } | AdminVehicle;
+  },
 
-//   throw new Error(errorMessage);
-// };
+  async remove(id: string) {
+    const res = await api.delete(`/admin/vehicles/${id}`);
+    return res.data as { success?: boolean } | undefined;
+  },
+
+  async transfer(id: string, stationId: string) {
+    const res = await api.post(`/admin/vehicles/${id}/transfer`, { stationId });
+    return res.data;
+  },
+
+  async setMaintenance(
+    id: string,
+    data: { status: "maintenance" | "available"; maintenanceNotes?: string; estimatedCompletionDate?: string }
+  ) {
+    const res = await api.post(`/admin/vehicles/${id}/maintenance`, data);
+    return res.data as { data?: AdminVehicle } | AdminVehicle;
+  },
+};
+
+export default adminVehiclesAPI;

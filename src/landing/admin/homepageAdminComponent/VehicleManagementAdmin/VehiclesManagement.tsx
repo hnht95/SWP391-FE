@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { MdAdd, MdDirectionsCar } from "react-icons/md";
 import VehicleFilters from "../../component/vehicle/VehicleFilters";
 import VehicleTable from "../../component/vehicle/VehicleTable";
@@ -7,6 +7,7 @@ import { AddVehicleModal } from "./index";
 import { type Vehicle } from "../../component/vehicle/VehicleRow";
 import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
+import adminVehiclesAPI, { type AdminVehicle, type CreateAdminVehicleInput } from "../../../../service/apiAdmin/API";
 
 const VehiclesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -14,39 +15,38 @@ const VehiclesManagement: React.FC = () => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const vehicles: Vehicle[] = [
-    {
-      id: "1",
-      brand: "VinFast",
-      model: "VF9",
-      licensePlate: "30A-12345",
-      status: "available",
-      location: "Quận 1, TP.HCM",
-      dailyRate: 800000,
-      lastService: "2024-09-15",
-    },
-    {
-      id: "2",
-      brand: "Tesla",
-      model: "Model Y",
-      licensePlate: "30B-67890",
-      status: "rented",
-      location: "Quận 7, TP.HCM",
-      dailyRate: 1200000,
-      lastService: "2024-09-10",
-    },
-    {
-      id: "3",
-      brand: "BMW",
-      model: "X3",
-      licensePlate: "30C-11111",
-      status: "maintenance",
-      location: "Garage - Quận 3",
-      dailyRate: 900000,
-      lastService: "2024-08-30",
-    },
-  ];
+  const mapAdminToUi = (v: AdminVehicle): Vehicle => ({
+    id: v.id,
+    brand: v.brand,
+    model: v.model,
+    licensePlate: v.licensePlate,
+    status: v.status,
+    location: v.location,
+    dailyRate: v.dailyRate,
+    lastService: v.lastService,
+  });
+
+  const fetchVehicles = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await adminVehiclesAPI.list();
+      const data = Array.isArray(res) ? res : (res.data ?? []);
+      setVehicles(data.map(mapAdminToUi));
+    } catch (e) {
+      setError("Không tải được danh sách xe");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVehicles();
+  }, []);
 
   const handleEdit = (vehicle: Vehicle) => {
     setSelectedVehicle(vehicle);
@@ -65,8 +65,22 @@ const VehiclesManagement: React.FC = () => {
     console.log("Mark maintenance:", vehicle.id);
   };
 
-  const handleAddSubmit = (data: Omit<Vehicle, "id">) => {
-    console.log("Add vehicle submit:", data);
+  const handleAddSubmit = async (data: Omit<Vehicle, "id">) => {
+    try {
+      const payload: CreateAdminVehicleInput = {
+        brand: data.brand,
+        model: data.model,
+        licensePlate: data.licensePlate,
+        status: data.status,
+        location: data.location,
+        dailyRate: data.dailyRate,
+        lastService: data.lastService,
+      };
+      await adminVehiclesAPI.create(payload);
+      await fetchVehicles();
+    } catch (e) {
+      // silent error; optionally show a toast if available
+    }
   };
 
   return (
@@ -96,13 +110,19 @@ const VehiclesManagement: React.FC = () => {
         </FadeIn>
 
         <FadeIn delay={0.7} duration={0.7} direction="up">
-          <VehicleTable
-            vehicles={vehicles}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onTransfer={handleTransfer}
-            onMarkMaintenance={handleMarkMaintenance}
-          />
+          {loading ? (
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 text-sm text-gray-600">Đang tải dữ liệu...</div>
+          ) : error ? (
+            <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6 text-sm text-red-600">{error}</div>
+          ) : (
+            <VehicleTable
+              vehicles={vehicles}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onTransfer={handleTransfer}
+              onMarkMaintenance={handleMarkMaintenance}
+            />
+          )}
         </FadeIn>
 
         <VehicleDetailModal

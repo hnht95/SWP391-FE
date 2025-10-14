@@ -60,11 +60,11 @@ const UserProfile = () => {
 
   const handleSignOut = () => {
     console.log("Sign out clicked");
-    // Add sign out logic here
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    // ✅ Add pt-[88px] to push content below header
+    <div className="flex min-h-screen bg-gray-50 pt-[60px]">
       <SidebarUser
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -75,11 +75,11 @@ const UserProfile = () => {
       />
       <div
         className={`flex-1 flex flex-col transition-all duration-300 ${
-          isSidebarCollapsed ? "ml-16" : "ml-64"
+          isSidebarCollapsed ? "ml-16" : "ml-8"
         }`}
       >
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 p-6">
+        {/* Header - No changes needed */}
+        <div className="bg-white border-b border-gray-200 px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
               <motion.div
@@ -105,14 +105,15 @@ const UserProfile = () => {
                     "Manage your personal information and preferences"}
                   {activeTab === "booking" &&
                     "View your rental booking history and details"}
-                  {activeTab === "activity" && "Track your recent activities and updates"}
+                  {activeTab === "activity" &&
+                    "Track your recent activities and updates"}
                   {activeTab === "settings" &&
                     "Configure your account preferences and settings"}
                 </p>
               </motion.div>
             </div>
 
-            {activeTab === 'profile' && (
+            {activeTab === "profile" && (
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -126,8 +127,8 @@ const UserProfile = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 min-h-screen overflow-auto bg-gray-50">
-          <div className="p-6">
+        <div className="flex-1 overflow-auto bg-gray-50">
+          <div className="p-8">
             <motion.div
               key={activeTab}
               initial={{ opacity: 0, y: 20 }}

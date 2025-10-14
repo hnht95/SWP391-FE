@@ -55,7 +55,7 @@ export default function Header({
 
   // Helper functions for conditional classes
   const getHeaderClasses = () => {
-    const baseClasses = `fixed top-0 left-0 w-full bg-black shadow-xl px-6 z-50 ${TRANSITION_CLASSES.BASE} select-none`;
+    const baseClasses = `fixed top-0 left-0 w-full bg-black shadow-xl px-6 z-[100] ${TRANSITION_CLASSES.BASE} select-none`;
     const paddingClass = HEADER_DIMENSIONS.PADDING_LARGE;
     return `${baseClasses} ${paddingClass}`;
   };

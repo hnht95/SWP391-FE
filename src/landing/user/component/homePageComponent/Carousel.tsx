@@ -11,13 +11,12 @@ import modelSvideo from "../../../../assets/homepage/carousel/video/modelS.mp4";
 import { HiOutlineBolt } from "react-icons/hi2";
 import { IoSpeedometerOutline } from "react-icons/io5";
 import { TbManualGearbox } from "react-icons/tb";
-import { IoIosArrowDropright } from "react-icons/io";
 
 const CarouselHome: React.FC = () => {
   const carData = [
     {
       id: 1,
-      price: "$89,990",
+      price: "890.000 VND/day",
       brand: "Tesla",
       model: "Model S",
       // image: modelS,
@@ -30,7 +29,7 @@ const CarouselHome: React.FC = () => {
     },
     {
       id: 2,
-      price: "$103,800",
+      price: "1.000.00 VND/day",
       brand: "Porsche",
       model: "Taycan",
       // image: taycan,
@@ -43,7 +42,7 @@ const CarouselHome: React.FC = () => {
     },
     {
       id: 3,
-      price: "$45,000",
+      price: "450.000 VND/day",
       brand: "VinFast",
       model: "VF 9",
       // image: vf9,
@@ -56,7 +55,7 @@ const CarouselHome: React.FC = () => {
     },
     {
       id: 4,
-      price: "$35,000",
+      price: "300.000 VND/day",
       brand: "VinFast",
       model: "VF 3",
       // image: vf3,
@@ -116,11 +115,6 @@ const CarouselHome: React.FC = () => {
                         </div>
                       ))}
                     </div>
-
-                    <button className="cursor-pointer bg-white text-black px-4 py-2 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors duration-300 flex items-center gap-2">
-                      Learn More
-                      <IoIosArrowDropright />
-                    </button>
                   </div>
                 </div>
               </div>
