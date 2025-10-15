@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdClose, MdLocationOn, MdCode, MdPlace, MdMyLocation, MdLanguage, MdNotes } from 'react-icons/md';
-import { updateStation } from './stationApi';
+import { updateStationAPI } from "../../../../service/apiAdmin/UpdateStationAPI";
 import type { Station, CreateStationPayload } from './types.d';
 
 interface EditStationModalProps {
@@ -90,7 +90,20 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
 
     setLoading(true);
     try {
-      await updateStation(station.id, formData);
+      // Transform data to match API format
+      const apiData = {
+        name: formData.name,
+        code: formData.code,
+        location: {
+          address: formData.location.address,
+          lat: formData.location.latitude,
+          lng: formData.location.longitude,
+        },
+        note: formData.note,
+        isActive: formData.isActive,
+      };
+      
+      await updateStationAPI.update(station.id, apiData);
       
       // Success
       onUpdated();

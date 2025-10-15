@@ -7,7 +7,7 @@ import { AddVehicleModal } from "./index";
 import { type Vehicle } from "../../component/vehicle/VehicleRow";
 import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
-import adminVehiclesAPI, { type AdminVehicle, type CreateAdminVehicleInput } from "../../../../service/apiAdmin/API";
+import adminVehiclesAPI, { type AdminVehicle, type CreateAdminVehicleInput } from "../../../../service/apiAdmin/VehicleManagementAPI";
 
 const VehiclesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");

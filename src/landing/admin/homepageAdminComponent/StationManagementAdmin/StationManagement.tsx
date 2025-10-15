@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MdLocationOn, MdAdd, MdMap, MdViewList } from "react-icons/md";
 import { PageTransition, FadeIn } from "../../component/animations";
@@ -10,8 +11,11 @@ import MapView from "./MapView";
 import AddStationModal from "./AddStationModal";
 import EditStationModal from "./EditStationModal";
 import MeasurementIndex from "./MeasurementIndex";
-import { getStations, deleteStation } from "./stationApi";
+// import { deleteStation } from "./stationApi"; // Removed - using real API now
 import type { Station, StationFilters as Filters, Pagination } from "./types";
+import { stationManagementAPI } from "../../../../service/apiAdmin/StationManagementAPI";
+import { deleteStationAPI } from "../../../../service/apiAdmin/DeleteStationAPI";
+import SuccessModal from "../StaffManagementAdmin/SuccessModal";
 
 const StationManagement: React.FC = () => {
   const [stations, setStations] = useState<Station[]>([]);
@@ -22,6 +26,10 @@ const StationManagement: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [stationPendingDelete, setStationPendingDelete] = useState<Station | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const { setSidebarCollapsed } = useSidebar();
 
   const [filters, setFilters] = useState<Filters>({
@@ -44,15 +52,25 @@ const StationManagement: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await getStations(filters.page, filters.limit, {
-        search: filters.search,
-        status: filters.status,
-      });
+      // Fetch real data from admin API (supports server-side pagination if available)
+      const apiItems = await stationManagementAPI.list(filters.page, filters.limit);
 
-      // Handle both response formats
-      const stationsData = response.data?.items || [];
-      const total = response.data?.total || stationsData.length;
-      const totalPages = response.data?.totalPages || Math.ceil(total / filters.limit);
+      // Map API items to UI Station type
+      const stationsData: Station[] = apiItems.map((s) => ({
+        id: s.id,
+        name: s.name,
+        code: s.code,
+        location: s.location
+          ? { address: s.location.address, latitude: s.location.lat, longitude: s.location.lng }
+          : { address: "", latitude: 0, longitude: 0 },
+        note: s.note ?? undefined,
+        isActive: s.isActive,
+        createdAt: s.createdAt || "",
+        updatedAt: s.updatedAt,
+      }));
+
+      const total = stationsData.length;
+      const totalPages = Math.ceil(total / filters.limit);
 
       setStations(stationsData);
       setPagination({
@@ -126,6 +144,9 @@ const StationManagement: React.FC = () => {
   const handleStationCreated = () => {
     // Reload stations list
     fetchStations();
+    // Show success modal
+    setSuccessMessage("Station added successfully!");
+    setShowSuccessModal(true);
   };
 
   const handleEdit = (station: Station) => {
@@ -136,19 +157,31 @@ const StationManagement: React.FC = () => {
   const handleStationUpdated = () => {
     // Reload stations list
     fetchStations();
+    // Show success modal
+    setSuccessMessage("Station updated successfully!");
+    setShowSuccessModal(true);
   };
 
-  const handleDelete = async (station: Station) => {
-    if (!window.confirm(`Are you sure you want to delete station "${station.name}"?`)) {
-      return;
-    }
+  const handleDelete = (station: Station) => {
+    setStationPendingDelete(station);
+    setConfirmDeleteOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!stationPendingDelete) return;
     try {
-      await deleteStation(station.id);
+      await deleteStationAPI.remove(stationPendingDelete.id);
       // Reload stations list
       fetchStations();
+      // Show success modal
+      setSuccessMessage("Station deleted successfully!");
+      setShowSuccessModal(true);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete station");
+      // silent fail -> show error inline later if needed
+      console.error(err);
+    } finally {
+      setConfirmDeleteOpen(false);
+      setStationPendingDelete(null);
     }
   };
 
@@ -306,6 +339,60 @@ const StationManagement: React.FC = () => {
           onUpdated={handleStationUpdated}
           station={selectedStation}
         />
+
+        {/* Success Modal */}
+        <SuccessModal
+          isOpen={showSuccessModal}
+          onClose={() => setShowSuccessModal(false)}
+          message={successMessage}
+        />
+
+        {/* Confirm Delete Modal (Portal to body so overlay covers whole screen) */}
+        <AnimatePresence>
+          {confirmDeleteOpen &&
+            createPortal(
+              <>
+                <motion.div
+                  className="fixed inset-0 bg-black/40 z-[9998]"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setConfirmDeleteOpen(false)}
+                />
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+                  <motion.div
+                    className="pointer-events-auto bg-white rounded-2xl shadow-2xl w-full max-w-md"
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  >
+                    <div className="p-5">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2">Delete Station</h3>
+                      <p className="text-sm text-gray-600 mb-5">
+                        Are you sure you want to delete station {" "}
+                        <span className="font-semibold">"{stationPendingDelete?.name}"</span>?
+                      </p>
+                      <div className="flex justify-end gap-3">
+                        <button
+                          onClick={() => setConfirmDeleteOpen(false)}
+                          className="px-4 py-2 border border-gray-200 text-gray-600 bg-white rounded-xl hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={confirmDelete}
+                          className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              </>,
+              document.body
+            )}
+        </AnimatePresence>
       </div>
     </PageTransition>
   );

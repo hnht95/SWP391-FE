@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { MdWork, MdAdd, MdSearch, MdEmail, MdPhone, MdStar } from "react-icons/md";
 import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
 import AddStaffModal from "./AddStaffModal";
+import UpdateStaffModal from "./UpdateStaff";
+import SuccessModal from "./SuccessModal";
+import { staffListAPI } from "../../../../service/apiAdmin/StaffListAPI";
 
 interface Staff {
   id: string;
@@ -21,44 +24,13 @@ const StaffManagementAdmin: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Mock data
-  const staffList: Staff[] = [
-    {
-      id: "ST001",
-      name: "John Smith",
-      email: "johnsmith@zami.com",
-      phone: "0934567890",
-      role: "manager",
-      station: "District 1 - Downtown Station",
-      performanceScore: 95,
-      status: "active",
-      joinDate: "01/01/2024",
-    },
-    {
-      id: "ST002",
-      name: "Sarah Johnson",
-      email: "sarahj@zami.com",
-      phone: "0945678901",
-      role: "staff",
-      station: "District 3 - Central Station",
-      performanceScore: 88,
-      status: "active",
-      joinDate: "15/01/2024",
-    },
-    {
-      id: "ST003",
-      name: "Michael Brown",
-      email: "michaelb@zami.com",
-      phone: "0956789012",
-      role: "technician",
-      station: "District 7 - West Station",
-      performanceScore: 92,
-      status: "active",
-      joinDate: "01/02/2024",
-    },
-  ];
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const filteredStaff = staffList.filter((staff) => {
     const matchesSearch =
@@ -79,42 +51,106 @@ const StaffManagementAdmin: React.FC = () => {
   };
 
   const getPerformanceColor = (score: number) => {
-    if (score >= 90) return "text-green-600";
-    if (score >= 75) return "text-orange-600";
+    if (score >= 80) return "text-green-600";
+    if (score >= 50) return "text-yellow-600";
+    if (score >= 20) return "text-orange-600";
     return "text-red-600";
   };
 
-  const handleAddStaffSuccess = () => {
-    // Refresh the staff list
-    setRefreshKey((prev) => prev + 1);
-    // In a real app, you would fetch the updated staff list from the API here
+  const getPerformanceBarColor = (score: number) => {
+    if (score >= 80) return "bg-green-600";
+    if (score >= 50) return "bg-yellow-500";
+    if (score >= 20) return "bg-orange-500";
+    return "bg-red-600";
   };
+
+  const fetchStaffList = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await staffListAPI.getAllStaff();
+      // Convert API response to UI format
+      const convertedStaff = data.map((staff) => ({
+        id: staff._id,
+        name: staff.name,
+        email: staff.email,
+        phone: staff.phone,
+        role: staff.role as "manager" | "staff" | "technician",
+        station: typeof staff.station === 'string' ? staff.station : staff.station?.name || 'No Station',
+        performanceScore: 85, // Default value since API doesn't provide this
+        status: (staff.isActive ? "active" : "inactive") as "active" | "inactive",
+        joinDate: new Date(staff.createdAt).toLocaleDateString(),
+      }));
+      setStaffList(convertedStaff);
+    } catch (err) {
+      setError("Failed to fetch staff list");
+      console.error("Error fetching staff:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStaffList();
+  }, []);
+
+  const handleAddStaffSuccess = () => {
+    // Refresh the staff list after adding new staff
+    fetchStaffList();
+    // Show success modal
+    setSuccessMessage("Staff added successfully!");
+    setShowSuccessModal(true);
+  };
+
+  const handleViewDetails = (staff: Staff) => {
+    setSelectedStaff(staff);
+    setIsUpdateModalOpen(true);
+  };
+
+  const handleUpdateStaffSuccess = () => {
+    // Refresh the staff list after updating staff
+    fetchStaffList();
+    // Show success modal
+    setSuccessMessage("Staff updated successfully!");
+    setShowSuccessModal(true);
+  };
+
+  const totalStaff = staffList.length;
+  const activeStaff = staffList.filter(staff => staff.status === "active").length;
+  const avgPerformance = staffList.length > 0 
+    ? Math.round(staffList.reduce((sum, staff) => sum + staff.performanceScore, 0) / staffList.length)
+    : 0;
+  const newThisMonth = staffList.filter(staff => {
+    const joinDate = new Date(staff.joinDate);
+    const now = new Date();
+    return joinDate.getMonth() === now.getMonth() && joinDate.getFullYear() === now.getFullYear();
+  }).length;
 
   const stats = [
     { 
       label: "Total Staff", 
-      value: "156", 
+      value: totalStaff.toString(), 
       icon: <MdWork className="w-6 h-6 text-blue-600" />, 
       gradient: "from-blue-50 to-white",
       border: "border-l-4 border-blue-500"
     },
     { 
       label: "Active Staff", 
-      value: "142", 
+      value: activeStaff.toString(), 
       icon: <MdWork className="w-6 h-6 text-green-600" />, 
       gradient: "from-green-50 to-white",
       border: "border-l-4 border-green-500"
     },
     { 
       label: "Avg Performance", 
-      value: "87%", 
+      value: `${avgPerformance}%`, 
       icon: <MdStar className="w-6 h-6 text-purple-600" />, 
       gradient: "from-purple-50 to-white",
       border: "border-l-4 border-purple-500"
     },
     { 
       label: "New This Month", 
-      value: "8", 
+      value: newThisMonth.toString(), 
       icon: <MdAdd className="w-6 h-6 text-orange-600" />, 
       gradient: "from-orange-50 to-white",
       border: "border-l-4 border-orange-500"
@@ -203,25 +239,40 @@ const StaffManagementAdmin: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
         >
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-300">
-                <tr>
-                  {headers.map((header, index) => (
-                    <motion.th
-                      key={header}
-                      className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.9 + index * 0.05 }}
-                    >
-                      {header}
-                    </motion.th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredStaff.map((staff, index) => {
+          {loading ? (
+            <div className="p-8 text-center">
+              <div className="text-gray-500">Loading staff list...</div>
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center">
+              <div className="text-red-500">{error}</div>
+              <button 
+                onClick={fetchStaffList}
+                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-300">
+                  <tr>
+                    {headers.map((header, index) => (
+                      <motion.th
+                        key={header}
+                        className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.9 + index * 0.05 }}
+                      >
+                        {header}
+                      </motion.th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredStaff.map((staff, index) => {
                   const roleBadge = getRoleBadge(staff.role);
                   return (
                     <motion.tr
@@ -271,13 +322,7 @@ const StaffManagementAdmin: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <div className="w-20 bg-gray-200 rounded-full h-2 overflow-hidden">
                             <motion.div
-                              className={`h-2 rounded-full ${
-                                staff.performanceScore >= 90
-                                  ? "bg-green-600"
-                                  : staff.performanceScore >= 75
-                                  ? "bg-orange-500"
-                                  : "bg-red-600"
-                              }`}
+                              className={`h-2 rounded-full ${getPerformanceBarColor(staff.performanceScore)}`}
                               initial={{ width: "0%" }}
                               animate={{ width: `${staff.performanceScore}%` }}
                               transition={{ 
@@ -311,16 +356,20 @@ const StaffManagementAdmin: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="px-4 py-2 text-blue-600 hover:text-white hover:bg-blue-600 border-2 border-blue-600 rounded-lg font-semibold transition-all duration-200 hover:shadow-md">
+                        <button 
+                          onClick={() => handleViewDetails(staff)}
+                          className="px-4 py-2 text-blue-600 hover:text-white hover:bg-blue-600 border-2 border-blue-600 rounded-lg font-semibold transition-all duration-200 hover:shadow-md"
+                        >
                           View Details
                         </button>
                       </td>
                     </motion.tr>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </motion.div>
 
         {/* Add Staff Modal */}
@@ -328,6 +377,24 @@ const StaffManagementAdmin: React.FC = () => {
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
           onSuccess={handleAddStaffSuccess}
+        />
+
+        {/* Update Staff Modal */}
+        <UpdateStaffModal
+          isOpen={isUpdateModalOpen}
+          onClose={() => {
+            setIsUpdateModalOpen(false);
+            setSelectedStaff(null);
+          }}
+          staff={selectedStaff}
+          onSuccess={handleUpdateStaffSuccess}
+        />
+
+        {/* Success Modal */}
+        <SuccessModal
+          isOpen={showSuccessModal}
+          onClose={() => setShowSuccessModal(false)}
+          message={successMessage}
         />
       </div>
     </PageTransition>

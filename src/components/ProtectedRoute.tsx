@@ -16,14 +16,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { isAuthenticated, hasRole, user } = useAuth();
   if (allowedRoles.includes("guest")) {
-    if (isAuthenticated && user) {
-      if (user.role === "admin") {
-        return <Navigate to="/admin" replace />;
-      } else if (user.role === "staff") {
-        return <Navigate to="/staff" replace />;
-      }
-    }
-
+    // Guest routes are accessible to everyone, no redirect needed
     return <>{children}</>;
   }
   if (!isAuthenticated) {
