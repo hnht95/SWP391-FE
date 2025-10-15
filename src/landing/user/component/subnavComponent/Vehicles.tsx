@@ -11,11 +11,11 @@ import {
 import {
   getAllVehicles,
   type Vehicle,
-} from "../../../../service/apiVehicles/API";
+} from "../../../../service/apiAdmin/apiVehicles/API";
 import {
   getAllStations,
   type Station,
-} from "../../../../service/apiStation/API";
+} from "../../../../service/apiAdmin/apiStation/API";
 
 const Vehicles: React.FC = () => {
   const [searchParams] = useSearchParams();

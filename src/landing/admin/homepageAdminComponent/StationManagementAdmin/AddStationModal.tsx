@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdClose, MdLocationOn, MdCode, MdPlace, MdMyLocation, MdLanguage, MdNotes } from 'react-icons/md';
-import { createStation } from './stationApi';
+import { addStationAPI } from "../../../../service/apiAdmin/AddStationAPI";
 import type { CreateStationPayload } from './types';
 
 interface AddStationModalProps {
@@ -69,7 +69,19 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
 
     setLoading(true);
     try {
-      await createStation(formData);
+      // Transform data to match API format
+      // Try format with address at root level (backend might expect this)
+      const apiData = {
+        name: formData.name,
+        code: formData.code,
+        address: formData.location.address, // Address at root level
+        lat: formData.location.latitude,
+        lng: formData.location.longitude,
+        note: formData.note,
+        isActive: formData.isActive,
+      };
+      
+      await addStationAPI.create(apiData);
       
       // Success
       onCreated();

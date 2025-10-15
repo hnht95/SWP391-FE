@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MdAdd,
@@ -19,6 +19,7 @@ const VehicleHandover = () => {
     null
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const vehicleStats = {
     available: 25,
@@ -41,7 +42,7 @@ const VehicleHandover = () => {
     notes: string;
   }
 
-  const recentHandovers: Handover[] = [
+  const recentHandoversSample: Handover[] = [
     {
       id: "HO001",
       customerName: "John Doe",
@@ -70,35 +71,86 @@ const VehicleHandover = () => {
       returnLocation: "Station B - District 3",
       notes: "Minor scratch on left door",
     },
-    {
-      id: "HO003",
-      customerName: "Michael Brown",
-      vehicle: "BMW X5 - BMW456",
-      pickupDate: "2024-12-13",
-      returnDate: "2024-12-18",
-      status: "cancel",
-      totalAmount: "$0",
-      customerPhone: "+1 234 567 8902",
-      customerEmail: "michael.brown@email.com",
-      pickupLocation: "Central Hub - Downtown",
-      returnLocation: "Central Hub - Downtown",
-      notes: "Customer cancelled due to emergency",
-    },
-    {
-      id: "HO004",
-      customerName: "Emily Davis",
-      vehicle: "Audi A4 - AUD789",
-      pickupDate: "2024-12-12",
-      returnDate: "2024-12-17",
-      status: "complete",
-      totalAmount: "$520",
-      customerPhone: "+1 234 567 8903",
-      customerEmail: "emily.davis@email.com",
-      pickupLocation: "Tan Son Nhat Branch",
-      returnLocation: "Tan Son Nhat Branch",
-      notes: "Perfect condition return",
-    },
   ];
+
+  const [handovers, setHandovers] = useState<Handover[]>(recentHandoversSample);
+  const [createForm, setCreateForm] = useState({
+    customerName: "",
+    customerPhone: "",
+    customerEmail: "",
+    vehicleId: "",
+    vehicleName: "",
+    color: "",
+    pickupDate: "",
+    returnDate: "",
+    pickupLocation: "",
+    returnLocation: "",
+    preStatus: "",
+    deposit: 0,
+    pricePerDay: 0,
+  });
+
+  const openCreateModal = () => setIsCreateOpen(true);
+  const closeCreateModal = () => setIsCreateOpen(false);
+
+  // Sample vehicles list for selection (replace with API data when available)
+  const sampleVehicles = [
+    { id: "V001", name: "Toyota Camry - ABC123", pricePerDay: 90 },
+    { id: "V002", name: "Honda Civic - XYZ789", pricePerDay: 80 },
+    { id: "V003", name: "BMW X5 - BMW456", pricePerDay: 120 },
+  ];
+
+  const calculateTotal = (pickup: string, ret: string, pricePerDay: number) => {
+    if (!pickup || !ret) return 0;
+    const p = new Date(pickup);
+    const r = new Date(ret);
+    const diffMs = r.getTime() - p.getTime();
+    const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    return days * pricePerDay;
+  };
+
+  const handleCreateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = `HO${Math.floor(1000 + Math.random() * 9000)}`;
+    const total = calculateTotal(
+      createForm.pickupDate,
+      createForm.returnDate,
+      createForm.pricePerDay
+    );
+    const newHandover: Handover = {
+      id,
+      customerName: createForm.customerName,
+      vehicle: `${createForm.vehicleName} ${
+        createForm.color ? `- ${createForm.color}` : ""
+      }`,
+      pickupDate: createForm.pickupDate.split("T")[0],
+      returnDate: createForm.returnDate.split("T")[0],
+      status: "complete",
+      totalAmount: `$${total}`,
+      customerPhone: createForm.customerPhone,
+      customerEmail: createForm.customerEmail,
+      pickupLocation: createForm.pickupLocation,
+      returnLocation: createForm.returnLocation,
+      notes: `Pre-status: ${createForm.preStatus} | Deposit: $${createForm.deposit}`,
+    };
+    setHandovers((s) => [newHandover, ...s]);
+    setCreateForm({
+      customerName: "",
+      customerPhone: "",
+      customerEmail: "",
+      vehicleId: "",
+      vehicleName: "",
+      color: "",
+      pickupDate: "",
+      returnDate: "",
+      pickupLocation: "",
+      returnLocation: "",
+      preStatus: "",
+      deposit: 0,
+      pricePerDay: 0,
+    });
+    closeCreateModal();
+  };
 
   const handleHandoverClick = (handover: Handover) => {
     setSelectedHandover(handover);
@@ -130,7 +182,8 @@ const VehicleHandover = () => {
             </p>
           </div>
           <motion.button
-            className="bg-gray-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
+            onClick={openCreateModal}
+            className="bg-gray-900 cursor-pointer text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -256,7 +309,7 @@ const VehicleHandover = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {recentHandovers.map((handover, index) => (
+              {handovers.map((handover, index) => (
                 <motion.tr
                   key={index}
                   className="hover:bg-gray-50 transition-colors"
@@ -363,6 +416,256 @@ const VehicleHandover = () => {
                         Name
                       </label>
                       <p className="text-gray-900">
+                        {/* Create Handover Modal */}
+                        <AnimatePresence>
+                          {isCreateOpen && (
+                            <motion.div
+                              className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                            >
+                              <motion.div
+                                className="bg-white rounded-xl max-w-3xl w-full p-6 overflow-y-auto"
+                                initial={{ scale: 0.95, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.95, opacity: 0 }}
+                              >
+                                <div className="flex items-center justify-between mb-4">
+                                  <h2 className="text-xl font-semibold">
+                                    Create Vehicle Handover
+                                  </h2>
+                                  <button
+                                    onClick={closeCreateModal}
+                                    className="text-gray-500 hover:text-gray-700"
+                                  >
+                                    Close
+                                  </button>
+                                </div>
+
+                                <form
+                                  onSubmit={handleCreateSubmit}
+                                  className="space-y-4"
+                                >
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600">
+                                        Select Vehicle
+                                      </label>
+                                      <select
+                                        className="w-full mt-1 border rounded px-3 py-2"
+                                        value={createForm.vehicleId}
+                                        onChange={(e) => {
+                                          const v = sampleVehicles.find(
+                                            (s) => s.id === e.target.value
+                                          );
+                                          setCreateForm((s) => ({
+                                            ...s,
+                                            vehicleId: e.target.value,
+                                            vehicleName: v?.name || "",
+                                            pricePerDay: v?.pricePerDay || 0,
+                                          }));
+                                        }}
+                                      >
+                                        <option value="">
+                                          -- Select vehicle --
+                                        </option>
+                                        {sampleVehicles.map((v) => (
+                                          <option key={v.id} value={v.id}>
+                                            {v.name} - ${v.pricePerDay}/day
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600">
+                                        Color
+                                      </label>
+                                      <input
+                                        className="w-full mt-1 border rounded px-3 py-2"
+                                        value={createForm.color}
+                                        onChange={(e) =>
+                                          setCreateForm((s) => ({
+                                            ...s,
+                                            color: e.target.value,
+                                          }))
+                                        }
+                                        placeholder="e.g. Red"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600">
+                                        Pickup Date & Time
+                                      </label>
+                                      <input
+                                        type="datetime-local"
+                                        className="w-full mt-1 border rounded px-3 py-2"
+                                        value={createForm.pickupDate}
+                                        onChange={(e) =>
+                                          setCreateForm((s) => ({
+                                            ...s,
+                                            pickupDate: e.target.value,
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600">
+                                        Return Date & Time
+                                      </label>
+                                      <input
+                                        type="datetime-local"
+                                        className="w-full mt-1 border rounded px-3 py-2"
+                                        value={createForm.returnDate}
+                                        onChange={(e) =>
+                                          setCreateForm((s) => ({
+                                            ...s,
+                                            returnDate: e.target.value,
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600">
+                                        Customer Name
+                                      </label>
+                                      <input
+                                        className="w-full mt-1 border rounded px-3 py-2"
+                                        value={createForm.customerName}
+                                        onChange={(e) =>
+                                          setCreateForm((s) => ({
+                                            ...s,
+                                            customerName: e.target.value,
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600">
+                                        Customer Phone
+                                      </label>
+                                      <input
+                                        className="w-full mt-1 border rounded px-3 py-2"
+                                        value={createForm.customerPhone}
+                                        onChange={(e) =>
+                                          setCreateForm((s) => ({
+                                            ...s,
+                                            customerPhone: e.target.value,
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-600">
+                                      Customer Email
+                                    </label>
+                                    <input
+                                      className="w-full mt-1 border rounded px-3 py-2"
+                                      value={createForm.customerEmail}
+                                      onChange={(e) =>
+                                        setCreateForm((s) => ({
+                                          ...s,
+                                          customerEmail: e.target.value,
+                                        }))
+                                      }
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600">
+                                        Deposit ($)
+                                      </label>
+                                      <input
+                                        type="number"
+                                        className="w-full mt-1 border rounded px-3 py-2"
+                                        value={createForm.deposit}
+                                        onChange={(e) =>
+                                          setCreateForm((s) => ({
+                                            ...s,
+                                            deposit: Number(e.target.value),
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600">
+                                        Pre-rental Status
+                                      </label>
+                                      <input
+                                        className="w-full mt-1 border rounded px-3 py-2"
+                                        value={createForm.preStatus}
+                                        onChange={(e) =>
+                                          setCreateForm((s) => ({
+                                            ...s,
+                                            preStatus: e.target.value,
+                                          }))
+                                        }
+                                        placeholder="e.g. scratches, battery 80%"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600">
+                                        Price Per Day ($)
+                                      </label>
+                                      <input
+                                        type="number"
+                                        className="w-full mt-1 border rounded px-3 py-2"
+                                        value={createForm.pricePerDay}
+                                        onChange={(e) =>
+                                          setCreateForm((s) => ({
+                                            ...s,
+                                            pricePerDay: Number(e.target.value),
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="text-sm text-gray-600">
+                                        Total Estimated
+                                      </p>
+                                      <p className="text-xl font-bold">
+                                        $
+                                        {calculateTotal(
+                                          createForm.pickupDate,
+                                          createForm.returnDate,
+                                          createForm.pricePerDay
+                                        )}
+                                      </p>
+                                    </div>
+                                    <div className="space-x-2">
+                                      <button
+                                        type="button"
+                                        onClick={closeCreateModal}
+                                        className="px-4 py-2 border rounded"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        type="submit"
+                                        className="px-4 py-2 bg-blue-600 text-white rounded"
+                                      >
+                                        Create
+                                      </button>
+                                    </div>
+                                  </div>
+                                </form>
+                              </motion.div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                         {selectedHandover.customerName}
                       </p>
                     </div>

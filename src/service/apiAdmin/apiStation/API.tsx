@@ -1,5 +1,5 @@
 import { AxiosError } from "axios";
-import api from "../Utils";
+import api from "../../Utils";
 
 // ✅ Station Interface
 export interface Station {

@@ -5,8 +5,8 @@ import { useRoleBasedNavigation } from "../../../../../hooks/useRoleBasedNavigat
 import {
   getVehicleById,
   type Vehicle,
-} from "../../../../../service/apiVehicles/API";
-import type { Station } from "../../../../../service/apiStation/API";
+} from "../../../../../service/apiAdmin/apiVehicles/API";
+import type { Station } from "../../../../../service/apiAdmin/apiStation/API";
 import {
   FaCar,
   FaArrowLeft,

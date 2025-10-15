@@ -5,7 +5,10 @@ import React, {
   useEffect,
   type ReactNode,
 } from "react";
-import { getAllStations, type Station } from "../service/apiStation/API";
+import {
+  getAllStations,
+  type Station,
+} from "../service/apiAdmin/apiStation/API";
 
 interface StationContextType {
   stations: Station[];

@@ -14,6 +14,7 @@ import {
   MdKeyboardArrowDown,
 } from "react-icons/md";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
+import { useAuth } from "../../../hooks/useAuth";
 
 export interface MenuItem {
   id: string;
@@ -31,6 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const { logout, showGlobalLoading, hideGlobalLoading } = useAuth();
 
   const menuItems: MenuItem[] = [
     {
@@ -173,7 +175,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
               {showProfileMenu && (
                 <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border-2 border-black rounded-lg shadow-lg py-2">
                   <button 
-                    onClick={() => navigate("/login")}
+                    onClick={async () => {
+                      showGlobalLoading();
+                      try {
+                        await logout();
+                        navigate("/");
+                      } finally {
+                        setTimeout(() => hideGlobalLoading(), 350);
+                      }
+                    }}
                     className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center"
                   >
                     <MdLogout className="w-4 h-4 mr-2" />
