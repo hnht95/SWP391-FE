@@ -4,6 +4,7 @@ import { Carousel } from "antd";
 // import taycan from "../../../assets/homepage/carousel/taycan.png";
 // import vf9 from "../../../assets/homepage/carousel/vf9.png";
 // import vf3 from "../../../assets/homepage/carousel/vf3.png";
+// import taycanvideo from "../../../../assets/homepage/carousel/video/taycan.mp4";
 import taycanvideo from "../../../../assets/homepage/carousel/video/taycan.mp4";
 import vf3video from "../../../../assets/homepage/carousel/video/vf3.mp4";
 import vf9video from "../../../../assets/homepage/carousel/video/vf9.mp4";
@@ -55,7 +56,7 @@ const CarouselHome: React.FC = () => {
     },
     {
       id: 4,
-      price: "300.000 VND/day",
+      price: "300.000 VN",
       brand: "VinFast",
       model: "VF 3",
       // image: vf3,
