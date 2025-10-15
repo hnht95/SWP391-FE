@@ -1,9 +1,21 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { MdClose, MdPerson, MdEmail, MdLock, MdPhone, MdWork, MdVisibility, MdVisibilityOff, MdLocationOn } from "react-icons/md";
-import { staffManagementAPI } from "../../../../service/apiAdmin/StaffManagementAPI";
+import {
+  MdClose,
+  MdPerson,
+  MdEmail,
+  MdLock,
+  MdPhone,
+  MdWork,
+  MdVisibility,
+  MdVisibilityOff,
+  MdLocationOn,
+} from "react-icons/md";
+// import { staffManagementAPI } from "../../../../service/apiAdmin/StaffManagementAPI";
 import StationDropdown from "./StationDropdown";
+import staffManagementAPI from "../../../../service/apiAdmin/StaffAPI/API";
+// import staffManagementAPI from "../../../../service/apiAdmin/StaffAPI/API";
 
 interface AddStaffModalProps {
   isOpen: boolean;
@@ -31,7 +43,11 @@ interface FormErrors {
   station?: string;
 }
 
-const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSuccess }) => {
+const AddStaffModal: React.FC<AddStaffModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+}) => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
@@ -47,7 +63,9 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     // Clear error when user types
@@ -75,19 +93,19 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
       newErrors.name = "Name must be less than 50 characters";
     } else if (!/^[a-zA-Z\s]+$/.test(formData.name.trim())) {
       newErrors.name = "Name can only contain letters and spaces";
-    } else if (formData.name.trim().includes('  ')) {
+    } else if (formData.name.trim().includes("  ")) {
       newErrors.name = "Name cannot contain consecutive spaces";
-    } else if (formData.name.trim().includes('\t')) {
+    } else if (formData.name.trim().includes("\t")) {
       newErrors.name = "Name cannot contain tabs";
-    } else if (formData.name.trim().includes('-')) {
+    } else if (formData.name.trim().includes("-")) {
       newErrors.name = "Name cannot contain hyphens";
-    } else if (formData.name.trim().includes('+')) {
+    } else if (formData.name.trim().includes("+")) {
       newErrors.name = "Name cannot contain plus signs";
-    } else if (formData.name.trim().includes('(')) {
+    } else if (formData.name.trim().includes("(")) {
       newErrors.name = "Name cannot contain parentheses";
-    } else if (formData.name.trim().includes(')')) {
+    } else if (formData.name.trim().includes(")")) {
       newErrors.name = "Name cannot contain parentheses";
-    } else if (formData.name.trim().includes('.')) {
+    } else if (formData.name.trim().includes(".")) {
       newErrors.name = "Name cannot contain dots";
     }
 
@@ -97,17 +115,16 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
       newErrors.email = "Invalid email format";
     } else if (formData.email.length > 100) {
       newErrors.email = "Email must be less than 100 characters";
-    } else if (formData.email.includes(' ')) {
+    } else if (formData.email.includes(" ")) {
       newErrors.email = "Email cannot contain spaces";
-    } else if (formData.email.includes('..')) {
+    } else if (formData.email.includes("..")) {
       newErrors.email = "Email cannot contain tabs";
-    } else if (formData.email.includes('-')) {
+    } else if (formData.email.includes("-")) {
       newErrors.email = "Email cannot contain hyphens";
-    } else if (formData.email.includes('+')) {
+    } else if (formData.email.includes("+")) {
       newErrors.email = "Email cannot contain plus signs";
-    } else if (formData.email.includes('(')) {
+    } else if (formData.email.includes("(")) {
       newErrors.email = "Email cannot contain parentheses";
-    
     }
 
     if (!formData.password) {
@@ -116,19 +133,19 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
       newErrors.password = "Password must be at least 6 characters";
     } else if (formData.password.length > 50) {
       newErrors.password = "Password must be less than 50 characters";
-    } else if (formData.password.includes(' ')) {
+    } else if (formData.password.includes(" ")) {
       newErrors.password = "Password cannot contain spaces";
-    } else if (formData.password.includes('\t')) {
+    } else if (formData.password.includes("\t")) {
       newErrors.password = "Password cannot contain tabs";
-    } else if (formData.password.includes('-')) {
+    } else if (formData.password.includes("-")) {
       newErrors.password = "Password cannot contain hyphens";
-    } else if (formData.password.includes('+')) {
+    } else if (formData.password.includes("+")) {
       newErrors.password = "Password cannot contain plus signs";
-    } else if (formData.password.includes('(')) {
+    } else if (formData.password.includes("(")) {
       newErrors.password = "Password cannot contain parentheses";
-    } else if (formData.password.includes(')')) {
+    } else if (formData.password.includes(")")) {
       newErrors.password = "Password cannot contain parentheses";
-    } else if (formData.password.includes('.')) {
+    } else if (formData.password.includes(".")) {
       newErrors.password = "Password cannot contain dots";
     }
 
@@ -142,23 +159,23 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
       newErrors.phone = "Please enter phone number";
     } else if (!/^[0-9]{10}$/.test(formData.phone)) {
       newErrors.phone = "Phone number must be 10 digits";
-    } else if (!formData.phone.startsWith('0')) {
+    } else if (!formData.phone.startsWith("0")) {
       newErrors.phone = "Phone number must start with 0";
     } else if (formData.phone.length !== 10) {
       newErrors.phone = "Phone number must be exactly 10 digits";
-    } else if (formData.phone.includes(' ')) {
+    } else if (formData.phone.includes(" ")) {
       newErrors.phone = "Phone number cannot contain spaces";
-    } else if (formData.phone.includes('\t')) {
+    } else if (formData.phone.includes("\t")) {
       newErrors.phone = "Phone number cannot contain tabs";
-    } else if (formData.phone.includes('-')) {
+    } else if (formData.phone.includes("-")) {
       newErrors.phone = "Phone number cannot contain hyphens";
-    } else if (formData.phone.includes('+')) {
+    } else if (formData.phone.includes("+")) {
       newErrors.phone = "Phone number cannot contain plus signs";
-    } else if (formData.phone.includes('(')) {
+    } else if (formData.phone.includes("(")) {
       newErrors.phone = "Phone number cannot contain parentheses";
-    } else if (formData.phone.includes(')')) {
+    } else if (formData.phone.includes(")")) {
       newErrors.phone = "Phone number cannot contain parentheses";
-    } else if (formData.phone.includes('.')) {
+    } else if (formData.phone.includes(".")) {
       newErrors.phone = "Phone number cannot contain dots";
     }
 
@@ -176,17 +193,17 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
       newErrors.station = "Station ID must be less than 50 characters";
     } else if (!/^[a-zA-Z0-9]+$/.test(formData.station.trim())) {
       newErrors.station = "Station ID can only contain letters and numbers";
-    } else if (formData.station.trim().includes(' ')) {
+    } else if (formData.station.trim().includes(" ")) {
       newErrors.station = "Station ID cannot contain spaces";
-    } else if (formData.station.trim().includes('\t')) {
+    } else if (formData.station.trim().includes("\t")) {
       newErrors.station = "Station ID cannot contain tabs";
-    } else if (formData.station.trim().includes('-')) {
+    } else if (formData.station.trim().includes("-")) {
       newErrors.station = "Station ID cannot contain hyphens";
-    } else if (formData.station.trim().includes('+')) {
+    } else if (formData.station.trim().includes("+")) {
       newErrors.station = "Station ID cannot contain plus signs";
-    } else if (formData.station.trim().includes('(')) {
+    } else if (formData.station.trim().includes("(")) {
       newErrors.station = "Station ID cannot contain parentheses";
-    } else if (formData.station.trim().includes(')')) {
+    } else if (formData.station.trim().includes(")")) {
       newErrors.station = "Station ID cannot contain parentheses";
     }
 
@@ -206,12 +223,12 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
     try {
       // Remove confirmPassword from data before sending to API
       const { confirmPassword, ...dataToSend } = formData;
-      
+
       await staffManagementAPI.createStaff({
         ...dataToSend,
-        gender: dataToSend.gender as "male" | "female"
+        gender: dataToSend.gender as "male" | "female",
       });
-      
+
       // Success - Close this modal first, then show success modal
       handleClose();
       // Trigger success callback after a short delay to ensure modal closes first
@@ -222,14 +239,24 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
       console.error("Error adding staff:", error);
       console.error("Error response:", error.response?.data);
       console.error("Error status:", error.response?.status);
-      
+
       // Handle specific errors
-      if (error.response?.data?.error && error.response.data.error.includes("Email already exists")) {
+      if (
+        error.response?.data?.error &&
+        error.response.data.error.includes("Email already exists")
+      ) {
         setErrors({ email: "This email is already in use" });
-      } else if (error.response?.data?.message && error.response.data.message.includes("Email already exists")) {
+      } else if (
+        error.response?.data?.message &&
+        error.response.data.message.includes("Email already exists")
+      ) {
         setErrors({ email: "This email is already in use" });
       } else {
-        alert(error.response?.data?.error || error.response?.data?.message || "An error occurred. Please try again!");
+        alert(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "An error occurred. Please try again!"
+        );
       }
     } finally {
       setIsSubmitting(false);
@@ -251,7 +278,6 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
     setShowConfirmPassword(false);
     onClose();
   };
-
 
   return createPortal(
     <AnimatePresence>
@@ -275,161 +301,191 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
               exit={{ opacity: 0, scale: 0.95, y: 30 }}
               transition={{ type: "spring", damping: 30, stiffness: 200 }}
             >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-white">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-md">
-                  <MdPerson className="w-5 h-5 text-white" />
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-white">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-md">
+                    <MdPerson className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-800">
+                      Add New Staff
+                    </h2>
+                    <p className="text-xs text-gray-500">
+                      Fill in the staff information below
+                    </p>
+                  </div>
                 </div>
+                <button
+                  onClick={handleClose}
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-all duration-200"
+                >
+                  <MdClose className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="p-5 space-y-3">
+                {/* Name */}
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">Add New Staff</h2>
-                  <p className="text-xs text-gray-500">Fill in the staff information below</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <MdPerson className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      className={`w-full pl-10 pr-3 py-2 text-sm border ${
+                        errors.name
+                          ? "border-red-300 bg-red-50/30"
+                          : "border-gray-200 bg-gray-50/50"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
+                      placeholder="Enter full name"
+                    />
+                  </div>
+                  {errors.name && (
+                    <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+                  )}
                 </div>
-              </div>
-              <button
-                onClick={handleClose}
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-all duration-200"
-              >
-                <MdClose className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-5 space-y-3">
-              {/* Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <MdPerson className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-3 py-2 text-sm border ${
-                      errors.name ? "border-red-300 bg-red-50/30" : "border-gray-200 bg-gray-50/50"
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
-                    placeholder="Enter full name"
-                  />
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <MdEmail className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className={`w-full pl-10 pr-3 py-2 text-sm border ${
+                        errors.email
+                          ? "border-red-300 bg-red-50/30"
+                          : "border-gray-200 bg-gray-50/50"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
+                      placeholder="Enter email"
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="mt-1 text-xs text-red-500">{errors.email}</p>
+                  )}
                 </div>
-                {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
-              </div>
 
-              {/* Email */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <MdEmail className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-3 py-2 text-sm border ${
-                      errors.email ? "border-red-300 bg-red-50/30" : "border-gray-200 bg-gray-50/50"
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
-                    placeholder="Enter email"
-                  />
+                {/* Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <MdLock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className={`w-full pl-10 pr-11 py-2 text-sm border ${
+                        errors.password
+                          ? "border-red-300 bg-red-50/30"
+                          : "border-gray-200 bg-gray-50/50"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
+                      placeholder="Enter password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    >
+                      {showPassword ? (
+                        <MdVisibilityOff className="w-4 h-4" />
+                      ) : (
+                        <MdVisibility className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.password}
+                    </p>
+                  )}
                 </div>
-                {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
-              </div>
 
-              {/* Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <MdLock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-11 py-2 text-sm border ${
-                      errors.password ? "border-red-300 bg-red-50/30" : "border-gray-200 bg-gray-50/50"
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
-                    placeholder="Enter password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                  >
-                    {showPassword ? (
-                      <MdVisibilityOff className="w-4 h-4" />
-                    ) : (
-                      <MdVisibility className="w-4 h-4" />
-                    )}
-                  </button>
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Confirm Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <MdLock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      className={`w-full pl-10 pr-11 py-2 text-sm border ${
+                        errors.confirmPassword
+                          ? "border-red-300 bg-red-50/30"
+                          : "border-gray-200 bg-gray-50/50"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
+                      placeholder="Re-enter password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    >
+                      {showConfirmPassword ? (
+                        <MdVisibilityOff className="w-4 h-4" />
+                      ) : (
+                        <MdVisibility className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.confirmPassword}
+                    </p>
+                  )}
                 </div>
-                {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
-              </div>
 
-              {/* Confirm Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Confirm Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <MdLock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-11 py-2 text-sm border ${
-                      errors.confirmPassword ? "border-red-300 bg-red-50/30" : "border-gray-200 bg-gray-50/50"
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
-                    placeholder="Re-enter password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                  >
-                    {showConfirmPassword ? (
-                      <MdVisibilityOff className="w-4 h-4" />
-                    ) : (
-                      <MdVisibility className="w-4 h-4" />
-                    )}
-                  </button>
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <MdPhone className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className={`w-full pl-10 pr-3 py-2 text-sm border ${
+                        errors.phone
+                          ? "border-red-300 bg-red-50/30"
+                          : "border-gray-200 bg-gray-50/50"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
+                      placeholder="Enter phone number (10 digits)"
+                    />
+                  </div>
+                  {errors.phone && (
+                    <p className="mt-1 text-xs text-red-500">{errors.phone}</p>
+                  )}
                 </div>
-                {errors.confirmPassword && <p className="mt-1 text-xs text-red-500">{errors.confirmPassword}</p>}
-              </div>
 
-              {/* Phone */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <MdPhone className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-3 py-2 text-sm border ${
-                      errors.phone ? "border-red-300 bg-red-50/30" : "border-gray-200 bg-gray-50/50"
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
-                    placeholder="Enter phone number (10 digits)"
-                  />
-                </div>
-                {errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
-              </div>
-
-              {/* Gender */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Gender <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <MdWork className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                {/* Gender */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Gender <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <MdWork className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                     <select
                       name="gender"
                       value={formData.gender}
@@ -439,45 +495,50 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
                       <option value="male">Male</option>
                       <option value="female">Female</option>
                     </select>
+                  </div>
+                  {errors.gender && (
+                    <p className="mt-1 text-xs text-red-500">{errors.gender}</p>
+                  )}
                 </div>
-                {errors.gender && <p className="mt-1 text-xs text-red-500">{errors.gender}</p>}
-              </div>
 
-              {/* Station */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Station <span className="text-red-500">*</span>
-                </label>
-                <StationDropdown
-                  value={formData.station}
-                  onChange={handleStationChange}
-                  error={errors.station}
-                />
-                {errors.station && <p className="mt-1 text-xs text-red-500">{errors.station}</p>}
-              </div>
+                {/* Station */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Station <span className="text-red-500">*</span>
+                  </label>
+                  <StationDropdown
+                    value={formData.station}
+                    onChange={handleStationChange}
+                    error={errors.station}
+                  />
+                  {errors.station && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.station}
+                    </p>
+                  )}
+                </div>
 
-              {/* Buttons */}
-              <div className="flex items-center justify-end space-x-3 pt-4 mt-1 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="px-5 py-2 border border-gray-200 text-gray-600 bg-white rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 font-medium text-sm"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md text-sm"
-                >
-                  {isSubmitting ? "Adding..." : "Add Staff"}
-                </button>
-              </div>
-            </form>
+                {/* Buttons */}
+                <div className="flex items-center justify-end space-x-3 pt-4 mt-1 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="px-5 py-2 border border-gray-200 text-gray-600 bg-white rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 font-medium text-sm"
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md text-sm"
+                  >
+                    {isSubmitting ? "Adding..." : "Add Staff"}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
-
         </>
       )}
     </AnimatePresence>,
@@ -486,4 +547,3 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose, onSucces
 };
 
 export default AddStaffModal;
-

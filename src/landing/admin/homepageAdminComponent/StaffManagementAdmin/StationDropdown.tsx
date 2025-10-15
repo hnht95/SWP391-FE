@@ -1,21 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { MdLocationOn, MdExpandMore, MdCheck } from "react-icons/md";
-import { stationManagementAPI } from "../../../../service/apiAdmin/StationManagementAPI";
-
-interface Station {
-  id: string;
-  name: string;
-  code: string;
-  location: {
-    address: string;
-    lat?: number;
-    lng?: number;
-  };
-  note?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import {
+  getAllStations,
+  type Station,
+} from "../../../../service/apiAdmin/apiStation/API";
 
 interface StationDropdownProps {
   value: string;
@@ -40,9 +28,13 @@ const StationDropdown: React.FC<StationDropdownProps> = ({
     try {
       setLoading(true);
       setApiError(null);
-      
-      const response = await stationManagementAPI.list();
-      setStations(response as Station[]);
+
+      const response = await getAllStations();
+      console.log("Fetched stations:", response);
+
+      // ✅ Filter only active stations
+      const activeStations = response.filter((station) => station.isActive);
+      setStations(activeStations);
     } catch (err) {
       console.error("Error fetching stations:", err);
       setApiError("Failed to load stations");
@@ -56,9 +48,13 @@ const StationDropdown: React.FC<StationDropdownProps> = ({
     fetchStations();
   }, []);
 
-  // Get selected station name for display
-  const selectedStation = stations.find(station => station.id === value);
-  const displayValue = selectedStation ? `${selectedStation.name} (${selectedStation.code})` : "Select Station";
+  // ✅ Use _id instead of id
+  const selectedStation = stations.find((station) => station._id === value);
+  const displayValue = selectedStation
+    ? `${selectedStation.name}${
+        selectedStation.code ? ` (${selectedStation.code})` : ""
+      }`
+    : "Select Station";
 
   const handleSelect = (stationId: string) => {
     onChange(stationId);
@@ -68,7 +64,7 @@ const StationDropdown: React.FC<StationDropdownProps> = ({
   const handleToggle = () => {
     if (!disabled) {
       setIsOpen(!isOpen);
-      // Refresh stations when opening dropdown to get latest data
+      // Refresh stations when opening dropdown
       if (!isOpen) {
         fetchStations();
       }
@@ -83,7 +79,9 @@ const StationDropdown: React.FC<StationDropdownProps> = ({
         onClick={handleToggle}
         disabled={disabled}
         className={`w-full pl-10 pr-10 py-2 text-sm border ${
-          error ? "border-red-300 bg-red-50/30" : "border-gray-200 bg-gray-50/50"
+          error
+            ? "border-red-300 bg-red-50/30"
+            : "border-gray-200 bg-gray-50/50"
         } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-left ${
           disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
         }`}
@@ -92,9 +90,11 @@ const StationDropdown: React.FC<StationDropdownProps> = ({
         <span className={selectedStation ? "text-gray-800" : "text-gray-500"}>
           {loading ? "Loading stations..." : displayValue}
         </span>
-        <MdExpandMore className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 transition-transform duration-200 ${
-          isOpen ? "rotate-180" : ""
-        }`} />
+        <MdExpandMore
+          className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
       </button>
 
       {/* Dropdown Menu */}
@@ -117,37 +117,35 @@ const StationDropdown: React.FC<StationDropdownProps> = ({
             </div>
           ) : stations.length === 0 ? (
             <div className="p-3 text-center text-gray-500 text-sm">
-              No stations available
+              No active stations available
             </div>
           ) : (
             stations.map((station) => (
               <button
-                key={station.id}
+                key={station._id}
                 type="button"
-                onClick={() => handleSelect(station.id)}
+                onClick={() => handleSelect(station._id)}
                 className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors duration-150 flex items-center justify-between ${
-                  station.id === value ? "bg-blue-50" : ""
+                  station._id === value ? "bg-blue-50" : ""
                 }`}
               >
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-gray-800">
                     {station.name}
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {station.code} • {station.location.address}
+                  <div className="text-xs text-gray-500 truncate">
+                    {station.code && `${station.code} • `}
+                    {station.location?.address || "No address"}
                   </div>
                 </div>
-                {station.id === value && (
-                  <MdCheck className="w-4 h-4 text-blue-500" />
+                {station._id === value && (
+                  <MdCheck className="w-4 h-4 text-blue-500 flex-shrink-0 ml-2" />
                 )}
               </button>
             ))
           )}
         </div>
       )}
-
-      {/* Error Message */}
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
   );
 };

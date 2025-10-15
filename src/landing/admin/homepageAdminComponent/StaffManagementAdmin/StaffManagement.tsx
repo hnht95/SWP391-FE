@@ -13,14 +13,18 @@ import PageTitle from "../../component/PageTitle";
 import AddStaffModal from "./AddStaffModal";
 import UpdateStaffModal from "./UpdateStaff";
 import SuccessModal from "./SuccessModal";
-import { staffListAPI } from "../../../../service/apiAdmin/StaffAPI/StaffListAPI";
+import {
+  getAllStaffs,
+  type Staff as APIStaff,
+} from "../../../../service/apiAdmin/StaffAPI/API";
 
+// ✅ UI Staff interface
 interface Staff {
   id: string;
   name: string;
   email: string;
   phone: string;
-  role: "manager" | "staff" | "technician";
+  role: "manager" | "staff" | "technician" | "renter";
   station: string;
   performanceScore: number;
   status: "active" | "inactive";
@@ -56,8 +60,9 @@ const StaffManagementAdmin: React.FC = () => {
       },
       staff: { color: "bg-gray-200 text-gray-800", text: "Staff" },
       technician: { color: "bg-gray-600 text-white", text: "Technician" },
+      renter: { color: "bg-green-100 text-green-700", text: "Renter" },
     };
-    return config[role];
+    return config[role] || config.staff;
   };
 
   const getPerformanceColor = (score: number) => {
@@ -78,28 +83,50 @@ const StaffManagementAdmin: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await staffListAPI.getAllStaff();
-      // Convert API response to UI format
-      const convertedStaff = data.map((staff) => ({
-        id: staff._id,
-        name: staff.name,
-        email: staff.email,
-        phone: staff.phone,
-        role: staff.role as "manager" | "staff" | "technician",
-        station:
-          typeof staff.station === "string"
-            ? staff.station
-            : staff.station?.name || "No Station",
-        performanceScore: 85, // Default value since API doesn't provide this
-        status: (staff.isActive ? "active" : "inactive") as
-          | "active"
-          | "inactive",
-        joinDate: new Date(staff.createdAt).toLocaleDateString(),
-      }));
+      const data = await getAllStaffs();
+
+      console.log("✅ Fetched raw data:", data);
+
+      // ✅ Convert API response to UI format with station handling
+      const convertedStaff: Staff[] = data.map((staff: APIStaff) => {
+        // ✅ Handle station - can be string (ObjectId) or object (populated)
+        let stationName = "Unknown Station";
+
+        if (typeof staff.station === "string") {
+          stationName = staff.station; // ObjectId as string
+        } else if (staff.station && typeof staff.station === "object") {
+          // Station is populated object
+          stationName =
+            (staff.station as any).name ||
+            (staff.station as any)._id ||
+            "Unknown Station";
+        }
+
+        return {
+          id: staff._id,
+          name: staff.name,
+          email: staff.email,
+          phone: staff.phone,
+          role: staff.role as Staff["role"],
+          station: stationName, // ✅ Always string now
+          performanceScore: 85,
+          status: (staff.isActive ? "active" : "inactive") as
+            | "active"
+            | "inactive",
+          joinDate: staff.createdAt
+            ? new Date(staff.createdAt).toLocaleDateString()
+            : new Date().toLocaleDateString(),
+        };
+      });
+
+      console.log("✅ Converted staff:", convertedStaff);
+
       setStaffList(convertedStaff);
     } catch (err) {
-      setError("Failed to fetch staff list");
-      console.error("Error fetching staff:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch staff list"
+      );
+      console.error("❌ Error fetching staff:", err);
     } finally {
       setLoading(false);
     }
@@ -110,9 +137,7 @@ const StaffManagementAdmin: React.FC = () => {
   }, []);
 
   const handleAddStaffSuccess = () => {
-    // Refresh the staff list after adding new staff
     fetchStaffList();
-    // Show success modal
     setSuccessMessage("Staff added successfully!");
     setShowSuccessModal(true);
   };
@@ -123,13 +148,12 @@ const StaffManagementAdmin: React.FC = () => {
   };
 
   const handleUpdateStaffSuccess = () => {
-    // Refresh the staff list after updating staff
     fetchStaffList();
-    // Show success modal
     setSuccessMessage("Staff updated successfully!");
     setShowSuccessModal(true);
   };
 
+  // ✅ Stats calculations
   const totalStaff = staffList.length;
   const activeStaff = staffList.filter(
     (staff) => staff.status === "active"
@@ -263,6 +287,7 @@ const StaffManagementAdmin: React.FC = () => {
                 <option value="manager">Manager</option>
                 <option value="staff">Staff</option>
                 <option value="technician">Technician</option>
+                <option value="renter">Renter</option>
               </select>
             </div>
           </div>
@@ -277,17 +302,22 @@ const StaffManagementAdmin: React.FC = () => {
         >
           {loading ? (
             <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <div className="text-gray-500">Loading staff list...</div>
             </div>
           ) : error ? (
             <div className="p-8 text-center">
-              <div className="text-red-500">{error}</div>
+              <div className="text-red-500 mb-4">{error}</div>
               <button
                 onClick={fetchStaffList}
-                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
               >
                 Retry
               </button>
+            </div>
+          ) : staffList.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              No staff members found
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -323,7 +353,7 @@ const StaffManagementAdmin: React.FC = () => {
                           <div className="flex items-center">
                             <div className="w-11 h-11 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-md">
                               <span className="text-white font-bold text-sm">
-                                {staff.name.charAt(0)}
+                                {staff.name.charAt(0).toUpperCase()}
                               </span>
                             </div>
                             <div className="ml-4">
@@ -414,15 +444,14 @@ const StaffManagementAdmin: React.FC = () => {
           )}
         </motion.div>
 
-        {/* Add Staff Modal */}
+        {/* Modals */}
         <AddStaffModal
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
           onSuccess={handleAddStaffSuccess}
         />
 
-        {/* Update Staff Modal */}
-        <UpdateStaffModal
+        {/* <UpdateStaffModal
           isOpen={isUpdateModalOpen}
           onClose={() => {
             setIsUpdateModalOpen(false);
@@ -430,9 +459,8 @@ const StaffManagementAdmin: React.FC = () => {
           }}
           staff={selectedStaff}
           onSuccess={handleUpdateStaffSuccess}
-        />
+        /> */}
 
-        {/* Success Modal */}
         <SuccessModal
           isOpen={showSuccessModal}
           onClose={() => setShowSuccessModal(false)}

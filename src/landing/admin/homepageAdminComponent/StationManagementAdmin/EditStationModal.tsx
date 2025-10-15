@@ -10,8 +10,9 @@ import {
   MdLanguage,
   MdNotes,
 } from "react-icons/md";
-import { updateStationAPI } from "../../../../service/apiAdmin/StationAPI/UpdateStationAPI";
+// import { updateStationAPI } from "../../../../service/apiAdmin/StationAPI/UpdateStationAPI";
 import type { Station, CreateStationPayload } from "./types.d";
+import { updateStation } from "../../../../service/apiAdmin/apiStation/API";
 
 interface EditStationModalProps {
   isOpen: boolean;
@@ -111,7 +112,7 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
         isActive: formData.isActive,
       };
 
-      await updateStationAPI.update(station.id, apiData);
+      await updateStation(station.id, apiData);
 
       // Success
       onUpdated();

@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  MdClose, 
-  MdPerson, 
-  MdEmail, 
-  MdPhone, 
-  MdWork, 
-  MdLocationOn, 
-  MdEdit, 
+import {
+  MdClose,
+  MdPerson,
+  MdEmail,
+  MdPhone,
+  MdWork,
+  MdLocationOn,
+  MdEdit,
   MdDelete,
   MdSave,
   MdCancel,
   MdVisibility,
-  MdVisibilityOff
+  MdVisibilityOff,
 } from "react-icons/md";
-import { staffManagementAPI } from "../../../../service/apiAdmin/StaffManagementAPI";
+
 import StationDropdown from "./StationDropdown";
 
 interface Staff {
@@ -55,7 +55,12 @@ interface FormErrors {
   status?: string;
 }
 
-const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, staff, onSuccess }) => {
+const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({
+  isOpen,
+  onClose,
+  staff,
+  onSuccess,
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -84,7 +89,9 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
     }
   }, [staff]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     // Clear error when user types
@@ -122,7 +129,7 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
       newErrors.phone = "Please enter phone number";
     } else if (!/^[0-9]{10}$/.test(formData.phone)) {
       newErrors.phone = "Phone number must be 10 digits";
-    } else if (!formData.phone.startsWith('0')) {
+    } else if (!formData.phone.startsWith("0")) {
       newErrors.phone = "Phone number must start with 0";
     }
 
@@ -198,7 +205,10 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
 
   const getRoleBadge = (role: string) => {
     const config = {
-      manager: { color: "bg-blue-100 text-blue-700 border-2 border-blue-500", text: "Manager" },
+      manager: {
+        color: "bg-blue-100 text-blue-700 border-2 border-blue-500",
+        text: "Manager",
+      },
       staff: { color: "bg-gray-200 text-gray-800", text: "Staff" },
       technician: { color: "bg-gray-600 text-white", text: "Technician" },
     };
@@ -206,7 +216,7 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
   };
 
   const getStatusBadge = (status: string) => {
-    return status === "active" 
+    return status === "active"
       ? { color: "bg-green-100 text-green-700", text: "Active" }
       : { color: "bg-gray-200 text-gray-600", text: "Inactive" };
   };
@@ -256,8 +266,12 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                     <MdPerson className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">Staff Details</h2>
-                    <p className="text-sm text-gray-500">View and manage staff information</p>
+                    <h2 className="text-xl font-bold text-gray-800">
+                      Staff Details
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      View and manage staff information
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -284,8 +298,10 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Left Column - Basic Info */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Basic Information</h3>
-                    
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                      Basic Information
+                    </h3>
+
                     {/* Name */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -300,7 +316,9 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                             value={formData.name}
                             onChange={handleChange}
                             className={`w-full pl-10 pr-3 py-2 text-sm border ${
-                              errors.name ? "border-red-300 bg-red-50/30" : "border-gray-200 bg-gray-50/50"
+                              errors.name
+                                ? "border-red-300 bg-red-50/30"
+                                : "border-gray-200 bg-gray-50/50"
                             } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
                           />
                         </div>
@@ -309,7 +327,11 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                           <span className="text-gray-800">{staff.name}</span>
                         </div>
                       )}
-                      {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
+                      {errors.name && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.name}
+                        </p>
+                      )}
                     </div>
 
                     {/* Email */}
@@ -326,7 +348,9 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                             value={formData.email}
                             onChange={handleChange}
                             className={`w-full pl-10 pr-3 py-2 text-sm border ${
-                              errors.email ? "border-red-300 bg-red-50/30" : "border-gray-200 bg-gray-50/50"
+                              errors.email
+                                ? "border-red-300 bg-red-50/30"
+                                : "border-gray-200 bg-gray-50/50"
                             } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
                           />
                         </div>
@@ -335,7 +359,11 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                           <span className="text-gray-800">{staff.email}</span>
                         </div>
                       )}
-                      {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
+                      {errors.email && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.email}
+                        </p>
+                      )}
                     </div>
 
                     {/* Phone */}
@@ -352,7 +380,9 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                             value={formData.phone}
                             onChange={handleChange}
                             className={`w-full pl-10 pr-3 py-2 text-sm border ${
-                              errors.phone ? "border-red-300 bg-red-50/30" : "border-gray-200 bg-gray-50/50"
+                              errors.phone
+                                ? "border-red-300 bg-red-50/30"
+                                : "border-gray-200 bg-gray-50/50"
                             } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
                           />
                         </div>
@@ -361,14 +391,20 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                           <span className="text-gray-800">{staff.phone}</span>
                         </div>
                       )}
-                      {errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
+                      {errors.phone && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.phone}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   {/* Right Column - Work Info */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Work Information</h3>
-                    
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                      Work Information
+                    </h3>
+
                     {/* Role */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -390,12 +426,20 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                         </div>
                       ) : (
                         <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadge(staff.role).color}`}>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              getRoleBadge(staff.role).color
+                            }`}
+                          >
                             {getRoleBadge(staff.role).text}
                           </span>
                         </div>
                       )}
-                      {errors.role && <p className="mt-1 text-xs text-red-500">{errors.role}</p>}
+                      {errors.role && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.role}
+                        </p>
+                      )}
                     </div>
 
                     {/* Station */}
@@ -414,7 +458,11 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                           <span className="text-gray-800">{staff.station}</span>
                         </div>
                       )}
-                      {errors.station && <p className="mt-1 text-xs text-red-500">{errors.station}</p>}
+                      {errors.station && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.station}
+                        </p>
+                      )}
                     </div>
 
                     {/* Status */}
@@ -436,12 +484,20 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                         </div>
                       ) : (
                         <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(staff.status).color}`}>
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                              getStatusBadge(staff.status).color
+                            }`}
+                          >
                             {getStatusBadge(staff.status).text}
                           </span>
                         </div>
                       )}
-                      {errors.status && <p className="mt-1 text-xs text-red-500">{errors.status}</p>}
+                      {errors.status && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.status}
+                        </p>
+                      )}
                     </div>
 
                     {/* Performance Score */}
@@ -453,11 +509,17 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                         <div className="flex items-center space-x-3">
                           <div className="w-24 bg-gray-200 rounded-full h-2 overflow-hidden">
                             <div
-                              className={`h-2 rounded-full ${getPerformanceBarColor(staff.performanceScore)}`}
+                              className={`h-2 rounded-full ${getPerformanceBarColor(
+                                staff.performanceScore
+                              )}`}
                               style={{ width: `${staff.performanceScore}%` }}
                             />
                           </div>
-                          <span className={`text-sm font-semibold ${getPerformanceColor(staff.performanceScore)}`}>
+                          <span
+                            className={`text-sm font-semibold ${getPerformanceColor(
+                              staff.performanceScore
+                            )}`}
+                          >
                             {staff.performanceScore}%
                           </span>
                         </div>
@@ -538,9 +600,12 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
                   <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <MdDelete className="w-8 h-8 text-red-600" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Delete Staff</h3>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    Delete Staff
+                  </h3>
                   <p className="text-gray-600 mb-6">
-                    Are you sure you want to delete <strong>{staff.name}</strong>? This action cannot be undone.
+                    Are you sure you want to delete{" "}
+                    <strong>{staff.name}</strong>? This action cannot be undone.
                   </p>
                   <div className="flex items-center justify-center space-x-3">
                     <button
@@ -561,7 +626,6 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({ isOpen, onClose, st
               </div>
             </div>
           )}
-
         </>
       )}
     </AnimatePresence>,

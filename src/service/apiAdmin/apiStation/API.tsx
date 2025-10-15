@@ -6,24 +6,40 @@ export interface Station {
   _id: string;
   name: string;
   code?: string;
-
   location: {
     address: string;
     lat: number;
     lng: number;
   };
-
   imgStation?: string;
   note?: string;
   isActive: boolean;
-
   createdAt?: string;
   updatedAt?: string;
+}
+
+// ✅ API Response Wrapper (for list endpoints)
+interface StationListResponse {
+  success: boolean;
+  data: Station[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+// ✅ API Response Wrapper (for single station)
+interface StationResponse {
+  success: boolean;
+  data: Station;
 }
 
 // ✅ Create Station Data - Flat structure
 export interface CreateStationData {
   name: string;
+  code?: string;
   address: string;
   lat: number;
   lng: number;
@@ -61,18 +77,27 @@ const handleError = (error: unknown) => {
 
 /**
  * GET /api/stations?page=1&limit=20
- * Backend returns: Station[] (array directly, no wrapper)
+ * Backend returns: { success: true, data: Station[], pagination: {...} }
  */
-export const getAllStations = async (): Promise<Station[]> => {
+export const getAllStations = async (
+  page: number = 1,
+  limit: number = 20
+): Promise<Station[]> => {
   try {
-    // Backend returns array directly
-    const response = await api.get<Station[]>("/stations");
+    const response = await api.get<StationListResponse>("/stations", {
+      params: { page, limit },
+    });
 
     console.log("API Response:", response.data);
 
-    // ✅ Backend returns array directly
+    // ✅ Check for wrapped response
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+
+    // ✅ Fallback: if backend returns array directly (no wrapper)
     if (Array.isArray(response.data)) {
-      return response.data;
+      return response.data as unknown as Station[];
     }
 
     throw new Error("Invalid API response format");
@@ -84,17 +109,22 @@ export const getAllStations = async (): Promise<Station[]> => {
 
 /**
  * GET /api/stations/:id
- * Backend returns: Station (object directly, no wrapper)
+ * Backend returns: { success: true, data: Station }
  */
 export const getStationById = async (id: string): Promise<Station> => {
   try {
-    const response = await api.get<Station>(`/stations/${id}`);
+    const response = await api.get<StationResponse>(`/stations/${id}`);
 
     console.log("Get station response:", response.data);
 
-    // ✅ Backend returns station directly
-    if (response.data && response.data._id) {
-      return response.data;
+    // ✅ Check for wrapped response
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    // ✅ Fallback: if backend returns station directly
+    if ((response.data as any)._id) {
+      return response.data as unknown as Station;
     }
 
     throw new Error("Station not found");
@@ -106,7 +136,7 @@ export const getStationById = async (id: string): Promise<Station> => {
 
 /**
  * POST /api/stations
- * Backend expects: { name, address, lat, lng, note }
+ * Backend expects: { name, code?, address, lat, lng, note? }
  * Backend returns: Station (created station directly)
  */
 export const createStation = async (
@@ -119,8 +149,8 @@ export const createStation = async (
 
     console.log("Create station response:", response.data);
 
-    // ✅ Backend returns station directly
-    if (response.data && response.data._id) {
+    // ✅ Backend returns station directly (no wrapper for POST)
+    if (response.data && (response.data as any)._id) {
       return response.data;
     }
 
@@ -133,8 +163,8 @@ export const createStation = async (
 
 /**
  * PUT /api/stations/:id
- * Backend expects: { name, address, lat, lng, note }
- * Backend returns: Station (updated station directly)
+ * Backend expects: { name?, code?, address?, lat?, lng?, note? }
+ * Backend returns: { success: true, data: Station }
  */
 export const updateStation = async (
   id: string,
@@ -143,12 +173,17 @@ export const updateStation = async (
   try {
     console.log("Updating station:", id, stationData);
 
-    const response = await api.put<Station>(`/stations/${id}`, stationData);
+    const response = await api.put<any>(`/stations/${id}`, stationData);
 
     console.log("Update station response:", response.data);
 
-    // ✅ Backend returns station directly
-    if (response.data && response.data._id) {
+    // ✅ Check for wrapped response
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    // ✅ Fallback: if backend returns station directly
+    if (response.data._id) {
       return response.data;
     }
 
@@ -162,7 +197,7 @@ export const updateStation = async (
 /**
  * DELETE /api/stations/:id
  * Backend expects: { transferToStationId?, reason? } in body
- * Backend returns: { success: true, message?, deletedStation? }
+ * Backend returns: { message: "Station deleted successfully" }
  */
 export const deleteStation = async (
   id: string,
