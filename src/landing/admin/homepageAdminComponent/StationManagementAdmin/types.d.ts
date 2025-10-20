@@ -43,7 +43,6 @@ export interface StationListResponse {
 
 export interface CreateStationPayload {
   name: string;
-  code: string;
   location: {
     address: string;
     latitude: number;

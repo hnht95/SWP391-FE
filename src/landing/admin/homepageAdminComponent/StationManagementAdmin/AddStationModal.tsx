@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   MdClose,
   MdLocationOn,
-  MdCode,
   MdPlace,
   MdMyLocation,
   MdLanguage,
@@ -26,7 +25,6 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<CreateStationPayload>({
     name: "",
-    code: "",
     location: {
       address: "",
       latitude: 0,
@@ -49,11 +47,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       newErrors.name = "Station name must be at least 2 characters";
     }
 
-    if (!formData.code.trim()) {
-      newErrors.code = "Station code is required";
-    } else if (formData.code.trim().length < 2) {
-      newErrors.code = "Station code must be at least 2 characters";
-    }
+    // Code sẽ được backend tự động tạo theo thứ tự
 
     if (!formData.location.address.trim()) {
       newErrors.address = "Address is required";
@@ -121,7 +115,6 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
     if (!loading) {
       setFormData({
         name: "",
-        code: "",
         location: { address: "", latitude: 0, longitude: 0 },
         note: "",
         isActive: true,
@@ -212,36 +205,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                   )}
                 </div>
 
-                {/* Station Code */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Station Code <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <MdCode className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      value={formData.code}
-                      onChange={(e) => {
-                        setFormData({
-                          ...formData,
-                          code: e.target.value.toUpperCase(),
-                        });
-                        if (errors.code) setErrors({ ...errors, code: "" });
-                      }}
-                      className={`w-full pl-10 pr-3 py-2 text-sm border font-mono uppercase ${
-                        errors.code
-                          ? "border-red-300 bg-red-50/30"
-                          : "border-gray-200 bg-gray-50/50"
-                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
-                      placeholder="e.g. ST01"
-                      disabled={loading}
-                    />
-                  </div>
-                  {errors.code && (
-                    <p className="mt-1 text-xs text-red-500">{errors.code}</p>
-                  )}
-                </div>
+                {/* Station Code sẽ được tự động tạo bởi backend */}
 
                 {/* Address */}
                 <div>

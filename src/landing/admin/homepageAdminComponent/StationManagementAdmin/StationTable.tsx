@@ -17,7 +17,10 @@ const StationTable: React.FC<StationTableProps> = ({
   loading = false,
 }) => {
   const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
     const date = new Date(dateString);
+    const isValid = !isNaN(date.getTime());
+    if (!isValid) return '-';
     return date.toLocaleDateString('vi-VN', {
       day: '2-digit',
       month: '2-digit',
@@ -194,22 +197,34 @@ const StationTable: React.FC<StationTableProps> = ({
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {formatDate(station.createdAt)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <div className="flex items-center justify-center gap-2">
+              <td className="px-6 py-4 whitespace-nowrap text-center relative">
+                  <div className="flex items-center justify-center gap-2 pointer-events-auto relative z-10">
                     {onEdit && (
                       <button
-                        onClick={() => onEdit(station)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onEdit(station);
+                        }}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors relative z-10"
                         title="Edit"
+                        aria-label="Edit station"
                       >
                         <MdEdit className="w-5 h-5" />
                       </button>
                     )}
                     {onDelete && (
                       <button
-                        onClick={() => onDelete(station)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onDelete(station);
+                        }}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors relative z-10"
                         title="Delete"
+                        aria-label="Delete station"
                       >
                         <MdDelete className="w-5 h-5" />
                       </button>

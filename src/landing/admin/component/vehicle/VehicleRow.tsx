@@ -10,6 +10,9 @@ export interface Vehicle {
   location: string;
   dailyRate: number;
   lastService: string;
+  batteryCapacity?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface VehicleRowProps {

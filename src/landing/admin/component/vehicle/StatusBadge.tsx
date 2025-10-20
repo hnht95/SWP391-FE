@@ -14,7 +14,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       color: "bg-yellow-100 text-yellow-800",
       text: "Maintenance",
     },
-    reserved: { color: "bg-red-100 text-red-800", text: "reserved" },
+    reserved: { color: "bg-red-100 text-red-800", text: "Reserved" },
   };
 
   const config = statusConfig[status];

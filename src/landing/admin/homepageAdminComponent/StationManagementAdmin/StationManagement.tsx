@@ -16,6 +16,7 @@ import SuccessModal from "../StaffManagementAdmin/SuccessModal";
 import {
   deleteStation,
   getAllStations,
+  type DeleteStationResponse,
 } from "../../../../service/apiAdmin/apiStation/API";
 import type { Station as APIStation } from "../../../../service/apiAdmin/apiStation/API";
 
@@ -23,6 +24,7 @@ const StationManagement: React.FC = () => {
   const [stations, setStations] = useState<Station[]>([]);
   const [filteredStations, setFilteredStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uiLoading, setUiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMapVisible, setIsMapVisible] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -34,6 +36,8 @@ const StationManagement: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const { setSidebarCollapsed } = useSidebar();
+  const [transferToStationId, setTransferToStationId] = useState<string>("");
+  const [deleteInlineError, setDeleteInlineError] = useState<string>("");
 
   const [filters, setFilters] = useState<Filters>({
     search: "",
@@ -50,9 +54,13 @@ const StationManagement: React.FC = () => {
   });
 
   // Fetch stations from API
-  const fetchStations = useCallback(async () => {
+  const fetchStations = useCallback(async (useHardLoading: boolean = true) => {
     try {
-      setLoading(true);
+      if (useHardLoading) {
+        setLoading(true);
+      } else {
+        setUiLoading(true);
+      }
       setError(null);
 
       // ✅ Fetch all stations (API doesn't support pagination params)
@@ -76,10 +84,15 @@ const StationManagement: React.FC = () => {
         updatedAt: s.updatedAt || "",
       }));
 
-      const total = stationsData.length;
+      // ✅ Loại bỏ bản ghi không hợp lệ (thiếu tên hoặc id)
+      const cleanedStations = stationsData.filter(
+        (st) => st.id && st.name && st.name.trim().length > 0
+      );
+
+      const total = cleanedStations.length;
       const totalPages = Math.ceil(total / filters.limit);
 
-      setStations(stationsData);
+      setStations(cleanedStations);
       setPagination({
         page: filters.page,
         limit: filters.limit,
@@ -88,12 +101,16 @@ const StationManagement: React.FC = () => {
       });
 
       // Apply client-side filtering
-      applyFilters(stationsData);
+      applyFilters(cleanedStations);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       console.error("Error fetching stations:", err);
     } finally {
-      setLoading(false);
+      if (useHardLoading) {
+        setLoading(false);
+      } else {
+        setUiLoading(false);
+      }
     }
   }, [filters.page, filters.limit]); // Only depend on pagination params
 
@@ -143,7 +160,7 @@ const StationManagement: React.FC = () => {
 
   // Load data on mount
   useEffect(() => {
-    fetchStations();
+    fetchStations(true);
   }, [fetchStations]);
 
   // Re-apply filters when filter criteria change
@@ -182,47 +199,70 @@ const StationManagement: React.FC = () => {
     } else {
       setFilters(newFilters);
     }
+    // Hiển thị hiệu ứng loading ngắn khi đổi filter (Active/Inactive/All)
+    setUiLoading(true);
+    window.setTimeout(() => setUiLoading(false), 300);
   };
 
   const handleAddStation = () => {
+    setShowSuccessModal(false);
     setIsAddModalOpen(true);
   };
 
   const handleStationCreated = () => {
-    fetchStations();
+    fetchStations(false);
     setSuccessMessage("Station added successfully!");
     setShowSuccessModal(true);
   };
 
   const handleEdit = (station: Station) => {
+    setShowSuccessModal(false);
     setSelectedStation(station);
     setIsEditModalOpen(true);
   };
 
   const handleStationUpdated = () => {
-    fetchStations();
+    fetchStations(false);
     setSuccessMessage("Station updated successfully!");
     setShowSuccessModal(true);
   };
 
   const handleDelete = (station: Station) => {
+    console.log("Delete click:", station);
+    setShowSuccessModal(false);
     setStationPendingDelete(station);
+    setTransferToStationId("");
+    setDeleteInlineError("");
     setConfirmDeleteOpen(true);
   };
 
   const confirmDelete = async () => {
     if (!stationPendingDelete) return;
     try {
-      await deleteStation(stationPendingDelete.id);
-      fetchStations();
-      setSuccessMessage("Station deleted successfully!");
+      const res: DeleteStationResponse = await deleteStation(
+        stationPendingDelete.id,
+        transferToStationId || undefined
+      );
+      await fetchStations(false);
+      const movedCount = res?.movedVehiclesCount ?? 0;
+      const nameInfo = stationPendingDelete.name
+        ? `Station \"${stationPendingDelete.name}\" deleted successfully`
+        : "Station deleted successfully";
+      const moveInfo = movedCount > 0 ? ` • Moved vehicles: ${movedCount}` : "";
+      setSuccessMessage(`${nameInfo}${moveInfo}`);
       setShowSuccessModal(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete station");
-      console.error("Delete error:", err);
-    } finally {
       setConfirmDeleteOpen(false);
       setStationPendingDelete(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete station";
+      if (msg.toLowerCase().includes("transferstationid")) {
+        setDeleteInlineError("Station còn xe, hãy chọn trạm để chuyển trước khi xóa.");
+      } else {
+        setError(msg);
+        setConfirmDeleteOpen(false);
+        setStationPendingDelete(null);
+      }
+      console.error("Delete error:", err);
     }
   };
 
@@ -234,6 +274,8 @@ const StationManagement: React.FC = () => {
   // Pagination controls
   const handlePageChange = (newPage: number) => {
     setFilters({ ...filters, page: newPage });
+    setUiLoading(true);
+    window.setTimeout(() => setUiLoading(false), 300);
   };
 
   return (
@@ -333,12 +375,16 @@ const StationManagement: React.FC = () => {
               )}
 
               {/* Table */}
-              <StationTable
-                stations={filteredStations}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                loading={loading}
-              />
+              {loading || uiLoading ? (
+                <StationTable stations={[]} loading={true} />
+              ) : (
+                <StationTable
+                  stations={filteredStations}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  loading={false}
+                />
+              )}
 
               {/* Pagination */}
               {!loading &&
@@ -388,44 +434,66 @@ const StationManagement: React.FC = () => {
           message={successMessage}
         />
 
-        {/* Confirm Delete Modal */}
-        <AnimatePresence>
-          {confirmDeleteOpen &&
-            createPortal(
+        {/* Confirm Delete Modal (portal + animation mượt như Edit) */}
+        {confirmDeleteOpen &&
+          createPortal(
+            <AnimatePresence>
               <>
                 <motion.div
-                  className="fixed inset-0 bg-black/40 z-[9998]"
+                  className="fixed inset-0 bg-black/50 z-[99998]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setConfirmDeleteOpen(false)}
                 />
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pointer-events-none">
                   <motion.div
                     className="pointer-events-auto bg-white rounded-2xl shadow-2xl w-full max-w-md"
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                    transition={{ type: "spring", damping: 30, stiffness: 230 }}
                   >
                     <div className="p-5">
                       <h3 className="text-lg font-semibold text-gray-800 mb-2">
                         Delete Station
                       </h3>
                       <p className="text-sm text-gray-600 mb-5">
-                        Are you sure you want to delete station{" "}
-                        <span className="font-semibold">
-                          "{stationPendingDelete?.name}"
-                        </span>
+                        Are you sure you want to delete station {""}
+                        <span className="font-semibold">"{stationPendingDelete?.name}"</span>
                         ? This action cannot be undone.
                       </p>
-                      <div className="flex justify-end gap-3">
+                      {deleteInlineError && (
+                        <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                          {deleteInlineError}
+                        </div>
+                      )}
+                      <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
+                        {deleteInlineError && (
+                          <select
+                            value={transferToStationId}
+                            onChange={(e) => setTransferToStationId(e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                          >
+                            <option value="">-- Select destination station --</option>
+                            {stations
+                              .filter((s) => s.id !== stationPendingDelete?.id)
+                              .map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name} ({s.code})
+                                </option>
+                              ))}
+                          </select>
+                        )}
                         <button
+                          type="button"
                           onClick={() => setConfirmDeleteOpen(false)}
                           className="px-4 py-2 border border-gray-200 text-gray-600 bg-white rounded-xl hover:bg-gray-50 transition-colors"
                         >
                           Cancel
                         </button>
                         <button
+                          type="button"
                           onClick={confirmDelete}
                           className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
                         >
@@ -435,10 +503,10 @@ const StationManagement: React.FC = () => {
                     </div>
                   </motion.div>
                 </div>
-              </>,
-              document.body
-            )}
-        </AnimatePresence>
+              </>
+            </AnimatePresence>,
+            document.body
+          )}
       </div>
     </PageTransition>
   );
