@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaUser, FaLock, FaEye, FaEyeSlash, FaTimes } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { login } from "../service/apiUser/API";
+import { login } from "../service/apiUser/auth/API";
 
 interface AuthModalProps {
   isOpen: boolean;

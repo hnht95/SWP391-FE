@@ -1,7 +1,7 @@
 // src/services/API.jsx
 import { AxiosError } from "axios";
 
-import api from "../Utils";
+import api from "../../Utils";
 
 const handleError = (error: unknown) => {
   const err = error as AxiosError;
