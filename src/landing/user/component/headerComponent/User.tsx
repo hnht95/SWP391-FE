@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useRoleBasedNavigation } from "../../../../hooks/useRoleBasedNavigation";
+import { useAuth } from "../../../../hooks/useAuth";
 
 interface UserProps {
   userName?: string;
@@ -21,7 +22,23 @@ const User: React.FC<UserProps> = ({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const navigate = useNavigate();
   const { getNavigationPaths } = useRoleBasedNavigation();
+  const { user } = useAuth();
   const navigationPaths = getNavigationPaths();
+
+  // Get role display text
+  const getRoleDisplay = () => {
+    if (!user?.role) return "Member";
+    switch (user.role) {
+      case "admin":
+        return "Admin";
+      case "staff":
+        return "Staff";
+      case "renter":
+        return "Renter";
+      default:
+        return "Member";
+    }
+  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -143,21 +160,17 @@ const User: React.FC<UserProps> = ({
       </button>
 
       {/* Dropdown Menu with smooth transition */}
-      {isLoggedIn && (
+      {isLoggedIn && isDropdownOpen && (
         <div
-          className={`absolute right-0 mt-2 w-56 bg-white text-black rounded-lg shadow-xl border border-gray-200 py-2 z-50 transform origin-top-right transition-all duration-300 ease-out ${
-            isDropdownOpen
-              ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
-              : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
-          }`}
+          className="absolute right-0 mt-2 w-56 bg-white text-black rounded-lg shadow-xl border border-gray-200 py-2 z-50 transform origin-top-right transition-all duration-300 ease-out opacity-100 scale-100 translate-y-0 pointer-events-auto"
           role="menu"
-          aria-hidden={!isDropdownOpen}
+          aria-hidden="false"
           onMouseLeave={() => setHoveredItem(null)}
         >
           {/* User Info */}
           <div className="px-4 py-3 border-b border-gray-200">
             <p className="text-sm font-medium">{userName}</p>
-            <p className="text-xs text-gray-500">Member</p>
+            <p className="text-xs text-gray-500">{getRoleDisplay()}</p>
           </div>
 
           <div className="relative">
