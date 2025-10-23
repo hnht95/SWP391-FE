@@ -1,10 +1,10 @@
 // VehiclesCard.tsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import type { Vehicle } from "../../../../../service/apiVehicles/API";
+import type { Vehicle } from "../../../../../service/apiAdmin/apiVehicles/API";
 // import type { Station } from "../../../../../service/apiStations/API";
 import { FaBatteryFull, FaCar, FaStar, FaMapMarkerAlt } from "react-icons/fa";
-import type { Station } from "../../../../../service/apiStation/API";
+import type { Station } from "../../../../../service/apiAdmin/apiStation/API";
 
 interface VehiclesCardProps {
   car: Vehicle;

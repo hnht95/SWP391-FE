@@ -1,6 +1,6 @@
 // service/apiVehicles/API.tsx
 import { AxiosError } from "axios";
-import api from "../Utils";
+import api from "../../Utils";
 
 // ✅ Vehicle interface - đã có station (ObjectId string)
 export interface Vehicle {
@@ -98,13 +98,6 @@ const handleError = (error: unknown) => {
   throw new Error(errorMessage);
 };
 
-// ============================================
-// ✅ VEHICLE CRUD OPERATIONS
-// ============================================
-
-/**
- * GET /api/vehicles - Get all vehicles (public)
- */
 export const getAllVehicles = async (): Promise<Vehicle[]> => {
   try {
     const response = await api.get<VehicleApiResponse>("/vehicles");
@@ -123,9 +116,6 @@ export const getAllVehicles = async (): Promise<Vehicle[]> => {
   }
 };
 
-/**
- * GET /api/vehicles/:id - Get one vehicle (requires auth)
- */
 export const getVehicleById = async (id: string): Promise<Vehicle> => {
   try {
     const response = await api.get<{ success: boolean; data: Vehicle }>(
@@ -143,9 +133,6 @@ export const getVehicleById = async (id: string): Promise<Vehicle> => {
   }
 };
 
-/**
- * POST /api/vehicles - Create new vehicle (admin only)
- */
 export const createVehicle = async (
   vehicleData: CreateVehicleData
 ): Promise<Vehicle> => {
@@ -166,9 +153,6 @@ export const createVehicle = async (
   }
 };
 
-/**
- * PUT /api/vehicles/:id - Update vehicle (admin only)
- */
 export const updateVehicle = async (
   id: string,
   vehicleData: UpdateVehicleData
@@ -190,9 +174,6 @@ export const updateVehicle = async (
   }
 };
 
-/**
- * DELETE /api/vehicles/:id - Delete vehicle (admin only)
- */
 export const deleteVehicle = async (id: string): Promise<void> => {
   try {
     await api.delete(`/vehicles/${id}`);
@@ -202,13 +183,6 @@ export const deleteVehicle = async (id: string): Promise<void> => {
   }
 };
 
-// ============================================
-// ✅ TRANSFER STATION OPERATIONS
-// ============================================
-
-/**
- * POST /api/vehicles/:id/transfer-station - Transfer vehicle (admin only)
- */
 export const transferVehicleStation = async (
   id: string,
   transferData: TransferStationData
@@ -230,13 +204,6 @@ export const transferVehicleStation = async (
   }
 };
 
-// ============================================
-// ✅ TRANSFER LOGS OPERATIONS
-// ============================================
-
-/**
- * GET /api/vehicles/transfer-logs - Get all transfer logs (admin only)
- */
 export const getAllTransferLogs = async (): Promise<TransferLog[]> => {
   try {
     const response = await api.get<{ success: boolean; data: TransferLog[] }>(
@@ -254,9 +221,6 @@ export const getAllTransferLogs = async (): Promise<TransferLog[]> => {
   }
 };
 
-/**
- * GET /api/vehicles/:id/transfer-logs - Get vehicle transfer logs (admin only)
- */
 export const getVehicleTransferLogs = async (
   vehicleId: string
 ): Promise<TransferLog[]> => {

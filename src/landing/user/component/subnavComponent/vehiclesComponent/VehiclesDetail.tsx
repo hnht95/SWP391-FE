@@ -5,8 +5,14 @@ import { useRoleBasedNavigation } from "../../../../../hooks/useRoleBasedNavigat
 import {
   getVehicleById,
   type Vehicle,
-} from "../../../../../service/apiVehicles/API";
-import { FaCar, FaArrowLeft, FaBatteryFull } from "react-icons/fa";
+} from "../../../../../service/apiAdmin/apiVehicles/API";
+import type { Station } from "../../../../../service/apiAdmin/apiStation/API";
+import {
+  FaCar,
+  FaArrowLeft,
+  FaBatteryFull,
+  FaMapMarkerAlt,
+} from "react-icons/fa";
 import StarRating from "./StarRating";
 
 const VehiclesDetail: React.FC = () => {
@@ -80,6 +86,10 @@ const VehiclesDetail: React.FC = () => {
     );
   }
 
+  // ✅ Get station from vehicle data (already populated by backend)
+  const station =
+    typeof vehicle.station === "object" ? (vehicle.station as Station) : null;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="bg-white rounded-2xl shadow-lg p-8">
@@ -116,6 +126,31 @@ const VehiclesDetail: React.FC = () => {
               </span>
             </div>
 
+            {/* ✅ Station Location - Backend already populates this */}
+            {station && (
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-start gap-3">
+                  <FaMapMarkerAlt className="text-red-500 mt-1 text-xl flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500 mb-1">
+                      Current Location
+                    </p>
+                    <h3 className="font-bold text-gray-900 text-lg mb-1">
+                      {station.name}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {station.location.address}
+                    </p>
+                    {station.code && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Station Code: {station.code}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Price */}
             <div className="mb-6">
               <p className="text-4xl font-bold text-green-600">
@@ -132,7 +167,7 @@ const VehiclesDetail: React.FC = () => {
               </p>
             </div>
 
-            {/* Specifications Grid - Two columns */}
+            {/* Specifications Grid */}
             <div className="space-y-4 mb-6">
               {/* Row 1 */}
               <div className="grid grid-cols-2 gap-4">
@@ -179,7 +214,7 @@ const VehiclesDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* Rating - Full width */}
+              {/* Rating */}
               <div className="pt-2 border-t border-gray-200">
                 <StarRating
                   rating={vehicle.ratingAvg || 0}

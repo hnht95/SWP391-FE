@@ -24,6 +24,9 @@ export interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   hasRole: (role: string | string[]) => boolean;
+  // Global loading UI while transitioning auth state or redirecting
+  showGlobalLoading: () => void;
+  hideGlobalLoading: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(

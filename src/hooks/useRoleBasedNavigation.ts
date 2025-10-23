@@ -53,7 +53,7 @@ export const useRoleBasedNavigation = () => {
       };
     }
 
-    // Staff and admin don't need these paths, they have their own interfaces
+    // Staff and admin have their own interfaces
     return {
       home: basePath,
       vehicles: null,
@@ -62,7 +62,7 @@ export const useRoleBasedNavigation = () => {
       terms: null,
       faq: null,
       privacy: null,
-      profile: null,
+      profile: basePath, // Admin/Staff profile points to their dashboard
       booking: null,
     };
   };

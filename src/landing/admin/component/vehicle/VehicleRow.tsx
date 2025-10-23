@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { MdEdit, MdDelete, MdMoreVert } from "react-icons/md";
 import StatusBadge, { type VehicleStatus } from "./StatusBadge";
-
 export interface Vehicle {
   id: string;
   brand: string;
@@ -11,6 +10,9 @@ export interface Vehicle {
   location: string;
   dailyRate: number;
   lastService: string;
+  batteryCapacity?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface VehicleRowProps {
@@ -106,13 +108,13 @@ const VehicleRow: React.FC<VehicleRowProps> = ({
             >
               <MdMoreVert className="w-4 h-4" />
             </button>
-            
+
             {/* Dropdown menu */}
             {isDropdownOpen && (
               <>
                 {/* Backdrop to close dropdown when clicking outside */}
-                <div 
-                  className="fixed inset-0 z-[9998]" 
+                <div
+                  className="fixed inset-0 z-[9998]"
                   onClick={() => setIsDropdownOpen(false)}
                 />
                 <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl py-1 z-[9999] min-w-[160px]">

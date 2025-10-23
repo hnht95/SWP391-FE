@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { MdLogout, MdPerson } from "react-icons/md";
+import { useAuth } from "../../../hooks/useAuth";
 
 interface HeaderAdminProps {
   title?: string;
@@ -12,10 +13,17 @@ const HeaderAdmin: React.FC<HeaderAdminProps> = ({
   subtitle 
 }) => {
   const navigate = useNavigate();
+  const { logout, showGlobalLoading, hideGlobalLoading } = useAuth();
 
-  const handleLogout = () => {
-    // TODO: Add logout logic here (clear auth tokens, etc.)
-    navigate("/login");
+  const handleLogout = async () => {
+    showGlobalLoading();
+    try {
+      await logout();
+      navigate("/");
+    } finally {
+      // Small delay to let the spinner be visible briefly
+      setTimeout(() => hideGlobalLoading(), 350);
+    }
   };
 
   return (

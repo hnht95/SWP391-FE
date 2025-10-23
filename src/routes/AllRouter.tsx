@@ -14,7 +14,7 @@ import VehiclesStaff from "../landing/staff/homepageStaffComponent/VehiclesStaff
 import StaffUser from "../landing/staff/homepageStaffComponent/StaffUser";
 import LayoutAdmin from "../landing/admin/LayoutAdmin";
 import DashboardAdmin from "../landing/admin/homepageAdminComponent/DashboardAdmin";
-import VehicleManagementAdmin from "../landing/admin/homepageAdminComponent/VehicleManagementAdmin";
+import VehiclesManagement from "../landing/admin/homepageAdminComponent/VehicleManagementAdmin";
 import StationManagementAdmin from "../landing/admin/homepageAdminComponent/StationManagementAdmin";
 import CustomerManagementAdmin from "../landing/admin/homepageAdminComponent/CustomerManagementAdmin";
 import StaffManagementAdmin from "../landing/admin/homepageAdminComponent/StaffManagementAdmin/StaffManagement";
@@ -91,35 +91,22 @@ const AllRouter = () => {
         <Route path="/staff/contracts" element={<ContractStaff />} />
       </Route>
 
-      {/* Admin routes - Nested routes with LayoutAdmin */}
-      {/* TODO: Re-enable protection after development */}
-      <Route element={<LayoutAdmin />}>
-        <Route path="/admin" element={<DashboardAdmin />} />
-        <Route path="/admin/dashboard" element={<DashboardAdmin />} />
-        <Route path="/admin/vehicles" element={<VehicleManagementAdmin />} />
-        <Route path="/admin/stations" element={<StationManagementAdmin />} />
-        <Route path="/admin/customers" element={<CustomerManagementAdmin />} />
-        <Route path="/admin/staff" element={<StaffManagementAdmin />} />
-        <Route path="/admin/reports" element={<ReportsAndAI />} />
-      </Route>
-
-      {/* Protected version - Uncomment when ready for production
+      {/* Admin routes - Protected with authentication */}
       <Route
         element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin"]} redirectTo="/">
             <LayoutAdmin />
           </ProtectedRoute>
         }
       >
         <Route path="/admin" element={<DashboardAdmin />} />
         <Route path="/admin/dashboard" element={<DashboardAdmin />} />
-        <Route path="/admin/vehicles" element={<VehicleManagementAdmin />} />
+        <Route path="/admin/vehicles" element={<VehiclesManagement />} />
         <Route path="/admin/stations" element={<StationManagementAdmin />} />
         <Route path="/admin/customers" element={<CustomerManagementAdmin />} />
         <Route path="/admin/staff" element={<StaffManagementAdmin />} />
         <Route path="/admin/reports" element={<ReportsAndAI />} />
       </Route>
-      */}
     </Routes>
   );
 };
