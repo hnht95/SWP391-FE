@@ -31,6 +31,7 @@ const VehiclesManagement: React.FC = () => {
 
   // ✅ Get station name by ID
   const getStationName = (stationId: string): string => {
+    console.log("Available stations:", stations.map(s => ({ id: s._id, name: s.name })));
     const station = stations.find(s => s._id === stationId);
     console.log("Looking for station:", stationId, "Found:", station?.name);
     return station?.name || stationId; // Fallback to ID if station not found
@@ -49,24 +50,48 @@ const VehiclesManagement: React.FC = () => {
     batteryCapacity: v.batteryCapacity,
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
+    defaultPhotos: v.defaultPhotos, // Add photos mapping
   });
 
   const fetchVehicles = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch both vehicles and stations
-      const [vehiclesData, stationsData] = await Promise.all([
-        getAllVehicles(),
-        getAllStations()
-      ]);
-      
+      // Fetch vehicles first
+      console.log("Starting to fetch vehicles...");
+      const vehiclesData = await getAllVehicles();
       setApiVehicles(vehiclesData);
-      setStations(stationsData);
+      
+      // Try to fetch stations separately
+      console.log("Starting to fetch stations...");
+      try {
+        const stationsData = await getAllStations(1, 1000);
+        console.log("Fetched stations:", stationsData);
+        console.log("Stations count:", stationsData.length);
+        console.log("Stations data type:", typeof stationsData);
+        console.log("Is stations array?", Array.isArray(stationsData));
+        setStations(stationsData);
+      } catch (stationsError) {
+        console.error("Failed to fetch stations:", stationsError);
+        setStations([]); // Set empty array if stations fail
+      }
+      
       setVehicles(vehiclesData.map(mapApiToUi));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load vehicles");
       console.error("Fetch vehicles error:", e);
+      console.error("Error details:", e);
+      
+      // Try to fetch vehicles only if stations fail
+      try {
+        console.log("Trying to fetch vehicles only...");
+        const vehiclesData = await getAllVehicles();
+        setApiVehicles(vehiclesData);
+        setVehicles(vehiclesData.map(mapApiToUi));
+        setError("Failed to load stations, showing vehicles only");
+      } catch (vehiclesError) {
+        console.error("Failed to fetch vehicles too:", vehiclesError);
+        setError(e instanceof Error ? e.message : "Failed to load vehicles");
+      }
     } finally {
       setLoading(false);
     }
@@ -75,6 +100,14 @@ const VehiclesManagement: React.FC = () => {
   useEffect(() => {
     fetchVehicles();
   }, []);
+
+  // Re-map vehicles when stations change
+  useEffect(() => {
+    if (apiVehicles.length > 0 && stations.length > 0) {
+      console.log("Re-mapping vehicles with stations:", stations.length);
+      setVehicles(apiVehicles.map(mapApiToUi));
+    }
+  }, [stations, apiVehicles]);
 
   const handleEdit = (vehicle: UIVehicle) => {
     // Show detail modal first
@@ -107,9 +140,9 @@ const VehiclesManagement: React.FC = () => {
     console.log("Mark maintenance:", vehicle.id);
   };
 
-  const handleAddSubmit = async (data: Omit<UIVehicle, "id">) => {
+  const handleAddSubmit = async () => {
     try {
-      console.log("Add vehicle:", data);
+      console.log("Add vehicle success, refreshing data...");
       await fetchVehicles();
       setIsAddOpen(false);
     } catch (e) {
@@ -152,8 +185,8 @@ const VehiclesManagement: React.FC = () => {
           <FadeIn delay={0.3} duration={0.6}>
             <button
               onClick={() => setIsAddOpen(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 hover:shadow-lg hover:scale-105"
-            >
+              className="flex items-center space-x-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all duration-300 hover:shadow-lg hover:scale-105"
+              >
               <MdAdd className="w-5 h-5" />
               <span>Add New Vehicle</span>
             </button>
@@ -215,7 +248,7 @@ const VehiclesManagement: React.FC = () => {
         <AddVehicleModal
           isOpen={isAddOpen}
           onClose={() => setIsAddOpen(false)}
-          onSubmit={handleAddSubmit}
+          onSuccess={handleAddSubmit}
         />
 
         <UpdateVehicleModal

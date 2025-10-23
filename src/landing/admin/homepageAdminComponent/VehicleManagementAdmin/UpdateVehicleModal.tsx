@@ -18,6 +18,7 @@ import { updateVehicle } from "../../../../service/apiAdmin/apiVehicles/API";
 import type { Vehicle, UpdateVehicleData } from "../../../../service/apiAdmin/apiVehicles/API";
 import UploadCarPhotos from "./UploadCarPhotos";
 
+
 interface UpdateVehicleModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -73,6 +74,26 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         status: vehicle.status || "available",
         station: vehicle.station || "",
       });
+      
+      // Pre-fill photos from vehicle data
+      if (vehicle.defaultPhotos) {
+        const existingPhotos = {
+          exterior: vehicle.defaultPhotos.exterior.map((url, index) => ({
+            id: `existing-exterior-${index}`,
+            file: null as any, // We don't have the original file
+            preview: url,
+            type: "exterior" as const
+          })),
+          interior: vehicle.defaultPhotos.interior.map((url, index) => ({
+            id: `existing-interior-${index}`,
+            file: null as any, // We don't have the original file
+            preview: url,
+            type: "interior" as const
+          }))
+        };
+        console.log("Pre-filling photos:", existingPhotos);
+        setPhotos(existingPhotos);
+      }
     }
   }, [vehicle]);
 
@@ -141,6 +162,20 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
 
     setLoading(true);
     try {
+      // TODO: Upload photos when backend endpoint is ready
+      let updatedPhotos = { exterior: [] as string[], interior: [] as string[] };
+      
+      // Get existing photos (from vehicle.defaultPhotos)
+      if (vehicle.defaultPhotos) {
+        updatedPhotos.exterior = [...(vehicle.defaultPhotos.exterior || [])];
+        updatedPhotos.interior = [...(vehicle.defaultPhotos.interior || [])];
+      }
+      
+      console.log("Photos will be uploaded when backend endpoint is ready:", {
+        existing: { exterior: updatedPhotos.exterior.length, interior: updatedPhotos.interior.length },
+        new: { exterior: photos.exterior.filter(p => p.file).length, interior: photos.interior.filter(p => p.file).length }
+      });
+
       await updateVehicle(vehicle._id, {
         plateNumber: formData.plateNumber?.trim() || "",
         vin: formData.vin?.trim() || "",
@@ -154,6 +189,7 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         pricePerHour: formData.pricePerHour || 0,
         status: formData.status || "available",
         station: formData.station?.trim() || "",
+        defaultPhotos: updatedPhotos,
       });
 
       // Success - Show popup first, then close modal

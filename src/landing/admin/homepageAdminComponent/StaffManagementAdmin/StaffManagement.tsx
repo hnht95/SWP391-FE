@@ -11,7 +11,6 @@ import {
 import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
 import AddStaffModal from "./AddStaffModal";
-import UpdateStaffModal from "./UpdateStaff";
 import SuccessModal from "./SuccessModal";
 import {
   getAllStaffs,
@@ -35,8 +34,6 @@ const StaffManagementAdmin: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,14 +140,8 @@ const StaffManagementAdmin: React.FC = () => {
   };
 
   const handleViewDetails = (staff: Staff) => {
-    setSelectedStaff(staff);
-    setIsUpdateModalOpen(true);
-  };
-
-  const handleUpdateStaffSuccess = () => {
-    fetchStaffList();
-    setSuccessMessage("Staff updated successfully!");
-    setShowSuccessModal(true);
+    console.log("View details for staff:", staff);
+    // TODO: Implement staff details modal
   };
 
   // ✅ Stats calculations
@@ -228,7 +219,7 @@ const StaffManagementAdmin: React.FC = () => {
           <FadeIn delay={0.3}>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 hover:shadow-lg hover:scale-105"
+              className="flex items-center space-x-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all duration-300 hover:shadow-lg hover:scale-105"
             >
               <MdAdd className="w-5 h-5" />
               <span>Add Staff</span>
@@ -237,51 +228,53 @@ const StaffManagementAdmin: React.FC = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              className={`bg-gradient-to-br ${stat.gradient} rounded-lg shadow-sm hover:shadow-md border ${stat.border} p-5 transition-all duration-300`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + index * 0.1 }}
-              whileHover={{ y: -3, scale: 1.01, transition: { duration: 0.2 } }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2">
-                    {stat.label}
-                  </p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {stat.value}
-                  </p>
+        <FadeIn delay={0.5} duration={0.6} direction="up">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {stats.map((stat, index) => (
+              <motion.div
+                key={stat.label}
+                className={`bg-gradient-to-br ${stat.gradient} rounded-lg shadow-sm hover:shadow-md border ${stat.border} p-4 lg:p-5 transition-all duration-300`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 + index * 0.1 }}
+                whileHover={{ y: -3, scale: 1.01, transition: { duration: 0.2 } }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 truncate">
+                      {stat.label}
+                    </p>
+                    <p className="text-2xl lg:text-3xl font-bold text-gray-900">
+                      {stat.value}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 lg:w-14 lg:h-14 bg-white rounded-xl shadow-sm flex items-center justify-center flex-shrink-0">
+                    {stat.icon}
+                  </div>
                 </div>
-                <div className="w-14 h-14 bg-white rounded-xl shadow-sm flex items-center justify-center flex-shrink-0">
-                  {stat.icon}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        </FadeIn>
 
         {/* Filters */}
-        <FadeIn delay={0.7}>
-          <div className="bg-gradient-to-r from-gray-50 to-white rounded-xl shadow-md border-2 border-gray-200 p-6">
-            <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
+        <FadeIn delay={0.7} duration={0.6} direction="up">
+          <div className="bg-gradient-to-r from-gray-50 to-white rounded-xl shadow-md border-2 border-gray-200 p-4 lg:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
               <div className="flex-1 relative">
-                <MdSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-500 w-5 h-5" />
+                <MdSearch className="absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 text-blue-500 w-4 h-4 lg:w-5 lg:h-5" />
                 <input
                   type="text"
                   placeholder="Search by name, email, work location..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 transition-all shadow-sm hover:shadow-md bg-white"
+                  className="w-full pl-10 lg:pl-12 pr-4 py-2.5 lg:py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 transition-all shadow-sm hover:shadow-md bg-white text-sm lg:text-base"
                 />
               </div>
               <select
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value)}
-                className="px-5 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-white font-medium transition-all shadow-sm hover:shadow-md min-w-[160px]"
+                className="px-4 lg:px-5 py-2.5 lg:py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-white font-medium transition-all shadow-sm hover:shadow-md min-w-[140px] lg:min-w-[160px] text-sm lg:text-base"
               >
                 <option value="all">All Roles</option>
                 <option value="manager">Manager</option>
@@ -294,155 +287,153 @@ const StaffManagementAdmin: React.FC = () => {
         </FadeIn>
 
         {/* Staff Table */}
-        <motion.div
-          className="bg-white rounded-xl shadow-lg border-2 border-gray-200 overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-        >
+        <FadeIn delay={0.8} duration={0.7} direction="up">
           {loading ? (
-            <div className="p-8 text-center">
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <div className="text-gray-500">Loading staff list...</div>
+              <p className="text-sm text-gray-600">Loading staff list...</p>
             </div>
           ) : error ? (
-            <div className="p-8 text-center">
-              <div className="text-red-500 mb-4">{error}</div>
+            <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
+              <p className="text-sm text-red-600 mb-2">{error}</p>
               <button
                 onClick={fetchStaffList}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
               >
-                Retry
+                Try Again
               </button>
             </div>
           ) : staffList.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No staff members found
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8 text-center">
+              <MdWork className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600">No staff members found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-300">
-                  <tr>
-                    {headers.map((header, index) => (
-                      <motion.th
-                        key={header}
-                        className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.9 + index * 0.05 }}
-                      >
-                        {header}
-                      </motion.th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredStaff.map((staff, index) => {
-                    const roleBadge = getRoleBadge(staff.role);
-                    return (
-                      <motion.tr
-                        key={staff.id}
-                        className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-transparent transition-all duration-200 border-b border-gray-100"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 1.2 + index * 0.1 }}
-                        whileHover={{ x: 4, transition: { duration: 0.2 } }}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-11 h-11 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-md">
-                              <span className="text-white font-bold text-sm">
-                                {staff.name.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {staff.name}
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead className="bg-gradient-to-r from-gray-100 to-gray-50 border-b border-gray-200">
+                    <tr>
+                      {headers.map((header, index) => (
+                        <motion.th
+                          key={header}
+                          className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.9 + index * 0.05 }}
+                        >
+                          {header}
+                        </motion.th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredStaff.map((staff, index) => {
+                      const roleBadge = getRoleBadge(staff.role);
+                      return (
+                        <motion.tr
+                          key={staff.id}
+                          className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-transparent transition-all duration-200"
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 1.2 + index * 0.1 }}
+                          whileHover={{ x: 4, transition: { duration: 0.2 } }}
+                        >
+                          <td className="px-4 lg:px-6 py-4">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 lg:w-11 lg:h-11 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-md flex-shrink-0">
+                                <span className="text-white font-bold text-sm">
+                                  {staff.name.charAt(0).toUpperCase()}
+                                </span>
                               </div>
-                              <div className="text-sm text-gray-500">
-                                {staff.id}
+                              <div className="ml-3 lg:ml-4 min-w-0 flex-1">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {staff.name}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {staff.id}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 flex items-center space-x-1">
-                            <MdEmail className="w-4 h-4 text-gray-400" />
-                            <span>{staff.email}</span>
-                          </div>
-                          <div className="text-sm text-gray-500 flex items-center space-x-1">
-                            <MdPhone className="w-4 h-4 text-gray-400" />
-                            <span>{staff.phone}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleBadge.color}`}
-                          >
-                            {roleBadge.text}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {staff.station}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-20 bg-gray-200 rounded-full h-2 overflow-hidden">
-                              <motion.div
-                                className={`h-2 rounded-full ${getPerformanceBarColor(
+                          </td>
+                          <td className="px-4 lg:px-6 py-4">
+                            <div className="text-sm text-gray-900 flex items-center space-x-1">
+                              <MdEmail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <span className="truncate">{staff.email}</span>
+                            </div>
+                            <div className="text-sm text-gray-500 flex items-center space-x-1">
+                              <MdPhone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <span className="truncate">{staff.phone}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleBadge.color}`}
+                            >
+                              {roleBadge.text}
+                            </span>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
+                            <span className="truncate block">{staff.station}</span>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-16 lg:w-20 bg-gray-200 rounded-full h-2 overflow-hidden">
+                                <motion.div
+                                  className={`h-2 rounded-full ${getPerformanceBarColor(
+                                    staff.performanceScore
+                                  )}`}
+                                  initial={{ width: "0%" }}
+                                  animate={{
+                                    width: `${staff.performanceScore}%`,
+                                  }}
+                                  transition={{
+                                    delay: 1.4 + index * 0.1,
+                                    duration: 0.8,
+                                    ease: "easeOut",
+                                  }}
+                                />
+                              </div>
+                              <motion.span
+                                className={`text-sm font-semibold ${getPerformanceColor(
                                   staff.performanceScore
                                 )}`}
-                                initial={{ width: "0%" }}
-                                animate={{
-                                  width: `${staff.performanceScore}%`,
-                                }}
-                                transition={{
-                                  delay: 1.4 + index * 0.1,
-                                  duration: 0.8,
-                                  ease: "easeOut",
-                                }}
-                              />
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 1.6 + index * 0.1 }}
+                              >
+                                {staff.performanceScore}%
+                              </motion.span>
                             </div>
-                            <motion.span
-                              className={`text-sm font-semibold ${getPerformanceColor(
-                                staff.performanceScore
-                              )}`}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              transition={{ delay: 1.6 + index * 0.1 }}
+                          </td>
+                          <td className="px-4 lg:px-6 py-4">
+                            <span
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                staff.status === "active"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-gray-200 text-gray-600"
+                              }`}
                             >
-                              {staff.performanceScore}%
-                            </motion.span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                              staff.status === "active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-200 text-gray-600"
-                            }`}
-                          >
-                            {staff.status === "active" ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handleViewDetails(staff)}
-                            className="px-4 py-2 text-blue-600 hover:text-white hover:bg-blue-600 border-2 border-blue-600 rounded-lg font-semibold transition-all duration-200 hover:shadow-md"
-                          >
-                            View Details
-                          </button>
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                              {staff.status === "active" ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4 text-right text-sm font-medium">
+                            <button
+                              onClick={() => handleViewDetails(staff)}
+                              className="px-3 lg:px-4 py-2 text-blue-600 hover:text-white hover:bg-blue-600 border-2 border-blue-600 rounded-lg font-semibold transition-all duration-200 hover:shadow-md text-xs lg:text-sm"
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
-        </motion.div>
+        </FadeIn>
 
         {/* Modals */}
         <AddStaffModal
@@ -451,15 +442,6 @@ const StaffManagementAdmin: React.FC = () => {
           onSuccess={handleAddStaffSuccess}
         />
 
-        {/* <UpdateStaffModal
-          isOpen={isUpdateModalOpen}
-          onClose={() => {
-            setIsUpdateModalOpen(false);
-            setSelectedStaff(null);
-          }}
-          staff={selectedStaff}
-          onSuccess={handleUpdateStaffSuccess}
-        /> */}
 
         <SuccessModal
           isOpen={showSuccessModal}

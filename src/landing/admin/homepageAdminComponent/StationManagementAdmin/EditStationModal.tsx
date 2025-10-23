@@ -46,6 +46,7 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
   // Load station data when modal opens
   useEffect(() => {
     if (station && isOpen) {
+      console.log("Loading station data:", station);
       setFormData({
         name: station.name,
         code: station.code,
@@ -55,6 +56,11 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
           longitude: station.location.longitude,
         },
         note: station.note || "",
+        isActive: station.isActive,
+      });
+      console.log("Form data set:", {
+        name: station.name,
+        address: station.location.address,
         isActive: station.isActive,
       });
     }
@@ -103,14 +109,16 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
       const apiData = {
         name: formData.name,
         code: formData.code,
-        location: {
-          address: formData.location.address,
-          lat: formData.location.latitude,
-          lng: formData.location.longitude,
-        },
+        address: formData.location.address,
+        lat: formData.location.latitude,
+        lng: formData.location.longitude,
         note: formData.note,
         isActive: formData.isActive,
       };
+
+      console.log("Submitting station update:", apiData);
+      console.log("Address:", apiData.address);
+      console.log("IsActive:", apiData.isActive);
 
       await updateStation(station.id, apiData);
 

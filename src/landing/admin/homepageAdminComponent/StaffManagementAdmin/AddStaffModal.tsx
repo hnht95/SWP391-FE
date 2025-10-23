@@ -240,23 +240,20 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({
       console.error("Error response:", error.response?.data);
       console.error("Error status:", error.response?.status);
 
-      // Handle specific errors
-      if (
-        error.response?.data?.error &&
-        error.response.data.error.includes("Email already exists")
-      ) {
+      // Handle specific errors based on error message
+      const errorMessage = error.message || "Unknown error";
+      
+      if (errorMessage.includes("Email already exists") || errorMessage.includes("already in use")) {
         setErrors({ email: "This email is already in use" });
-      } else if (
-        error.response?.data?.message &&
-        error.response.data.message.includes("Email already exists")
-      ) {
-        setErrors({ email: "This email is already in use" });
+      } else if (errorMessage.includes("Invalid email")) {
+        setErrors({ email: "Please enter a valid email address" });
+      } else if (errorMessage.includes("Password")) {
+        setErrors({ password: "Password requirements not met" });
+      } else if (errorMessage.includes("Phone")) {
+        setErrors({ phone: "Please enter a valid phone number" });
       } else {
-        alert(
-          error.response?.data?.error ||
-            error.response?.data?.message ||
-            "An error occurred. Please try again!"
-        );
+        // Show general error message
+        alert(errorMessage);
       }
     } finally {
       setIsSubmitting(false);
@@ -302,16 +299,16 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({
               transition={{ type: "spring", damping: 30, stiffness: 200 }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-white">
+              <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gradient-to-r from-black via-gray-900 to-gray-800">
                 <div className="flex items-center space-x-2.5">
-                  <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-md">
-                    <MdPerson className="w-5 h-5 text-white" />
+                  <div className="w-11 h-11 bg-gradient-to-br from-black-700 to-black rounded-2xl flex items-center justify-center shadow-md">
+                    <MdPerson className="w-7 h-7 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-gray-800">
+                    <h2 className="text-lg font-bold text-white">
                       Add New Staff
                     </h2>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-200">
                       Fill in the staff information below
                     </p>
                   </div>
@@ -531,7 +528,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md text-sm"
+                    className="px-6 py-2 bg-black text-white rounded-xl font-semibold text-sm shadow-md transition-all duration-100 hover:bg-white hover:text-black hover:shadow-lg"
                   >
                     {isSubmitting ? "Adding..." : "Add Staff"}
                   </button>

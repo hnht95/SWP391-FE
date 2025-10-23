@@ -13,6 +13,10 @@ export interface Vehicle {
   batteryCapacity?: number;
   createdAt?: string;
   updatedAt?: string;
+  defaultPhotos?: {
+    exterior: string[];
+    interior: string[];
+  };
 }
 
 interface VehicleRowProps {

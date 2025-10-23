@@ -214,33 +214,63 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* Statistics */}
+                {/* Vehicle Photos */}
                 <div className="pt-4 border-t border-gray-100">
                   <h3 className="text-base font-semibold text-gray-800 mb-4">
-                    Statistics
+                    Vehicle Photos
                   </h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200/50">
-                      <p className="text-xs text-blue-600 font-semibold mb-1">
-                        Total Trips
-                      </p>
-                      <p className="text-2xl font-bold text-blue-900">45</p>
+                  
+                  {/* Exterior Photos */}
+                  {vehicle.defaultPhotos?.exterior && vehicle.defaultPhotos.exterior.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        Exterior Photos
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {vehicle.defaultPhotos.exterior.map((photoUrl, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={photoUrl}
+                              alt={`Exterior ${index + 1}`}
+                              className="w-full h-24 object-cover rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 border border-green-200/50">
-                      <p className="text-xs text-green-600 font-semibold mb-1">
-                        Utilization Rate
-                      </p>
-                      <p className="text-2xl font-bold text-green-900">78%</p>
+                  )}
+
+                  {/* Interior Photos */}
+                  {vehicle.defaultPhotos?.interior && vehicle.defaultPhotos.interior.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        Interior Photos
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {vehicle.defaultPhotos.interior.map((photoUrl, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={photoUrl}
+                              alt={`Interior ${index + 1}`}
+                              className="w-full h-24 object-cover rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="bg-gradient-to-br from-yellow-50 to-yellow-100/50 rounded-xl p-4 border border-yellow-200/50">
-                      <p className="text-xs text-yellow-600 font-semibold mb-1">
-                        Monthly Revenue
-                      </p>
-                      <p className="text-lg font-bold text-yellow-900">
-                        {formatCurrency(15600000)}
-                      </p>
+                  )}
+
+                  {/* No Photos Message */}
+                  {(!vehicle.defaultPhotos?.exterior?.length && !vehicle.defaultPhotos?.interior?.length) && (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <MdDirectionsCar className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <p className="text-sm">No photos available for this vehicle</p>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 

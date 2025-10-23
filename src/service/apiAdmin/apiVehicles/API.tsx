@@ -58,7 +58,6 @@ export interface TransferLog {
 
 export interface CreateVehicleData {
   plateNumber: string;
-  vin: string;
   brand: string;
   model: string;
   year: number;
@@ -67,8 +66,12 @@ export interface CreateVehicleData {
   mileage: number;
   pricePerDay: number;
   pricePerHour: number;
-  status: string;
+  status: "available" | "reserved" | "rented" | "maintenance";
   station: string;
+  defaultPhotos?: {
+    exterior: string[];
+    interior: string[];
+  };
 }
 
 export interface UpdateVehicleData extends Partial<CreateVehicleData> {}
@@ -221,19 +224,28 @@ export const getAllTransferLogs = async (): Promise<TransferLog[]> => {
   }
 };
 
-export const getVehicleTransferLogs = async (
-  vehicleId: string
-): Promise<TransferLog[]> => {
+export const uploadVehiclePhotos = async (photos: File[]): Promise<string[]> => {
   try {
-    const response = await api.get<{ success: boolean; data: TransferLog[] }>(
-      `/vehicles/${vehicleId}/transfer-logs`
+    const formData = new FormData();
+    photos.forEach((photo) => {
+      formData.append(`photos`, photo);
+    });
+
+    const response = await api.post<{ success: boolean; data: string[] }>(
+      "/vehicles/upload-photos",
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
     );
 
     if (response.data.success && Array.isArray(response.data.data)) {
       return response.data.data;
     }
 
-    return [];
+    throw new Error("Failed to upload photos");
   } catch (error) {
     handleError(error);
     throw error;

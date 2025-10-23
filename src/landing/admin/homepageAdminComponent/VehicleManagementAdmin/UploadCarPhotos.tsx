@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   MdAdd,
@@ -32,6 +32,11 @@ const UploadCarPhotos: React.FC<UploadCarPhotosProps> = ({
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
+  // Notify parent component when photos change
+  useEffect(() => {
+    onPhotosChange?.(photos);
+  }, [photos, onPhotosChange]);
+
   const handleFileSelect = (files: FileList | null, type: "exterior" | "interior") => {
     if (!files) return;
 
@@ -47,7 +52,6 @@ const UploadCarPhotos: React.FC<UploadCarPhotosProps> = ({
         ...prev,
         [type]: [...prev[type], ...newPhotos]
       };
-      onPhotosChange?.(updated);
       return updated;
     });
   };
@@ -74,7 +78,6 @@ const UploadCarPhotos: React.FC<UploadCarPhotosProps> = ({
         ...prev,
         [type]: prev[type].filter(photo => photo.id !== id)
       };
-      onPhotosChange?.(updated);
       return updated;
     });
   };
