@@ -199,11 +199,18 @@ export const updateStation = async (
  * Backend expects: { transferToStationId?, reason? } in body
  * Backend returns: { message: "Station deleted successfully" }
  */
+export interface DeleteStationResponse {
+  success?: boolean;
+  deletedStationId?: string;
+  movedVehiclesCount?: number;
+  message?: string;
+}
+
 export const deleteStation = async (
   id: string,
   transferToStationId?: string,
   reason?: string
-): Promise<void> => {
+): Promise<DeleteStationResponse> => {
   try {
     const payload: any = {};
     if (transferToStationId) payload.transferToStationId = transferToStationId;
@@ -213,7 +220,17 @@ export const deleteStation = async (
       data: payload,
     });
 
-    console.log("Delete response:", response.data);
+    const data = response.data as DeleteStationResponse | { message: string };
+    console.log("Delete response:", data);
+
+    // Chuẩn hóa response: hỗ trợ cả 2 format backend cung cấp
+    if ("success" in (data as any) || "deletedStationId" in (data as any)) {
+      return data as DeleteStationResponse;
+    }
+    if ((data as any).message) {
+      return { message: (data as any).message };
+    }
+    return {};
   } catch (error) {
     handleError(error);
     throw error;

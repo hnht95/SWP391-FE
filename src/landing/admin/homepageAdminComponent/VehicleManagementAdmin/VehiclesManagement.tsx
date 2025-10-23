@@ -3,7 +3,7 @@ import { MdAdd, MdDirectionsCar } from "react-icons/md";
 import VehicleFilters from "../../component/vehicle/VehicleFilters";
 import VehicleTable from "../../component/vehicle/VehicleTable";
 import VehicleDetailModal from "../../component/vehicle/VehicleDetailModal";
-import { AddVehicleModal } from "./index";
+import { AddVehicleModal, UpdateVehicleModal } from "./index";
 import { type Vehicle as UIVehicle } from "../../component/vehicle/VehicleRow";
 import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
@@ -11,6 +11,7 @@ import {
   getAllVehicles,
   type Vehicle as APIVehicle,
 } from "../../../../service/apiAdmin/apiVehicles/API";
+import { getAllStations, type Station } from "../../../../service/apiAdmin/apiStation/API";
 
 const VehiclesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -20,9 +21,20 @@ const VehiclesManagement: React.FC = () => {
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isUpdateOpen, setIsUpdateOpen] = useState(false);
+  const [vehicleToUpdate, setVehicleToUpdate] = useState<APIVehicle | null>(null);
   const [vehicles, setVehicles] = useState<UIVehicle[]>([]);
+  const [apiVehicles, setApiVehicles] = useState<APIVehicle[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ Get station name by ID
+  const getStationName = (stationId: string): string => {
+    const station = stations.find(s => s._id === stationId);
+    console.log("Looking for station:", stationId, "Found:", station?.name);
+    return station?.name || stationId; // Fallback to ID if station not found
+  };
 
   // ✅ Map API Vehicle to UI Vehicle
   const mapApiToUi = (v: APIVehicle): UIVehicle => ({
@@ -30,18 +42,28 @@ const VehiclesManagement: React.FC = () => {
     brand: v.brand,
     model: v.model,
     licensePlate: v.plateNumber,
-    status: v.status,
-    location: v.stationData?.name || v.station, // Use station name if populated
+    status: v.status as "available" | "rented" | "maintenance" | "reserved",
+    location: v.stationData?.name || getStationName(v.station), // Use station name
     dailyRate: v.pricePerDay,
-    lastService: v.updatedAt || "",
+    lastService: v.updatedAt || v.createdAt || "",
+    batteryCapacity: v.batteryCapacity,
+    createdAt: v.createdAt,
+    updatedAt: v.updatedAt,
   });
 
   const fetchVehicles = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getAllVehicles();
-      setVehicles(data.map(mapApiToUi));
+      // Fetch both vehicles and stations
+      const [vehiclesData, stationsData] = await Promise.all([
+        getAllVehicles(),
+        getAllStations()
+      ]);
+      
+      setApiVehicles(vehiclesData);
+      setStations(stationsData);
+      setVehicles(vehiclesData.map(mapApiToUi));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load vehicles");
       console.error("Fetch vehicles error:", e);
@@ -55,33 +77,53 @@ const VehiclesManagement: React.FC = () => {
   }, []);
 
   const handleEdit = (vehicle: UIVehicle) => {
+    // Show detail modal first
     setSelectedVehicle(vehicle);
     setIsModalOpen(true);
   };
 
+  const handleEditFromDetail = (vehicle: UIVehicle) => {
+    // Close detail modal and open update modal
+    setIsModalOpen(false);
+    setSelectedVehicle(null);
+    
+    // Find the full API vehicle data for editing
+    const apiVehicle = apiVehicles.find(v => v._id === vehicle.id);
+    if (apiVehicle) {
+      setVehicleToUpdate(apiVehicle);
+      setIsUpdateOpen(true);
+    }
+  };
+
   const handleDelete = (vehicleId: string) => {
     console.log("Delete vehicle:", vehicleId);
-    // TODO: Implement delete functionality
   };
 
   const handleTransfer = (vehicle: UIVehicle) => {
     console.log("Transfer vehicle:", vehicle.id);
-    // TODO: Implement transfer functionality
   };
 
   const handleMarkMaintenance = (vehicle: UIVehicle) => {
     console.log("Mark maintenance:", vehicle.id);
-    // TODO: Implement maintenance marking
   };
 
   const handleAddSubmit = async (data: Omit<UIVehicle, "id">) => {
     try {
-      // TODO: Implement vehicle creation
       console.log("Add vehicle:", data);
       await fetchVehicles();
       setIsAddOpen(false);
     } catch (e) {
       console.error("Add vehicle error:", e);
+    }
+  };
+
+  const handleUpdateSubmit = async () => {
+    try {
+      await fetchVehicles();
+      setIsUpdateOpen(false);
+      setVehicleToUpdate(null);
+    } catch (e) {
+      console.error("Update vehicle error:", e);
     }
   };
 
@@ -167,12 +209,23 @@ const VehiclesManagement: React.FC = () => {
             setIsModalOpen(false);
             setSelectedVehicle(null);
           }}
+          onEdit={handleEditFromDetail}
         />
 
         <AddVehicleModal
           isOpen={isAddOpen}
           onClose={() => setIsAddOpen(false)}
           onSubmit={handleAddSubmit}
+        />
+
+        <UpdateVehicleModal
+          isOpen={isUpdateOpen}
+          onClose={() => {
+            setIsUpdateOpen(false);
+            setVehicleToUpdate(null);
+          }}
+          onUpdated={handleUpdateSubmit}
+          vehicle={vehicleToUpdate}
         />
       </div>
     </PageTransition>
