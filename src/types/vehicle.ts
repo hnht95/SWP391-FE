@@ -29,6 +29,51 @@ export interface VehiclePhotos {
   interior: string[];
 }
 
+// Raw vehicle from backend API
+export interface RawApiVehicle {
+  _id: string;
+  owner: string;
+  company?: string | null;
+  valuation?: {
+    valueVND: number;
+    lastUpdatedAt?: string;
+  };
+  plateNumber: string;
+  vin: string;
+  brand: string;
+  model: string;
+  year: number;
+  color: string;
+  batteryCapacity: number;
+  mileage: number;
+  pricePerDay: number;
+  pricePerHour: number;
+  status: "available" | "rented" | "maintenance";
+  station: {
+    _id: string;
+    name: string;
+    code: string;
+    location: {
+      address: string;
+      lat: number;
+      lng: number;
+    };
+    isActive: boolean;
+  };
+  defaultPhotos: VehiclePhotos;
+  ratingAvg: number;
+  ratingCount: number;
+  tags: string[];
+  maintenanceHistory: Array<{
+    description: string;
+    reportedAt: string;
+    staff: string;
+    _id: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // API Vehicle interface (from useVehicles hook)
 export interface ApiVehicle {
   id: string;

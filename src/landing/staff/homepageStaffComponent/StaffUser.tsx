@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MdSearch,
@@ -17,91 +17,32 @@ import {
   MdFilterList,
   MdVisibility,
 } from "react-icons/md";
+import { getAllUsers } from "../../../service/apiUser/API";
 
 interface User {
   id: string;
-  avatar?: string;
+  avatar?: string | null;
   name: string;
   email: string;
   phone: string;
-  type: "regular" | "vip";
+  type: "regular" | "vip" | "staff";
   createdAt: string;
   status: "active" | "locked" | "verify";
   cccd?: string;
-  rentalCount: number;
-  revenue: number;
+  rentalCount?: number;
+  revenue?: number;
   feedback?: string;
+  gender?: string;
+  station?: { _id: string; name: string };
 }
 
-const sampleUsers: User[] = [
-  {
-    id: "U001",
-    name: "Nguyen Van A",
-    email: "a.nguyen@email.com",
-    phone: "0901234567",
-    type: "regular",
-    createdAt: "2024-09-01",
-    status: "active",
-    cccd: "012345678901",
-    rentalCount: 12,
-    revenue: 3500000,
-    feedback: "Very satisfied with service.",
-  },
-  {
-    id: "U002",
-    name: "Tran Thi B",
-    email: "b.tran@email.com",
-    phone: "0912345678",
-    type: "vip",
-    createdAt: "2024-09-10",
-    status: "active",
-    cccd: "098765432109",
-    rentalCount: 25,
-    revenue: 9500000,
-    feedback: "Quick support, good vehicles.",
-  },
-  {
-    id: "U003",
-    name: "Le Van C",
-    email: "c.le@email.com",
-    phone: "0923456789",
-    type: "regular",
-    createdAt: "2024-08-15",
-    status: "locked",
-    cccd: "123456789012",
-    rentalCount: 5,
-    revenue: 1200000,
-    feedback: "Account locked due to overdue payment.",
-  },
-  {
-    id: "U004",
-    name: "Pham Thi D",
-    email: "d.pham@email.com",
-    phone: "0934567890",
-    type: "vip",
-    createdAt: "2024-10-05",
-    status: "verify",
-    cccd: "234567890123",
-    rentalCount: 18,
-    revenue: 6800000,
-    feedback: "Excellent customer service.",
-  },
-  {
-    id: "U005",
-    name: "Hoang Van E",
-    email: "e.hoang@email.com",
-    phone: "0945678901",
-    type: "regular",
-    createdAt: "2024-11-20",
-    status: "active",
-    cccd: "345678901234",
-    rentalCount: 3,
-    revenue: 850000,
-    feedback: "Good vehicle quality.",
-  },
-];
-
 const StaffUser = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
@@ -110,22 +51,74 @@ const StaffUser = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  useEffect(() => {
+    async function fetchUsers() {
+      setLoading(true);
+      try {
+        // Pass pagination params to API
+        const data = await getAllUsers({ page, limit: pageSize });
+        // Map BE fields to UI User type
+        type ApiUser = {
+          _id: string;
+          avatarUrl?: string | null;
+          name: string;
+          email: string;
+          phone: string;
+          role?: "regular" | "vip" | "staff";
+          createdAt?: string;
+          isActive?: boolean;
+          cccd?: string;
+          rentalCount?: number;
+          revenue?: number;
+          feedback?: string;
+          gender?: string;
+          station?: { _id: string; name: string };
+        };
+        const mapped = (data.items || []).map((u: ApiUser) => ({
+          id: u._id,
+          avatar: u.avatarUrl,
+          name: u.name,
+          email: u.email,
+          phone: u.phone,
+          type: u.role || "regular",
+          createdAt: u.createdAt ? u.createdAt.split("T")[0] : "",
+          status: u.isActive ? "active" : "locked",
+          cccd: u.cccd,
+          rentalCount: u.rentalCount || 0,
+          revenue: u.revenue || 0,
+          feedback: u.feedback,
+          gender: u.gender,
+          station: u.station,
+        }));
+        setUsers(mapped);
+        setTotal(data.total || 0);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        setUsers([]);
+        setTotal(0);
+      }
+      setLoading(false);
+    }
+    fetchUsers();
+  }, [page, pageSize]);
+
   // Quick Stats
   const stats = {
-    total: sampleUsers.length,
-    vip: sampleUsers.filter((u) => u.type === "vip").length,
-    active: sampleUsers.filter((u) => u.status === "active").length,
-    locked: sampleUsers.filter((u) => u.status === "locked").length,
-    newThisMonth: sampleUsers.filter((u) => u.createdAt.startsWith("2024-12"))
-      .length,
+    total: users.length,
+    vip: users.filter((u) => u.type === "vip").length,
+    active: users.filter((u) => u.status === "active").length,
+    locked: users.filter((u) => u.status === "locked").length,
+    newThisMonth: users.filter(
+      (u) => u.createdAt && u.createdAt.startsWith("2024-12")
+    ).length,
   };
 
-  // Filtered users
-  const filteredUsers = sampleUsers.filter((u) => {
+  // Filtered users (client-side for search/filter, but BE pagination)
+  const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.phone.includes(searchTerm);
+      (u.phone && u.phone.includes(searchTerm));
     const matchesStatus =
       selectedStatus === "all" || u.status === selectedStatus;
     const matchesType = selectedType === "all" || u.type === selectedType;
@@ -265,7 +258,7 @@ const StaffUser = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-6 border-b border-gray-100 space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
             <h3 className="text-lg font-semibold text-gray-900">User List</h3>
 
@@ -321,7 +314,6 @@ const StaffUser = () => {
                       <option value="verify">Need Verify</option>
                     </select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       User Type
@@ -340,134 +332,232 @@ const StaffUser = () => {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created At
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rentals
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((user, index) => (
-                <motion.tr
-                  key={user.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => openDetail(user)}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ backgroundColor: "#f9fafb" }}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                        {user.avatar ? (
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <MdPerson className="w-6 h-6 text-gray-400" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.name}
+          {/* User Table and Pagination */}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Created At
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Rentals
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-gray-500">
+                      Loading users...
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((user, index) => (
+                    <motion.tr
+                      key={user.id}
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => openDetail(user)}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      whileHover={{ backgroundColor: "#f9fafb" }}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-3">
+                            {user.avatar ? (
+                              <img
+                                src={user.avatar}
+                                alt={user.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <MdPerson className="w-6 h-6 text-gray-400" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {user.name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {user.id}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-500">{user.id}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{user.email}</div>
-                    <div className="text-sm text-gray-500">{user.phone}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        user.type === "vip"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {user.type === "vip" ? "VIP" : "Regular"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {user.createdAt}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(
-                        user.status
-                      )}`}
-                    >
-                      {user.status === "active" && "Active"}
-                      {user.status === "locked" && "Locked"}
-                      {user.status === "verify" && "Need Verify"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {user.rentalCount}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <motion.button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDetail(user);
-                      }}
-                      className="text-gray-600 hover:text-gray-900 transition-colors"
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <MdVisibility className="w-5 h-5" />
-                    </motion.button>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {user.email}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {user.phone}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            user.type === "vip"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {user.type === "vip" ? "VIP" : "Regular"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {user.createdAt}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(
+                            user.status
+                          )}`}
+                        >
+                          {user.status === "active" && "Active"}
+                          {user.status === "locked" && "Locked"}
+                          {user.status === "verify" && "Need Verify"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {user.rentalCount ?? "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <motion.button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDetail(user);
+                          }}
+                          className="text-gray-600 hover:text-gray-900 transition-colors"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          <MdVisibility className="w-5 h-5" />
+                        </motion.button>
+                      </td>
+                    </motion.tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        {filteredUsers.length === 0 && (
-          <motion.div
-            className="text-center py-12"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <MdPerson className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No users found
-            </h3>
-            <p className="text-gray-500">
-              Try adjusting your search or filter criteria
-            </p>
-          </motion.div>
-        )}
+          {filteredUsers.length === 0 && !loading && (
+            <motion.div
+              className="text-center py-12"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              <MdPerson className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No users found
+              </h3>
+              <p className="text-gray-500">
+                Try adjusting your search or filter criteria
+              </p>
+            </motion.div>
+          )}
+
+          {/* Pagination Controls - Redesigned */}
+          <div className="flex items-center justify-between mt-4">
+            {/* Rows per page */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-700">Rows per page:</span>
+              <select
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+              >
+                {[10, 20, 50, 100].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {/* Pagination navigation */}
+            <div className="flex items-center space-x-2">
+              <button
+                className="px-2 py-1 rounded border border-gray-300 text-sm disabled:opacity-50"
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+              >
+                &#171;
+              </button>
+              <button
+                className="px-2 py-1 rounded border border-gray-300 text-sm disabled:opacity-50"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-700">Page</span>
+              <input
+                type="number"
+                min={1}
+                max={Math.max(1, Math.ceil(total / pageSize))}
+                value={page}
+                onChange={(e) => {
+                  let val = Number(e.target.value);
+                  if (isNaN(val) || val < 1) val = 1;
+                  if (val > Math.ceil(total / pageSize))
+                    val = Math.ceil(total / pageSize);
+                  setPage(val);
+                }}
+                className="w-12 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none"
+                style={{ MozAppearance: "textfield" }}
+              />
+              <span className="text-sm text-gray-700">
+                of {Math.max(1, Math.ceil(total / pageSize))}
+              </span>
+              <button
+                className="px-2 py-1 rounded border border-gray-300 text-sm disabled:opacity-50"
+                onClick={() =>
+                  setPage((p) => Math.min(Math.ceil(total / pageSize), p + 1))
+                }
+                disabled={page >= Math.ceil(total / pageSize)}
+              >
+                Next
+              </button>
+              <button
+                className="px-2 py-1 rounded border border-gray-300 text-sm disabled:opacity-50"
+                onClick={() => setPage(Math.ceil(total / pageSize))}
+                disabled={page >= Math.ceil(total / pageSize)}
+              >
+                &#187;
+              </button>
+            </div>
+            {/* Range info */}
+            <div className="text-sm text-gray-500">
+              {total > 0 && (
+                <span>
+                  {Math.min((page - 1) * pageSize + 1, total)}-
+                  {Math.min(page * pageSize, total)} of {total} users
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       </motion.div>
 
       {/* User Detail Modal */}
@@ -646,7 +736,9 @@ const StaffUser = () => {
                         Total Revenue
                       </label>
                       <p className="text-gray-900 font-semibold text-lg">
-                        {selectedUser.revenue.toLocaleString()} VND
+                        {selectedUser.revenue
+                          ? selectedUser.revenue.toLocaleString() + " VND"
+                          : "-"}
                       </p>
                     </div>
                   </div>
