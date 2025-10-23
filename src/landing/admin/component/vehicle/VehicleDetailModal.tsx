@@ -9,12 +9,14 @@ interface VehicleDetailModalProps {
   vehicle: Vehicle | null;
   isOpen: boolean;
   onClose: () => void;
+  onEdit?: (vehicle: Vehicle) => void;
 }
 
 const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
   vehicle,
   isOpen,
   onClose,
+  onEdit,
 }) => {
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -125,6 +127,33 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                         </label>
                         <StatusBadge status={vehicle.status} />
                       </div>
+
+                      <div className="bg-gray-50/50 rounded-xl p-3 border border-gray-100">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          Battery Capacity
+                        </label>
+                        <div className="flex items-center space-x-2">
+                          {/* iPhone-style battery icon */}
+                          <div className="relative w-8 h-4 bg-gray-200 rounded-sm border border-gray-300">
+                            <div 
+                              className={`absolute top-0.5 left-0.5 h-3 rounded-sm transition-all duration-300 ${
+                                (vehicle.batteryCapacity || 0) > 50 
+                                  ? 'bg-gradient-to-r from-green-400 to-green-500'
+                                  : (vehicle.batteryCapacity || 0) > 20
+                                  ? 'bg-gradient-to-r from-yellow-400 to-yellow-500'
+                                  : 'bg-gradient-to-r from-red-400 to-red-500'
+                              }`}
+                              style={{ 
+                                width: `${Math.min(100, Math.max(0, (vehicle.batteryCapacity || 0) / 100 * 100))}%` 
+                              }}
+                            />
+                            <div className="absolute -right-0.5 top-1 w-0.5 h-2 bg-gray-300 rounded-r-sm"></div>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {vehicle.batteryCapacity || 0} kWh
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -161,6 +190,24 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                           {new Date(vehicle.lastService).toLocaleDateString(
                             "vi-VN"
                           )}
+                        </p>
+                      </div>
+
+                      <div className="bg-gray-50/50 rounded-xl p-3 border border-gray-100">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          Created At
+                        </label>
+                        <p className="text-sm font-medium text-gray-900">
+                          {vehicle.createdAt ? new Date(vehicle.createdAt).toLocaleDateString("vi-VN") : "N/A"}
+                        </p>
+                      </div>
+
+                      <div className="bg-gray-50/50 rounded-xl p-3 border border-gray-100">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          Last Updated
+                        </label>
+                        <p className="text-sm font-medium text-gray-900">
+                          {vehicle.updatedAt ? new Date(vehicle.updatedAt).toLocaleDateString("vi-VN") : "N/A"}
                         </p>
                       </div>
                     </div>
@@ -203,9 +250,12 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                   onClick={onClose}
                   className="px-5 py-2 border border-gray-200 text-gray-600 bg-white rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 font-medium text-sm"
                 >
-                  Close
+                  Cancel
                 </button>
-                <button className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transition-all duration-200 font-semibold shadow-md text-sm">
+                <button 
+                  onClick={() => onEdit?.(vehicle)}
+                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transition-all duration-200 font-semibold shadow-md text-sm"
+                >
                   Edit
                 </button>
               </div>

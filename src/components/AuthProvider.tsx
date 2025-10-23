@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import type { AuthContextType, User } from "../contexts/AuthContext";
@@ -12,6 +13,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showGlobalLoader, setShowGlobalLoader] = useState(false);
 
   useEffect(() => {
     // Check for existing auth on app load
@@ -70,6 +72,8 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     isAuthenticated: !!user && !!token,
     hasRole,
+    showGlobalLoading: () => setShowGlobalLoader(true),
+    hideGlobalLoading: () => setShowGlobalLoader(false),
   };
 
   if (isLoading) {
@@ -80,7 +84,43 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     );
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {showGlobalLoader ? (
+        <div className="fixed inset-0 z-[9999] bg-white/70 backdrop-blur-sm flex items-center justify-center">
+          <div className="relative">
+            {/* Outer ring - slow rotation */}
+            <motion.div
+              className="rounded-full h-16 w-16 border border-black/15"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            />
+            {/* Middle ring - medium rotation (top border) */}
+            <motion.div
+              className="absolute inset-0 rounded-full h-16 w-16 border-t border-black/50"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+            />
+            {/* Inner ring - fast rotation (top/right) */}
+            <motion.div
+              className="absolute inset-2 rounded-full h-12 w-12 border-t border-r border-black"
+              animate={{ rotate: -360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            />
+            {/* Center dot pulsing */}
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center"
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <div className="w-2 h-2 rounded-full bg-black" />
+            </motion.div>
+          </div>
+        </div>
+      ) : null}
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export default AuthProvider;

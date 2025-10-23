@@ -4,6 +4,7 @@ import { Carousel } from "antd";
 // import taycan from "../../../assets/homepage/carousel/taycan.png";
 // import vf9 from "../../../assets/homepage/carousel/vf9.png";
 // import vf3 from "../../../assets/homepage/carousel/vf3.png";
+// import taycanvideo from "../../../../assets/homepage/carousel/video/taycan.mp4";
 import taycanvideo from "../../../../assets/homepage/carousel/video/taycan.mp4";
 import vf3video from "../../../../assets/homepage/carousel/video/vf3.mp4";
 import vf9video from "../../../../assets/homepage/carousel/video/vf9.mp4";
@@ -16,7 +17,7 @@ const CarouselHome: React.FC = () => {
   const carData = [
     {
       id: 1,
-      price: "$89,990",
+      price: "890.000 VND/day",
       brand: "Tesla",
       model: "Model S",
       // image: modelS,
@@ -29,7 +30,7 @@ const CarouselHome: React.FC = () => {
     },
     {
       id: 2,
-      price: "$103,800",
+      price: "1.000.00 VND/day",
       brand: "Porsche",
       model: "Taycan",
       // image: taycan,
@@ -42,7 +43,7 @@ const CarouselHome: React.FC = () => {
     },
     {
       id: 3,
-      price: "$45,000",
+      price: "450.000 VND/day",
       brand: "VinFast",
       model: "VF 9",
       // image: vf9,
@@ -55,7 +56,7 @@ const CarouselHome: React.FC = () => {
     },
     {
       id: 4,
-      price: "$35,000",
+      price: "300.000 VN",
       brand: "VinFast",
       model: "VF 3",
       // image: vf3,

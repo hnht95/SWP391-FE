@@ -5,10 +5,12 @@ import ClickToTop from "./landing/user/component/headerComponent/ClickToTop";
 import ScrollToTopButton from "./landing/user/component/homePageComponent/ScrollToTopButton";
 import AuthProvider from "./components/AuthProvider";
 import { AuthModalProvider } from "./components/AuthModalProvider";
+// import { StationProvider } from "./contexts/StationContext";
 
 function App() {
   return (
     <Router>
+      {/* <StationProvider> */}
       <AuthProvider>
         <AuthModalProvider>
           <ScrollToTopButton />
@@ -18,6 +20,7 @@ function App() {
           </div>
         </AuthModalProvider>
       </AuthProvider>
+      {/* </StationProvider> */}
     </Router>
   );
 }

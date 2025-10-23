@@ -119,7 +119,6 @@ const AuthLayout = ({
       y: 0,
     },
   };
-
   return (
     <div className="relative h-full overflow-hidden">
       <motion.div
