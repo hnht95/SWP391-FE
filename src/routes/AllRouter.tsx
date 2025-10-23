@@ -8,7 +8,7 @@ import ForgotPasswordPage from "../auth/forgotPassword/ForgotPasswordPage";
 import LayoutStaff from "../landing/staff/LayoutStaff";
 import DashboardStaff from "../landing/staff/homepageStaffComponent/DashboardStaff";
 import VehicleHandover from "../landing/staff/homepageStaffComponent/VehicleHandover";
-import VehicleMaintain from "../landing/staff/homepageStaffComponent/VehicleMaintain";
+
 import StaffReport from "../landing/staff/homepageStaffComponent/StaffReport";
 import VehiclesStaff from "../landing/staff/homepageStaffComponent/VehiclesStaff";
 import StaffUser from "../landing/staff/homepageStaffComponent/StaffUser";
@@ -85,7 +85,7 @@ const AllRouter = () => {
         <Route path="/staff/dashboard" element={<DashboardStaff />} />
         <Route path="/staff/users" element={<StaffUser />} />
         <Route path="/staff/handover" element={<VehicleHandover />} />
-        <Route path="/staff/maintain" element={<VehicleMaintain />} />
+
         <Route path="/staff/vehicles" element={<VehiclesStaff />} />
         <Route path="/staff/reports" element={<StaffReport />} />
         <Route path="/staff/contracts" element={<ContractStaff />} />
