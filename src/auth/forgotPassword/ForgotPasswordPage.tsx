@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { FaEnvelope, FaArrowLeft } from "react-icons/fa";
 import { motion, type Variants } from "framer-motion";
 import AuthLayout from "../AuthLayout";
+import { forgotPassword } from "../../service/apiUser/API";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
@@ -9,7 +10,7 @@ const ForgotPasswordPage = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({ email: "" });
 
@@ -28,25 +29,60 @@ const ForgotPasswordPage = () => {
       return;
     }
 
-    // Simulate API call
+    // ✅ Real API call
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await forgotPassword(emailValue);
+
+      console.log("✅ Forgot password response:", response);
+
+      // ✅ Check response format
+      if (response?.success) {
+        // Success - show success screen
+        setIsSubmitted(true);
+        setEmail(emailValue);
+      } else {
+        // Handle unexpected response
+        setErrors({
+          email:
+            response?.message ||
+            "Failed to send reset email. Please try again.",
+        });
+      }
+    } catch (error) {
+      console.error("❌ Forgot password error:", error);
+
+      // Handle error
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to send reset email. Please try again.";
+
+      setErrors({ email: errorMessage });
+    } finally {
       setIsLoading(false);
-      setIsSubmitted(true);
-      // Simulate success - in real app, this would be an API call
-      console.log("Password reset email sent to:", emailValue);
-    }, 2000);
+    }
   };
 
-  const handleResendEmail = () => {
+  const handleResendEmail = async () => {
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await forgotPassword(email);
+
+      if (response?.success) {
+        alert("Password reset email has been resent!");
+      } else {
+        alert("Failed to resend email. Please try again.");
+      }
+    } catch (error) {
+      console.error("❌ Resend error:", error);
+      alert("Failed to resend email. Please try again.");
+    } finally {
       setIsLoading(false);
-      alert("Password reset email has been resent!");
-    }, 1500);
+    }
   };
 
-  // Animation variants với type Variants
+  // Animation variants
   const inputVariants: Variants = {
     initial: {
       opacity: 0,
@@ -71,7 +107,7 @@ const ForgotPasswordPage = () => {
       scale: 1,
       transition: {
         duration: 0.5,
-        ease: [0.68, -0.55, 0.265, 1.55], // Custom cubic-bezier cho back out effect
+        ease: [0.68, -0.55, 0.265, 1.55],
       },
     },
   };
@@ -80,7 +116,7 @@ const ForgotPasswordPage = () => {
   if (isSubmitted) {
     return (
       <AuthLayout
-        subtitle="We've sent a reset link to your email"
+        subtitle="We've sent a reset OTP to your email"
         bottomText="Remember your password?"
         bottomLink="/login"
         bottomLinkText="Back to Sign In"
@@ -111,14 +147,14 @@ const ForgotPasswordPage = () => {
           {/* Success Message */}
           <div className="space-y-2">
             <h3 className="text-lg font-semibold text-black">
-              Email Sent Successfully!
+              OTP Sent Successfully!
             </h3>
             <p className="text-sm text-gray-600 leading-relaxed">
-              We've sent a password reset link to <br />
+              We've sent a password reset OTP to <br />
               <span className="font-medium text-black">{email}</span>
             </p>
             <p className="text-xs text-gray-500">
-              Please check your inbox and click the link to reset your password.
+              Please check your inbox and use the OTP to reset your password.
             </p>
           </div>
 
@@ -135,7 +171,7 @@ const ForgotPasswordPage = () => {
               whileHover={!isLoading ? { scale: 1.02 } : {}}
               whileTap={!isLoading ? { scale: 0.98 } : {}}
             >
-              {isLoading ? "Sending..." : "Resend Email"}
+              {isLoading ? "Sending..." : "Resend OTP"}
             </motion.button>
 
             <motion.a
@@ -251,7 +287,7 @@ const ForgotPasswordPage = () => {
               <span className="ml-2">Sending...</span>
             </motion.div>
           ) : (
-            "Send Reset Link"
+            "Send Reset OTP"
           )}
         </motion.button>
 
