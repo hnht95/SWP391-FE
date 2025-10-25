@@ -102,9 +102,6 @@ export const getAllVehicles = async (): Promise<Vehicle[]> => {
   try {
     const response = await api.get<VehicleApiResponse>("/vehicles");
 
-    // ✅ Extract data từ response
-    console.log("API Response:", response.data);
-
     if (response.data.success && Array.isArray(response.data.data)) {
       return response.data.data;
     }

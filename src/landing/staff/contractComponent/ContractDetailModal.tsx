@@ -1,7 +1,8 @@
 import React from "react";
 import { MdClose, MdEdit, MdExtension, MdFileDownload } from "react-icons/md";
 import type { Contract } from "../../../types/contracts";
-import { getStatusBadge, getStatusText } from "./contractUtils";
+import { getStatusBadge, getStatusText } from "../../../utils/contractUtils";
+import { formatDate } from "../../../utils/dateUtils";
 
 interface ContractDetailModalProps {
   contract: Contract | null;
@@ -77,13 +78,15 @@ const ContractDetailModal: React.FC<ContractDetailModalProps> = ({
                 <label className="text-sm font-medium text-gray-600">
                   Start Date
                 </label>
-                <p className="text-gray-900">{contract.startDate}</p>
+                <p className="text-gray-900">
+                  {formatDate(contract.startDate)}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">
                   End Date
                 </label>
-                <p className="text-gray-900">{contract.endDate}</p>
+                <p className="text-gray-900">{formatDate(contract.endDate)}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">
