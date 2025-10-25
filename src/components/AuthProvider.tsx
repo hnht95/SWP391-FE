@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import type { AuthContextType, User } from "../contexts/AuthContext";
-import { logout as logoutApi } from "../service/apiUser/API";
+import { logout as logoutApi, getCurrentUser } from "../service/apiUser/API";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -16,7 +16,6 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [showGlobalLoader, setShowGlobalLoader] = useState(false);
 
   useEffect(() => {
-    // Check for existing auth on app load
     const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
 
@@ -25,14 +24,33 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const parsedUser = JSON.parse(storedUser) as User;
         setToken(storedToken);
         setUser(parsedUser);
+        fetchCurrentUser();
       } catch (error) {
         console.error("Failed to parse stored user:", error);
         localStorage.removeItem("token");
         localStorage.removeItem("user");
+        setIsLoading(false);
       }
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await getCurrentUser();
+
+      if (response?.success && response?.data) {
+        const updatedUser = response.data as User;
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error("Failed to fetch current user:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const login = (loginData: { token: string; user: User }) => {
     const { token: newToken, user: newUser } = loginData;
@@ -40,8 +58,10 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(newUser);
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
-  };
 
+    // Fetch latest user data to ensure we have populated fields
+    fetchCurrentUser();
+  };
   const logout = async () => {
     try {
       // Call logout API to invalidate token on server

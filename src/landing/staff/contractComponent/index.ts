@@ -8,7 +8,6 @@ export { default as CreateContractModal } from "./CreateContractModal";
 export { default as ContractDetailModal } from "./ContractDetailModal";
 export { default as ContractTable } from "./ContractTable";
 export { default as ContractFilters } from "./ContractFilters";
-export { default as NotificationDropdown } from "./NotificationDropdown";
 
 export {
   getStatusBadge,
@@ -16,4 +15,4 @@ export {
   getPriorityColor,
   calculateContractStats,
   type ContractStats,
-} from "./contractUtils";
+} from "../../../utils/contractUtils";

@@ -8,7 +8,8 @@ import {
   MdWarning,
 } from "react-icons/md";
 import type { Contract } from "../../../types/contracts";
-import { getStatusBadge, getStatusText } from "./contractUtils";
+import { getStatusBadge, getStatusText } from "../../../utils/contractUtils";
+import { formatDate } from "../../../utils/dateUtils";
 
 interface ContractTableProps {
   contracts: Contract[];
@@ -22,7 +23,6 @@ const ContractTable: React.FC<ContractTableProps> = ({
   onViewDetail,
 }) => {
   const tableHeaders = [
-    "Contract",
     "Company",
     "Duration",
     "Vehicles",
@@ -81,16 +81,6 @@ const ContractTable: React.FC<ContractTableProps> = ({
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">
-                        {contract.id}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Signed: {contract.signDate}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
                         {contract.companyName}
                       </div>
                       <div className="text-sm text-gray-500">
@@ -100,10 +90,10 @@ const ContractTable: React.FC<ContractTableProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {contract.startDate}
+                      {formatDate(contract.startDate)}
                     </div>
                     <div className="text-sm text-gray-500">
-                      to {contract.endDate}
+                      to {formatDate(contract.endDate)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

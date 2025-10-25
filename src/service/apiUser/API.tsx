@@ -72,6 +72,21 @@ export const logout = async () => {
     handleError(error);
   }
 };
+
+export const getCurrentUser = async () => {
+  try {
+    const response = await api.get("/users/me", {
+      params: {
+        populate: ["avatarUrl", "station"],
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export async function getAllUsers(params?: { page?: number; limit?: number }) {
   try {
     const response = await api.get("admin/users", { params });

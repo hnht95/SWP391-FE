@@ -13,7 +13,6 @@ import {
   ContractDetailModal,
   ContractTable,
   ContractFilters,
-  NotificationDropdown,
   calculateContractStats,
 } from "../contractComponent";
 
@@ -27,7 +26,7 @@ const ContractStaff = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
   // Fetch contracts from API
@@ -159,13 +158,6 @@ const ContractStaff = () => {
             </div>
 
             <div className="flex items-center space-x-4 mt-4 md:mt-0">
-              <NotificationDropdown
-                contracts={contracts}
-                isOpen={showNotifications}
-                onToggle={() => setShowNotifications(!showNotifications)}
-                onClose={() => setShowNotifications(false)}
-              />
-
               <motion.button
                 onClick={() => setIsCreateOpen(true)}
                 className="bg-gray-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"

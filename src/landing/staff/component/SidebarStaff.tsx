@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
+
 import {
   MdDashboard,
   MdSwapHoriz,
   MdSupport,
   MdChevronLeft,
   MdChevronRight,
-  // MdNotifications,
   MdKeyboardArrowDown,
   MdPerson,
   MdDirectionsCar,
@@ -27,6 +27,28 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, user } = useAuth();
+
+  // Helper function to get avatar URL
+  const getAvatarUrl = (): string | null => {
+    if (!user?.avatarUrl) {
+      return null;
+    }
+    if (
+      typeof user.avatarUrl === "object" &&
+      user.avatarUrl !== null &&
+      "url" in user.avatarUrl
+    ) {
+      return user.avatarUrl.url;
+    }
+
+    // If avatarUrl is just an ID string (not populated by backend)
+    if (typeof user.avatarUrl === "string") {
+      return null;
+    }
+    return null;
+  };
+
+  const avatarUrl = getAvatarUrl();
 
   const menuItems = [
     {
@@ -138,34 +160,50 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
             <div className="flex justify-center">
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
+                className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors overflow-hidden"
               >
-                <MdPerson className="w-4 h-4 text-white" />
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={user?.name || "User"}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <MdPerson className="w-4 h-4 text-white" />
+                )}
               </button>
             </div>
           ) : (
             <div className="space-y-3">
-              {/* <button className="w-full flex items-center justify-center px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                <MdNotifications className="w-5 h-5 mr-2" />
-                <span className="text-sm">Notifications</span>
-                <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                  3
-                </span>
-              </button> */}
-
               <div className="relative">
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                   className="w-full flex items-center px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
                 >
-                  <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center mr-3">
-                    <MdPerson className="w-4 h-4 text-white" />
+                  <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center mr-3 overflow-hidden">
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={user?.name || "User"}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <MdPerson className="w-4 h-4 text-white" />
+                    )}
                   </div>
                   <div className="flex-1 text-left">
                     <p className="text-sm font-medium text-gray-900">
                       {user?.name || "Staff Member"}
                     </p>
-                    <p className="text-xs text-gray-500">Online</p>
+                    <p className="text-xs text-gray-500">
+                      {user?.station?.name || "No Station"}
+                    </p>
                   </div>
                   <MdKeyboardArrowDown
                     className={`w-4 h-4 transition-transform duration-200 ${

@@ -30,7 +30,6 @@ const StationDropdown: React.FC<StationDropdownProps> = ({
       setApiError(null);
 
       const response = await getAllStations();
-      console.log("Fetched stations:", response);
 
       // ✅ Filter only active stations
       const activeStations = response.filter((station) => station.isActive);
