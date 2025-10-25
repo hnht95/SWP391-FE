@@ -50,7 +50,7 @@ const handleError = (error: unknown) => {
 
 interface ApiVehiclesResponse {
   success: boolean;
-  data: RawApiVehicle[];
+  items: RawApiVehicle[];
   pagination: {
     page: number;
     limit: number;
