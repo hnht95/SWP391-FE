@@ -64,13 +64,12 @@ export interface AdminBookingTransactionsResponse {
   items: BookingTransactionItem[];
 }
 
+// Request to create a booking (minimal payload for PayOS deposit flow)
 export interface CreateBookingRequest {
-  vehicle: string;
-  pickupStation: string;
-  dropoffStation: string;
-  startDate: string; // ISO
-  endDate: string; // ISO
-  rentalType: "daily" | "hourly";
+  vehicleId: string;
+  startTime: string; // ISO
+  endTime: string; // ISO
+  deposit: { provider: "payos" };
 }
 
 export interface CreateBookingResponse {

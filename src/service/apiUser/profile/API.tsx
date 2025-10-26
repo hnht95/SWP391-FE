@@ -1,30 +1,38 @@
+// service/apiUser/profile/API.tsx
 import { AxiosError } from "axios";
 import api from "../../Utils";
 
 export type UserProfile = {
-  id: string;
+  _id?: string;
+  id?: string;
   role: "renter" | "staff" | "admin";
   name: string;
   email: string;
   phone: string;
-  gender: "male" | "female";
-  isActive: boolean;
-  station: string;
+  gender?: "male" | "female";
+  isActive?: boolean;
+  station?: string;
   address?: string;
   dateOfBirth?: string;
   avatarUrl?: string;
+  avatar?: string;
   createdAt?: string;
   updatedAt?: string;
 };
 
+// Response types
 export type GetUserResponse = {
-  ok: boolean;
-  user: UserProfile;
+  success: boolean;
+  data?: UserProfile;
+  user?: UserProfile;
+  ok?: boolean;
 };
 
 export type UpdateUserResponse = {
-  ok: boolean;
-  user: UserProfile;
+  success: boolean;
+  ok?: boolean;
+  user?: UserProfile;
+  data?: UserProfile;
   message?: string;
 };
 
@@ -50,18 +58,41 @@ const handleError = (error: unknown, context: string) => {
 };
 
 /**
- * GET /api/auth/me
+ * GET /api/users/me
  * Get current logged-in user profile
- * Response: { ok: true, user: UserProfile }
+ * Response formats:
+ * - { success: true, data: UserProfile }
+ * - { ok: true, user: UserProfile }
+ * - UserProfile (direct)
  */
-export const getCurrentUser = async (): Promise<UserProfile> => {
+export const getCurrentUser = async (): Promise<GetUserResponse> => {
   try {
-    const response = await api.get<GetUserResponse>("/auth/me");
+    const response = await api.get("/users/me");
 
-    console.log("✅ Get current user:", response.data);
+    console.log("✅ Get current user response:", response.data);
 
+    // ✅ Case 1: { success: true, data: {...} }
+    if (response.data.success && response.data.data) {
+      return {
+        success: true,
+        data: response.data.data,
+      };
+    }
+
+    // ✅ Case 2: { ok: true, user: {...} }
     if (response.data.ok && response.data.user) {
-      return response.data.user;
+      return {
+        success: true,
+        data: response.data.user,
+      };
+    }
+
+    // ✅ Case 3: Direct user object
+    if (response.data._id || response.data.id) {
+      return {
+        success: true,
+        data: response.data,
+      };
     }
 
     throw new Error("Invalid response format");
@@ -71,6 +102,10 @@ export const getCurrentUser = async (): Promise<UserProfile> => {
   }
 };
 
+/**
+ * PATCH /api/auth/{userId}
+ * Update user profile
+ */
 export const updateUserProfile = async (
   userId: string,
   data: FormData | Record<string, any>
@@ -94,8 +129,11 @@ export const updateUserProfile = async (
 
     console.log("✅ Update profile response:", response.data);
 
-    if (response.data.ok && response.data.user) {
-      return response.data.user;
+    // Handle different response formats
+    const userData = response.data.user || response.data.data || response.data;
+
+    if (userData && (userData._id || userData.id)) {
+      return userData as UserProfile;
     }
 
     throw new Error(response.data.message || "Failed to update profile");

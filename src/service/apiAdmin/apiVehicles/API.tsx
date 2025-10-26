@@ -145,11 +145,8 @@ export const getAllVehicles = async (): Promise<Vehicle[]> => {
   try {
     const response = await api.get<VehicleApiResponse>("/vehicles");
 
-    console.log("API Response:", response.data);
-
-    // ✅ Backend trả về items[] thay vì data[]
-    if (response.data.success && Array.isArray(response.data.items)) {
-      return response.data.items;
+    if (response.data.success && Array.isArray(response.data)) {
+      return response.data;
     }
 
     throw new Error("Invalid API response format");

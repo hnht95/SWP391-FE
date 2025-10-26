@@ -60,14 +60,18 @@ const Vehicles: React.FC = () => {
           getAllStations(),
         ]);
 
-        console.log("Fetched vehicles:", vehiclesData);
-        console.log("Fetched stations:", stationsData);
-
         setVehicles(vehiclesData);
         setStations(stationsData);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch data:", err);
-        setError(err.message || "Failed to load data. Please try again.");
+        if (typeof err === "object" && err !== null && "message" in err) {
+          setError(
+            (err as { message?: string }).message ||
+              "Failed to load data. Please try again."
+          );
+        } else {
+          setError("Failed to load data. Please try again.");
+        }
       } finally {
         setLoading(false);
       }
