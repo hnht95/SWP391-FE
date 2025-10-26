@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MdPerson, MdAdd } from "react-icons/md";
-import { getAllUsers } from "../../../service/apiUser/API";
+import { getAllUsers } from "../../../service/apiUser/auth/API";
 import {
   UserStatsCards,
   UserFilters,

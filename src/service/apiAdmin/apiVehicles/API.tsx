@@ -2,45 +2,87 @@
 import { AxiosError } from "axios";
 import api from "../../Utils";
 
-// ✅ Vehicle interface - đã có station (ObjectId string)
+// ✅ Photo interface
+export interface VehiclePhoto {
+  _id: string;
+  url: string;
+  type: "image";
+}
+
+// ✅ Station interface đầy đủ (khi populated)
+export interface StationData {
+  _id: string;
+  name: string;
+  code: string;
+  location: {
+    address: string;
+    lat: number;
+    lng: number;
+  };
+  isActive: boolean;
+}
+
+// ✅ Vehicle interface đầy đủ theo response thực tế
 export interface Vehicle {
   _id: string;
+
+  // Owner & Company
+  owner: "internal" | "company";
+  company: string | null;
+
+  // Valuation
+  valuation: {
+    valueVND: number;
+    lastUpdatedAt?: string;
+  };
+
+  // Basic info
   plateNumber: string;
-  vin: string;
+  vin?: string;
   brand: string;
   model: string;
   year: number;
   color: string;
+
+  // Technical specs
   batteryCapacity: number;
   mileage: number;
   pricePerDay: number;
   pricePerHour: number;
+
+  // Status
   status: "available" | "reserved" | "rented" | "maintenance";
-  station: string; // ObjectId của station
+
+  // Station - có thể là string (ObjectId) hoặc object (populated)
+  station: string | StationData;
+
+  // Photos
+  defaultPhotos: {
+    exterior: VehiclePhoto[];
+    interior: VehiclePhoto[];
+  };
+
+  // Ratings
   ratingAvg?: number;
   ratingCount?: number;
 
-  // ✅ Optional fields có thể có từ populate
-  stationData?: {
-    _id: string;
-    name: string;
-    location: string;
-  };
+  // Tags & Maintenance
+  tags: string[];
+  maintenanceHistory: any[];
 
+  // Timestamps
   createdAt?: string;
   updatedAt?: string;
 }
 
-// ✅ API Response format
+// ✅ API Response format - sửa từ data sang items
 interface VehicleApiResponse {
   success: boolean;
-  data: Vehicle[];
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  items: Vehicle[]; // ✅ Backend trả về items[] chứ không phải data[]
 }
 
 export interface TransferLog {
@@ -98,12 +140,13 @@ const handleError = (error: unknown) => {
   throw new Error(errorMessage);
 };
 
+// ✅ Sửa từ response.data.data sang response.data.items
 export const getAllVehicles = async (): Promise<Vehicle[]> => {
   try {
     const response = await api.get<VehicleApiResponse>("/vehicles");
 
-    if (response.data.success && Array.isArray(response.data.data)) {
-      return response.data.data;
+    if (response.data.success && Array.isArray(response.data)) {
+      return response.data;
     }
 
     throw new Error("Invalid API response format");

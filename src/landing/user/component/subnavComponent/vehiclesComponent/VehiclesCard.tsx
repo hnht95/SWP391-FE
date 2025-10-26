@@ -2,13 +2,12 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import type { Vehicle } from "../../../../../service/apiAdmin/apiVehicles/API";
-// import type { Station } from "../../../../../service/apiStations/API";
-import { FaBatteryFull, FaCar, FaStar, FaMapMarkerAlt } from "react-icons/fa";
 import type { Station } from "../../../../../service/apiAdmin/apiStation/API";
+import { FaBatteryFull, FaCar, FaStar, FaMapMarkerAlt } from "react-icons/fa";
 
 interface VehiclesCardProps {
   car: Vehicle;
-  station?: Station; // ✅ Receive station from parent
+  station?: Station;
 }
 
 const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
@@ -32,20 +31,72 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
     );
   };
 
+  // ✅ Get vehicle image from defaultPhotos.exterior or interior
+  const getVehicleImage = (): string | null => {
+    // Try exterior first
+    if (car.defaultPhotos?.exterior?.[0]?.url) {
+      return car.defaultPhotos.exterior[0].url;
+    }
+    // Fallback to interior
+    if (car.defaultPhotos?.interior?.[0]?.url) {
+      return car.defaultPhotos.interior[0].url;
+    }
+    return null;
+  };
+
+  const vehicleImage = getVehicleImage();
+
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300">
-      {/* Image */}
-      <div className="relative h-48 bg-gray-200 flex items-center justify-center">
-        <FaCar className="text-gray-400 text-6xl" />
+      {/* ✅ Image Section - với ảnh thật hoặc placeholder */}
+      <div className="relative h-48 bg-gray-200 overflow-hidden">
+        {vehicleImage ? (
+          <img
+            src={vehicleImage}
+            alt={`${car.brand} ${car.model}`}
+            className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+            onError={(e) => {
+              // ✅ Fallback nếu ảnh lỗi
+              e.currentTarget.style.display = "none";
+              const parent = e.currentTarget.parentElement;
+              if (parent) {
+                parent.innerHTML = `
+                  <div class="w-full h-full flex items-center justify-center bg-gray-200">
+                    <svg class="text-gray-400 w-16 h-16" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
+                      <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
+                    </svg>
+                  </div>
+                `;
+              }
+            }}
+          />
+        ) : (
+          // ✅ Placeholder khi không có ảnh
+          <div className="w-full h-full flex items-center justify-center">
+            <FaCar className="text-gray-400 text-6xl" />
+          </div>
+        )}
 
         {/* Status Badge */}
         <div
           className={`absolute top-2 right-2 px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(
             car.status
-          )}`}
+          )} backdrop-blur-sm bg-opacity-90`}
         >
           {car.status.charAt(0).toUpperCase() + car.status.slice(1)}
         </div>
+
+        {/* ✅ Image count indicator (nếu có nhiều ảnh) */}
+        {car.defaultPhotos &&
+          (car.defaultPhotos.exterior.length > 1 ||
+            car.defaultPhotos.interior.length > 0) && (
+            <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+              📷{" "}
+              {car.defaultPhotos.exterior.length +
+                car.defaultPhotos.interior.length}
+            </div>
+          )}
       </div>
 
       {/* Content */}
@@ -86,7 +137,7 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
           </div>
 
           {/* Rating */}
-          {car.ratingAvg ? (
+          {car.ratingAvg && car.ratingAvg > 0 ? (
             <div className="flex items-center gap-1">
               <span className="font-semibold">{car.ratingAvg.toFixed(1)}</span>
               <FaStar className="text-yellow-400" />
