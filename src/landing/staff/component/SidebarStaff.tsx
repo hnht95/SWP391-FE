@@ -4,7 +4,6 @@ import { useAuth } from "../../../hooks/useAuth";
 import {
   MdDashboard,
   MdSwapHoriz,
-  MdSettings,
   MdSupport,
   MdChevronLeft,
   MdChevronRight,
@@ -44,15 +43,9 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
     },
     {
       id: "handover",
-      label: "Vehicle Handover",
+      label: "Booking",
       icon: <MdSwapHoriz className="w-5 h-5" />,
       path: "/staff/handover",
-    },
-    {
-      id: "maintain",
-      label: "Vehicle Maintenance",
-      icon: <MdSettings className="w-5 h-5" />,
-      path: "/staff/maintain",
     },
     {
       id: "vehicles",

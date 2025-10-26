@@ -11,7 +11,10 @@ import {
   getAllVehicles,
   type Vehicle as APIVehicle,
 } from "../../../../service/apiAdmin/apiVehicles/API";
-import { getAllStations, type Station } from "../../../../service/apiAdmin/apiStation/API";
+import {
+  getAllStations,
+  type Station,
+} from "../../../../service/apiAdmin/apiStation/API";
 
 const VehiclesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -22,73 +25,103 @@ const VehiclesManagement: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
-  const [vehicleToUpdate, setVehicleToUpdate] = useState<APIVehicle | null>(null);
+  const [vehicleToUpdate, setVehicleToUpdate] = useState<APIVehicle | null>(
+    null
+  );
   const [vehicles, setVehicles] = useState<UIVehicle[]>([]);
   const [apiVehicles, setApiVehicles] = useState<APIVehicle[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Get station name by ID
-  const getStationName = (stationId: string): string => {
-    const station = stations.find(s => s._id === stationId);
-    console.log("Looking for station:", stationId, "Found:", station?.name);
-    return station?.name || stationId; // Fallback to ID if station not found
+  // ✅ Create station map for quick lookup
+  const stationMap = React.useMemo(() => {
+    return stations.reduce((map, station) => {
+      map[station._id] = station;
+      return map;
+    }, {} as Record<string, Station>);
+  }, [stations]);
+
+  // ✅ Get station name by ID or from populated object
+  const getStationName = (station: string | Station | any): string => {
+    // If station is already an object with name
+    if (typeof station === "object" && station !== null && station.name) {
+      return station.name;
+    }
+
+    // If station is string ID, lookup from map
+    if (typeof station === "string") {
+      return stationMap[station]?.name || station;
+    }
+
+    return "Unknown Station";
   };
 
   // ✅ Map API Vehicle to UI Vehicle
-  const mapApiToUi = (v: APIVehicle): UIVehicle => ({
-    id: v._id,
-    brand: v.brand,
-    model: v.model,
-    licensePlate: v.plateNumber,
-    status: v.status as "available" | "rented" | "maintenance" | "reserved",
-    location: v.stationData?.name || getStationName(v.station), // Use station name
-    dailyRate: v.pricePerDay,
-    lastService: v.updatedAt || v.createdAt || "",
-    batteryCapacity: v.batteryCapacity,
-    createdAt: v.createdAt,
-    updatedAt: v.updatedAt,
-  });
+  const mapApiToUi = (v: APIVehicle): UIVehicle => {
+    const locationName = getStationName(v.station);
+
+    return {
+      id: v._id,
+      brand: v.brand,
+      model: v.model,
+      licensePlate: v.plateNumber,
+      status: v.status as "available" | "rented" | "maintenance" | "reserved",
+      location: locationName,
+      dailyRate: v.pricePerDay,
+      lastService: v.updatedAt || v.createdAt || "",
+      batteryCapacity: v.batteryCapacity,
+      createdAt: v.createdAt,
+      updatedAt: v.updatedAt,
+    };
+  };
 
   const fetchVehicles = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch both vehicles and stations
+      // ✅ Fetch both vehicles and stations in parallel
       const [vehiclesData, stationsData] = await Promise.all([
         getAllVehicles(),
-        getAllStations()
+        getAllStations(),
       ]);
-      
+
+      console.log("✅ Fetched vehicles:", vehiclesData.length);
+      console.log("✅ Fetched stations:", stationsData.length);
+
       setApiVehicles(vehiclesData);
       setStations(stationsData);
-      setVehicles(vehiclesData.map(mapApiToUi));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load vehicles");
-      console.error("Fetch vehicles error:", e);
+      console.error("❌ Fetch vehicles error:", e);
     } finally {
       setLoading(false);
     }
   };
+
+  // ✅ Map vehicles to UI format when stations or vehicles change
+  useEffect(() => {
+    if (apiVehicles.length > 0 && stations.length > 0) {
+      const mappedVehicles = apiVehicles.map(mapApiToUi);
+      console.log("✅ Mapped vehicles:", mappedVehicles);
+      setVehicles(mappedVehicles);
+    }
+  }, [apiVehicles, stations, stationMap]);
 
   useEffect(() => {
     fetchVehicles();
   }, []);
 
   const handleEdit = (vehicle: UIVehicle) => {
-    // Show detail modal first
     setSelectedVehicle(vehicle);
     setIsModalOpen(true);
   };
 
   const handleEditFromDetail = (vehicle: UIVehicle) => {
-    // Close detail modal and open update modal
     setIsModalOpen(false);
     setSelectedVehicle(null);
-    
-    // Find the full API vehicle data for editing
-    const apiVehicle = apiVehicles.find(v => v._id === vehicle.id);
+
+    const apiVehicle = apiVehicles.find((v) => v._id === vehicle.id);
     if (apiVehicle) {
       setVehicleToUpdate(apiVehicle);
       setIsUpdateOpen(true);
@@ -96,14 +129,17 @@ const VehiclesManagement: React.FC = () => {
   };
 
   const handleDelete = (vehicleId: string) => {
+    // TODO: Implement delete API call
     console.log("Delete vehicle:", vehicleId);
   };
 
   const handleTransfer = (vehicle: UIVehicle) => {
+    // TODO: Implement transfer API call
     console.log("Transfer vehicle:", vehicle.id);
   };
 
   const handleMarkMaintenance = (vehicle: UIVehicle) => {
+    // TODO: Implement maintenance status update API call
     console.log("Mark maintenance:", vehicle.id);
   };
 
@@ -132,7 +168,8 @@ const VehiclesManagement: React.FC = () => {
     const matchesSearch =
       vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.licensePlate.toLowerCase().includes(searchTerm.toLowerCase());
+      vehicle.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.location.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       selectedStatus === "all" || vehicle.status === selectedStatus;
@@ -188,7 +225,11 @@ const VehiclesManagement: React.FC = () => {
           ) : filteredVehicles.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8 text-center">
               <MdDirectionsCar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600">No vehicles found</p>
+              <p className="text-gray-600">
+                {vehicles.length === 0
+                  ? "No vehicles in the system"
+                  : "No vehicles match your search criteria"}
+              </p>
             </div>
           ) : (
             <VehicleTable

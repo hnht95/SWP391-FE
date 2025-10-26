@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import AuthLayout from "../AuthLayout";
 import { useAuth } from "../../hooks/useAuth";
-import { login } from "../../service/apiUser/API";
+import { login } from "../../service/apiUser/auth/API";
 
 const LoginPage = () => {
   const navigate = useNavigate();

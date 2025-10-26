@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { FaEnvelope, FaArrowLeft } from "react-icons/fa";
 import { motion, type Variants } from "framer-motion";
 import AuthLayout from "../AuthLayout";
-import { forgotPassword } from "../../service/apiUser/API";
+import { forgotPassword } from "../../service/apiUser/auth/API";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
