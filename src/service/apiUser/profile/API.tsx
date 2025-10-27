@@ -11,13 +11,23 @@ export type UserProfile = {
   phone: string;
   gender?: "male" | "female";
   isActive?: boolean;
-  station?: string;
+  station?: string | null;
   address?: string;
   dateOfBirth?: string;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   avatar?: string;
   createdAt?: string;
   updatedAt?: string;
+  defaultRefundWallet?: string | null;
+  // ✅ Added KYC nested object
+  kyc?: {
+    verified: boolean;
+    idFrontImage?: string | null;
+    idBackImage?: string | null;
+    licenseFrontImage?: string | null;
+    licenseBackImage?: string | null;
+    verifiedAt?: string | null;
+  };
 };
 
 // Response types
@@ -103,20 +113,20 @@ export const getCurrentUser = async (): Promise<GetUserResponse> => {
 };
 
 /**
- * PATCH /api/auth/{userId}
- * Update user profile
+ * PATCH /api/users/me
+ * Update user profile (name, phone, gender, avatar)
+ * Supports both JSON and FormData (for file uploads)
  */
 export const updateUserProfile = async (
-  userId: string,
-  data: FormData | Record<string, any>
-): Promise<UserProfile> => {
+  data: FormData | Partial<UserProfile>
+): Promise<UpdateUserResponse> => {
   try {
-    console.log("Updating user profile:", userId);
+    console.log("Updating user profile");
 
     const isFormData = data instanceof FormData;
 
     const response = await api.patch<UpdateUserResponse>(
-      `/auth/${userId}`,
+      `/users/me`,
       data,
       isFormData
         ? {
@@ -129,16 +139,87 @@ export const updateUserProfile = async (
 
     console.log("✅ Update profile response:", response.data);
 
-    // Handle different response formats
-    const userData = response.data.user || response.data.data || response.data;
-
-    if (userData && (userData._id || userData.id)) {
-      return userData as UserProfile;
-    }
-
-    throw new Error(response.data.message || "Failed to update profile");
+    return response.data;
   } catch (error) {
     handleError(error, "updateUserProfile");
+    throw error;
+  }
+};
+
+/**
+ * ✅ NEW: PATCH /api/users/me
+ * Upload KYC documents (ID card, license, etc.)
+ * Requires FormData with multiple image files
+ */
+export const uploadKYCDocuments = async (documents: {
+  idFrontImage?: File;
+  idBackImage?: File;
+  licenseFrontImage?: File;
+  licenseBackImage?: File;
+}): Promise<UpdateUserResponse> => {
+  try {
+    console.log("Uploading KYC documents");
+
+    const formData = new FormData();
+
+    // ✅ Append KYC documents based on API spec
+    if (documents.idFrontImage) {
+      formData.append("kyc.idFrontImage", documents.idFrontImage);
+    }
+    if (documents.idBackImage) {
+      formData.append("kyc.idBackImage", documents.idBackImage);
+    }
+    if (documents.licenseFrontImage) {
+      formData.append("kyc.licenseFrontImage", documents.licenseFrontImage);
+    }
+    if (documents.licenseBackImage) {
+      formData.append("kyc.licenseBackImage", documents.licenseBackImage);
+    }
+
+    const response = await api.patch<UpdateUserResponse>(
+      `/users/me`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    console.log("✅ KYC upload response:", response.data);
+
+    return response.data;
+  } catch (error) {
+    handleError(error, "uploadKYCDocuments");
+    throw error;
+  }
+};
+
+/**
+ * ✅ Helper: Upload single avatar image
+ */
+export const uploadAvatar = async (file: File): Promise<UpdateUserResponse> => {
+  try {
+    console.log("Uploading avatar");
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const response = await api.patch<UpdateUserResponse>(
+      `/users/me`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    console.log("✅ Avatar upload response:", response.data);
+
+    return response.data;
+  } catch (error) {
+    handleError(error, "uploadAvatar");
     throw error;
   }
 };
@@ -155,6 +236,8 @@ export const getRoleLabel = (role: UserProfile["role"]): string => {
 const profileApi = {
   getCurrentUser,
   updateUserProfile,
+  uploadKYCDocuments, // ✅ New
+  uploadAvatar, // ✅ New
   getRoleLabel,
 };
 
