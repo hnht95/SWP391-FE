@@ -6,8 +6,16 @@ import {
   type Vehicle,
 } from "../../../service/apiAdmin/apiVehicles/API";
 import type { Station } from "../../../service/apiAdmin/apiStation/API";
-import { createBooking } from "../../../service/apiBooking/API";
-import { FaArrowLeft, FaBatteryFull, FaCheckCircle } from "react-icons/fa";
+import {
+  createBooking,
+  type CreateBookingResponse,
+} from "../../../service/apiBooking/API";
+import {
+  FaArrowLeft,
+  FaBatteryFull,
+  FaCheckCircle,
+  FaExclamationTriangle,
+} from "react-icons/fa";
 
 const BookingPage: React.FC = () => {
   const { vehicleId } = useParams<{ vehicleId: string }>();
@@ -19,9 +27,13 @@ const BookingPage: React.FC = () => {
   const [error, setError] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
 
-  // ✅ Modal state
+  // ✅ Modal states
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [bookingData, setBookingData] = useState<any>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [bookingData, setBookingData] = useState<CreateBookingResponse | null>(
+    null
+  );
 
   const [pickupDate, setPickupDate] = useState("");
   const [pickupTime, setPickupTime] = useState("10:00");
@@ -63,8 +75,11 @@ const BookingPage: React.FC = () => {
   };
 
   const duration = calculateDuration();
-  const depositAmount = 500000;
   const totalPrice = vehicle ? duration * vehicle.pricePerDay : 0;
+  // ✅ Calculate 5% deposit from vehicle valuation (backend expects this)
+  const depositAmount = vehicle?.valuation?.valueVND
+    ? Math.round(vehicle.valuation.valueVND * 0.05)
+    : 0;
   const grandTotal = totalPrice + depositAmount;
 
   // ✅ Handle form submission
@@ -72,7 +87,8 @@ const BookingPage: React.FC = () => {
     e.preventDefault();
 
     if (!pickupDate || !returnDate) {
-      alert("Please select pickup and return dates");
+      setErrorMessage("Please select pickup and return dates");
+      setShowErrorModal(true);
       return;
     }
 
@@ -80,12 +96,23 @@ const BookingPage: React.FC = () => {
     const endDateTime = new Date(`${returnDate}T${returnTime}`);
 
     if (endDateTime <= startDateTime) {
-      alert("Return date/time must be after pickup date/time");
+      setErrorMessage("Return date/time must be after pickup date/time");
+      setShowErrorModal(true);
       return;
     }
 
     if (!vehicleId) {
-      alert("Vehicle ID is missing");
+      setErrorMessage("Vehicle ID is missing");
+      setShowErrorModal(true);
+      return;
+    }
+
+    // ✅ CRITICAL: Check vehicle valuation before submitting
+    if (!vehicle?.valuation?.valueVND || vehicle.valuation.valueVND === 0) {
+      setErrorMessage(
+        "This vehicle cannot be booked because valuation information is missing. Please contact support or try another vehicle."
+      );
+      setShowErrorModal(true);
       return;
     }
 
@@ -103,26 +130,46 @@ const BookingPage: React.FC = () => {
 
       console.log("✅ Booking created successfully:", response);
 
-      // ✅ Store booking data and show modal
       setBookingData(response);
       setShowSuccessModal(true);
     } catch (err: any) {
       console.error("❌ Failed to create booking:", err);
-      alert(err.message || "Failed to create booking. Please try again.");
+
+      let message = "Failed to create booking. Please try again.";
+
+      if (err.message) {
+        if (err.message.includes("valuation")) {
+          message =
+            "This vehicle cannot be booked because valuation information is missing. Please contact support.";
+        } else {
+          message = err.message;
+        }
+      }
+
+      setErrorMessage(message);
+      setShowErrorModal(true);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ✅ Navigate to payment page
+  // ✅ Navigate to payment page with proper ID handling
   const handleProceedToPayment = () => {
-    if (bookingData?.bookingId) {
-      navigate(`/payment/${bookingData.bookingId}`, {
+    if (!bookingData) return;
+
+    // ✅ Handle both _id and bookingId
+    const bookingIdToUse = bookingData._id; // Already normalized in API
+
+    if (bookingIdToUse) {
+      navigate(`/payment/${bookingIdToUse}`, {
         state: {
           booking: bookingData,
           vehicle: vehicle,
         },
       });
+    } else {
+      setErrorMessage("Booking ID is missing. Please try again.");
+      setShowErrorModal(true);
     }
   };
 
@@ -164,8 +211,6 @@ const BookingPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 py-20">
         <div className="max-w-4xl mx-auto px-4">
           <div className="bg-white rounded-lg shadow-lg p-6">
-            {/* ... Rest of the form (same as before) ... */}
-
             <div className="border-b pb-4 mb-6">
               <h1 className="text-3xl font-bold text-gray-900">
                 Book Your Vehicle
@@ -175,8 +220,26 @@ const BookingPage: React.FC = () => {
               </p>
             </div>
 
+            {/* ✅ Warning if no valuation */}
+            {(!vehicle.valuation?.valueVND ||
+              vehicle.valuation.valueVND === 0) && (
+              <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <FaExclamationTriangle className="text-red-600 text-xl mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-red-800 font-semibold">
+                    Vehicle Not Available
+                  </p>
+                  <p className="text-red-700 text-sm mt-1">
+                    This vehicle cannot be booked because valuation information
+                    is missing. Please contact support or choose another
+                    vehicle.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Vehicle Info - Same as before */}
+              {/* Vehicle Info */}
               <div>
                 <h2 className="text-xl font-semibold mb-4">Vehicle Details</h2>
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -252,7 +315,7 @@ const BookingPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Booking Form - Same as before */}
+              {/* Booking Form */}
               <div>
                 <h2 className="text-xl font-semibold mb-4">
                   Booking Information
@@ -343,9 +406,12 @@ const BookingPage: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-blue-600">
-                        <span>Deposit (5%):</span>
+                        <span>Deposit (5% of vehicle value):</span>
                         <span className="font-medium">
-                          {depositAmount.toLocaleString()}đ
+                          {depositAmount > 0
+                            ? depositAmount.toLocaleString()
+                            : "N/A"}
+                          đ
                         </span>
                       </div>
                       <hr className="my-2 border-gray-300" />
@@ -370,9 +436,17 @@ const BookingPage: React.FC = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={vehicle.status !== "available" || submitting}
+                      disabled={
+                        vehicle.status !== "available" ||
+                        submitting ||
+                        !vehicle.valuation?.valueVND ||
+                        vehicle.valuation.valueVND === 0
+                      }
                       className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors inline-flex items-center justify-center gap-2 ${
-                        vehicle.status === "available" && !submitting
+                        vehicle.status === "available" &&
+                        !submitting &&
+                        vehicle.valuation?.valueVND &&
+                        vehicle.valuation.valueVND > 0
                           ? "bg-black text-white hover:bg-gray-800"
                           : "bg-gray-300 text-gray-500 cursor-not-allowed"
                       }`}
@@ -382,7 +456,9 @@ const BookingPage: React.FC = () => {
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
                           Processing...
                         </>
-                      ) : vehicle.status === "available" ? (
+                      ) : vehicle.status === "available" &&
+                        vehicle.valuation?.valueVND &&
+                        vehicle.valuation.valueVND > 0 ? (
                         "Proceed to Payment"
                       ) : (
                         "Not Available"
@@ -417,7 +493,7 @@ const BookingPage: React.FC = () => {
                 <div className="space-y-1 text-sm">
                   <p>
                     <span className="text-gray-600">Booking ID:</span>{" "}
-                    <span className="font-mono">{bookingData.bookingId}</span>
+                    <span className="font-mono">{bookingData._id}</span>
                   </p>
                   <p>
                     <span className="text-gray-600">Status:</span>{" "}
@@ -439,6 +515,28 @@ const BookingPage: React.FC = () => {
                 className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors"
               >
                 Proceed to Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Error Modal */}
+      {showErrorModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fade-in">
+            <div className="text-center">
+              <FaExclamationTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Booking Failed
+              </h2>
+              <p className="text-gray-600 mb-6">{errorMessage}</p>
+
+              <button
+                onClick={() => setShowErrorModal(false)}
+                className="w-full bg-red-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>
