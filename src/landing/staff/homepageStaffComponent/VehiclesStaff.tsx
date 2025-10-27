@@ -25,7 +25,9 @@ import {
   MdEdit,
   MdDelete,
 } from "react-icons/md";
+import CustomSelect from "../../../components/CustomSelect";
 import type { ApiVehicle, Vehicle } from "../../../types/vehicle";
+import { formatDate } from "../../../utils/dateUtils";
 
 const VehiclesStaff = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -40,13 +42,14 @@ const VehiclesStaff = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // Memoize initial params to prevent hook re-initialization
   const initialParams = useMemo(
     () => ({
       page: 1,
-      limit: 20,
+      limit: 10,
     }),
     []
   );
@@ -119,10 +122,10 @@ const VehiclesStaff = () => {
     }
 
     filterParams.page = currentPage;
-    filterParams.limit = 20;
+    filterParams.limit = pageSize;
 
     fetchVehicles(filterParams);
-  }, [selectedStatus, currentPage, fetchVehicles]);
+  }, [selectedStatus, currentPage, pageSize, fetchVehicles]);
 
   const filteredVehicles = vehicles?.filter((vehicle) => {
     const matchesSearch =
@@ -196,15 +199,13 @@ const VehiclesStaff = () => {
     }
   };
 
+  // Stats based on all vehicles data from API
   const stats = {
-    total: pagination?.total || vehicles?.length || 0, // Use total from API pagination
+    total: pagination?.total || vehicles?.length || 0,
     available: vehicles?.filter((v) => v.status === "available")?.length || 0,
-    rented: vehicles?.filter((v) => v.status === "rented")?.length || 0,
+    active: vehicles?.filter((v) => v.status === "rented")?.length || 0,
     maintenance:
       vehicles?.filter((v) => v.status === "maintenance")?.length || 0,
-    lowBattery:
-      vehicles?.filter((v) => v.batteryLevel && v.batteryLevel < 30)?.length ||
-      0, // Based on battery level instead of status
   };
 
   const handleVehicleClick = async (vehicle: Vehicle) => {
@@ -335,37 +336,49 @@ const VehiclesStaff = () => {
             value: stats.total,
             icon: MdDirectionsCar,
             color: "blue",
-            subtitle: "Fleet size",
+            subtitle: "Total fleet size",
+            bgColor: "bg-blue-100",
+            iconColor: "text-blue-600",
           },
           {
             title: "Available",
             value: stats.available,
             icon: () => (
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">✓</span>
+              </div>
             ),
             color: "green",
             subtitle: "Ready for rental",
+            bgColor: "bg-green-100",
+            iconColor: "text-green-600",
           },
           {
-            title: "Currently Rented",
-            value: stats.rented,
+            title: "Active",
+            value: stats.active,
             icon: () => (
-              <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+              <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">⟳</span>
+              </div>
             ),
-            color: "gray",
-            subtitle: "In use",
+            color: "orange",
+            subtitle: "Currently rented",
+            bgColor: "bg-orange-100",
+            iconColor: "text-orange-600",
           },
           {
-            title: "Needs Attention",
-            value: stats.maintenance + stats.lowBattery,
+            title: "Maintenance",
+            value: stats.maintenance,
             icon: MdBuild,
             color: "red",
-            subtitle: "Maintenance + Low Battery",
+            subtitle: "Under maintenance",
+            bgColor: "bg-red-100",
+            iconColor: "text-red-600",
           },
         ].map((stat, index) => (
           <motion.div
             key={stat.title}
-            className="bg-white rounded-xl p-6 border border-gray-100"
+            className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 + index * 0.1 }}
@@ -375,24 +388,28 @@ const VehiclesStaff = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <motion.div
-                className={`w-12 h-12 bg-${stat.color}-100 rounded-lg flex items-center justify-center`}
-                whileHover={{ rotate: 5 }}
+                className={`w-12 h-12 ${stat.bgColor} rounded-lg flex items-center justify-center`}
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.5 }}
               >
                 {typeof stat.icon === "function"
                   ? stat.icon({})
                   : React.createElement(stat.icon, {
-                      className: `w-6 h-6 text-${stat.color}-600`,
+                      className: `w-6 h-6 ${stat.iconColor}`,
                     })}
               </motion.div>
               <motion.span
-                className="text-2xl font-bold text-gray-900"
-                initial={{ scale: 1 }}
-                whileHover={{ scale: 1.1 }}
+                className="text-3xl font-bold text-gray-900"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", delay: 0.4 + index * 0.1 }}
               >
                 {stat.value}
               </motion.span>
             </div>
-            <h3 className="text-gray-600 text-sm mb-2">{stat.title}</h3>
+            <h3 className="text-gray-700 text-sm font-semibold mb-1">
+              {stat.title}
+            </h3>
             <p className="text-xs text-gray-500">{stat.subtitle}</p>
           </motion.div>
         ))}
@@ -400,43 +417,73 @@ const VehiclesStaff = () => {
 
       {/* Vehicle List */}
       <motion.div
-        className="bg-white rounded-xl border border-gray-100 mb-6"
+        className="bg-white rounded-xl border border-gray-100 mb-6 shadow"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
       >
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-            <motion.h3
-              className="text-lg font-semibold text-gray-900"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.7 }}
             >
-              Vehicle List
-            </motion.h3>
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <span className="mr-2">🚗</span>
+                Vehicle List
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {filteredVehicles?.length || 0} vehicle(s) found
+              </p>
+            </motion.div>
 
             <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
               {/* Search */}
-              <div className="relative">
-                <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <motion.div
+                className="relative"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+              >
+                <MdSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Search by license plate, model, brand..."
+                  placeholder="Search vehicles..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  className="pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:shadow-md"
                 />
-              </div>
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <MdClose className="w-4 h-4" />
+                  </button>
+                )}
+              </motion.div>
 
               <motion.button
                 onClick={() => setShowFilters(!showFilters)}
-                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
+                className={`${
+                  showFilters
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-700 border-2 border-gray-200"
+                } px-5 py-3 rounded-xl hover:shadow-md transition-all flex items-center space-x-2 font-medium`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9 }}
               >
                 <MdFilterList className="w-5 h-5" />
                 <span>Filters</span>
+                {showFilters && (
+                  <span className="bg-white text-blue-600 text-xs px-2 py-0.5 rounded-full font-bold">
+                    ON
+                  </span>
+                )}
               </motion.button>
             </div>
           </div>
@@ -444,18 +491,37 @@ const VehiclesStaff = () => {
           <AnimatePresence>
             {showFilters && (
               <motion.div
-                className="mt-4 pt-4 border-t border-gray-100"
+                className="mt-6 pt-6 border-t-2 border-gray-100"
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-semibold text-gray-700 flex items-center">
+                    <MdFilterList className="w-4 h-4 mr-2" />
+                    Filter Options
+                  </h4>
+                  <button
+                    onClick={() => {
+                      setSelectedType("all");
+                      setSelectedStatus("all");
+                      setSelectedBattery("all");
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                  >
+                    <MdClose className="w-4 h-4 mr-1" />
+                    Clear All
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
                     {
                       label: "Vehicle Type",
                       value: selectedType,
                       onChange: setSelectedType,
+                      icon: "🏍️",
                       options: [
                         { value: "all", label: "All Types" },
                         { value: "scooter", label: "Scooter" },
@@ -467,6 +533,7 @@ const VehiclesStaff = () => {
                       label: "Status",
                       value: selectedStatus,
                       onChange: setSelectedStatus,
+                      icon: "📊",
                       options: [
                         { value: "all", label: "All Status" },
                         { value: "available", label: "Available" },
@@ -479,6 +546,7 @@ const VehiclesStaff = () => {
                       label: "Battery Level",
                       value: selectedBattery,
                       onChange: setSelectedBattery,
+                      icon: "🔋",
                       options: [
                         { value: "all", label: "All Levels" },
                         { value: "high", label: "High (70%+)" },
@@ -492,21 +560,31 @@ const VehiclesStaff = () => {
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
+                      className="relative"
                     >
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="flex items-center text-sm font-semibold text-gray-700 mb-2">
+                        <span className="mr-2">{filter.icon}</span>
                         {filter.label}
                       </label>
-                      <select
-                        value={filter.value}
-                        onChange={(e) => filter.onChange(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                      >
-                        {filter.options.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <CustomSelect
+                          value={filter.value}
+                          onChange={(val) => filter.onChange(String(val))}
+                          options={filter.options}
+                          className="w-full"
+                        />
+                      </div>
+                      {filter.value !== "all" && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="absolute -top-2 -right-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center"
+                        >
+                          <span className="text-white text-xs font-bold">
+                            ✓
+                          </span>
+                        </motion.div>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -1058,9 +1136,7 @@ const VehiclesStaff = () => {
                                         {maintenance.description}
                                       </p>
                                       <p className="text-xs text-gray-500 mt-1">
-                                        {new Date(
-                                          maintenance.reportedAt
-                                        ).toLocaleDateString("vi-VN")}
+                                        {formatDate(maintenance.reportedAt)}
                                       </p>
                                     </div>
                                   ))}
@@ -1235,44 +1311,166 @@ const VehiclesStaff = () => {
       </AnimatePresence>
 
       {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
+      {pagination && pagination.total > 0 && (
         <motion.div
-          className="mt-8 flex justify-center items-center space-x-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          className="mt-8 bg-white rounded-xl border border-gray-100 p-6 shadow-sm"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <button
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              currentPage === 1
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            Previous
-          </button>
+          <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+            {/* Page Size Selector */}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-600">Rows per page:</span>
+              <CustomSelect
+                value={pageSize}
+                onChange={(val) => {
+                  setPageSize(Number(val));
+                  setCurrentPage(1);
+                }}
+                options={[10, 20, 50, 100].map((s) => ({
+                  value: s,
+                  label: String(s),
+                }))}
+                className="min-w-[6rem]"
+              />
+              <span className="text-sm text-gray-500">
+                Showing {(currentPage - 1) * pageSize + 1}-
+                {Math.min(currentPage * pageSize, pagination.total)} of{" "}
+                {pagination.total}
+              </span>
+            </div>
 
-          <span className="text-gray-600">
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
+            {/* Pagination Controls */}
+            <div className="flex items-center space-x-2">
+              {/* First Page */}
+              <motion.button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className={`p-2 rounded-lg transition-colors ${
+                  currentPage === 1
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-500"
+                }`}
+                whileHover={{ scale: currentPage === 1 ? 1 : 1.05 }}
+                whileTap={{ scale: currentPage === 1 ? 1 : 0.95 }}
+              >
+                «
+              </motion.button>
 
-          <button
-            onClick={() =>
-              setCurrentPage((prev) =>
-                Math.min(pagination.totalPages, prev + 1)
-              )
-            }
-            disabled={currentPage === pagination.totalPages}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              currentPage === pagination.totalPages
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            Next
-          </button>
+              {/* Previous */}
+              <motion.button
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+                  currentPage === 1
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-500"
+                }`}
+                whileHover={{ scale: currentPage === 1 ? 1 : 1.05 }}
+                whileTap={{ scale: currentPage === 1 ? 1 : 0.95 }}
+              >
+                Previous
+              </motion.button>
+
+              {/* Page Numbers */}
+              <div className="hidden sm:flex items-center space-x-1">
+                {[...Array(Math.min(5, pagination.totalPages))].map(
+                  (_, idx) => {
+                    let pageNum;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = idx + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = idx + 1;
+                    } else if (currentPage >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + idx;
+                    } else {
+                      pageNum = currentPage - 2 + idx;
+                    }
+
+                    return (
+                      <motion.button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-10 h-10 rounded-lg font-medium transition-all ${
+                          currentPage === pageNum
+                            ? "bg-blue-600 text-white shadow-lg"
+                            : "bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-500"
+                        }`}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        {pageNum}
+                      </motion.button>
+                    );
+                  }
+                )}
+              </div>
+
+              {/* Current Page Input (Mobile) */}
+              <div className="sm:hidden flex items-center space-x-2">
+                <input
+                  type="number"
+                  min="1"
+                  max={pagination.totalPages}
+                  value={currentPage}
+                  onChange={(e) => {
+                    const page = Math.max(
+                      1,
+                      Math.min(pagination.totalPages, Number(e.target.value))
+                    );
+                    if (!isNaN(page)) setCurrentPage(page);
+                  }}
+                  className="w-16 px-2 py-2 border-2 border-gray-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
+                />
+                <span className="text-sm text-gray-600">
+                  / {pagination.totalPages}
+                </span>
+              </div>
+
+              {/* Next */}
+              <motion.button
+                onClick={() =>
+                  setCurrentPage((prev) =>
+                    Math.min(pagination.totalPages, prev + 1)
+                  )
+                }
+                disabled={currentPage === pagination.totalPages}
+                className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+                  currentPage === pagination.totalPages
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-500"
+                }`}
+                whileHover={{
+                  scale: currentPage === pagination.totalPages ? 1 : 1.05,
+                }}
+                whileTap={{
+                  scale: currentPage === pagination.totalPages ? 1 : 0.95,
+                }}
+              >
+                Next
+              </motion.button>
+
+              {/* Last Page */}
+              <motion.button
+                onClick={() => setCurrentPage(pagination.totalPages)}
+                disabled={currentPage === pagination.totalPages}
+                className={`p-2 rounded-lg transition-colors ${
+                  currentPage === pagination.totalPages
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-500"
+                }`}
+                whileHover={{
+                  scale: currentPage === pagination.totalPages ? 1 : 1.05,
+                }}
+                whileTap={{
+                  scale: currentPage === pagination.totalPages ? 1 : 0.95,
+                }}
+              >
+                »
+              </motion.button>
+            </div>
+          </div>
         </motion.div>
       )}
     </div>

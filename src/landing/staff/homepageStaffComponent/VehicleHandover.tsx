@@ -1,165 +1,183 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MdAdd,
   MdDirectionsCar,
-  MdBuild,
   MdAssignment,
   MdVisibility,
   MdClose,
   MdCalendarToday,
   MdPerson,
   MdLocationOn,
-  MdPhone,
-  MdEmail,
 } from "react-icons/md";
+import CustomSelect from "../../../components/CustomSelect";
+import staffAPI from "../../../service/apiStaff/API";
+import type {
+  BookingTransactionItem,
+  AdminBookingTransactionsResponse,
+} from "../../../types/bookings";
+import type { RawApiVehicle } from "../../../types/vehicle";
+import { getAllStations } from "../../../service/apiAdmin/apiStation/API";
+import { formatDateTime } from "../../../utils/dateUtils";
 
 const VehicleHandover = () => {
-  const [selectedHandover, setSelectedHandover] = useState<Handover | null>(
-    null
-  );
+  // List state
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [items, setItems] = useState<BookingTransactionItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Detail modal
+  const [selected, setSelected] = useState<BookingTransactionItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Create modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-
-  const vehicleStats = {
-    available: 25,
-    maintenance: 8,
-    rented: 40,
-  };
-
-  interface Handover {
-    id: string;
-    customerName: string;
-    vehicle: string;
-    pickupDate: string;
-    returnDate: string;
-    status: "complete" | "cancel";
-    totalAmount: string;
-    customerPhone: string;
-    customerEmail: string;
-    pickupLocation: string;
-    returnLocation: string;
-    notes: string;
-  }
-
-  const recentHandoversSample: Handover[] = [
-    {
-      id: "HO001",
-      customerName: "John Doe",
-      vehicle: "Toyota Camry - ABC123",
-      pickupDate: "2024-12-15",
-      returnDate: "2024-12-20",
-      status: "complete",
-      totalAmount: "$450",
-      customerPhone: "+1 234 567 8900",
-      customerEmail: "john.doe@email.com",
-      pickupLocation: "Station A - District 1",
-      returnLocation: "Station A - District 1",
-      notes: "Vehicle in excellent condition",
-    },
-    {
-      id: "HO002",
-      customerName: "Jane Smith",
-      vehicle: "Honda Civic - XYZ789",
-      pickupDate: "2024-12-14",
-      returnDate: "2024-12-19",
-      status: "complete",
-      totalAmount: "$380",
-      customerPhone: "+1 234 567 8901",
-      customerEmail: "jane.smith@email.com",
-      pickupLocation: "Station B - District 3",
-      returnLocation: "Station B - District 3",
-      notes: "Minor scratch on left door",
-    },
-  ];
-
-  const [handovers, setHandovers] = useState<Handover[]>(recentHandoversSample);
+  const [vehiclesOptions, setVehiclesOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+  // Only need _id and name for select options; avoid cross-module Station type mismatch
+  const [stations, setStations] = useState<
+    Array<{ _id: string; name: string }>
+  >([]);
+  const stationOptions = useMemo(
+    () => stations.map((s) => ({ value: s._id, label: s.name })),
+    [stations]
+  );
   const [createForm, setCreateForm] = useState({
-    customerName: "",
-    customerPhone: "",
-    customerEmail: "",
-    vehicleId: "",
-    vehicleName: "",
-    color: "",
-    pickupDate: "",
-    returnDate: "",
-    pickupLocation: "",
-    returnLocation: "",
-    preStatus: "",
-    deposit: 0,
-    pricePerDay: 0,
+    vehicle: "",
+    pickupStation: "",
+    dropoffStation: "",
+    startDate: "",
+    endDate: "",
+    rentalType: "daily" as "daily" | "hourly",
   });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  // success toast (optional): omitted in UI to keep screen clean
 
   const openCreateModal = () => setIsCreateOpen(true);
   const closeCreateModal = () => setIsCreateOpen(false);
 
-  // Sample vehicles list for selection (replace with API data when available)
-  const sampleVehicles = [
-    { id: "V001", name: "Toyota Camry - ABC123", pricePerDay: 90 },
-    { id: "V002", name: "Honda Civic - XYZ789", pricePerDay: 80 },
-    { id: "V003", name: "BMW X5 - BMW456", pricePerDay: 120 },
-  ];
+  const totalPages = Math.max(1, Math.ceil(total / limit));
 
-  const calculateTotal = (pickup: string, ret: string, pricePerDay: number) => {
-    if (!pickup || !ret) return 0;
-    const p = new Date(pickup);
-    const r = new Date(ret);
-    const diffMs = r.getTime() - p.getTime();
-    const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-    return days * pricePerDay;
-  };
-
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const id = `HO${Math.floor(1000 + Math.random() * 9000)}`;
-    const total = calculateTotal(
-      createForm.pickupDate,
-      createForm.returnDate,
-      createForm.pricePerDay
-    );
-    const newHandover: Handover = {
-      id,
-      customerName: createForm.customerName,
-      vehicle: `${createForm.vehicleName} ${
-        createForm.color ? `- ${createForm.color}` : ""
-      }`,
-      pickupDate: createForm.pickupDate.split("T")[0],
-      returnDate: createForm.returnDate.split("T")[0],
-      status: "complete",
-      totalAmount: `$${total}`,
-      customerPhone: createForm.customerPhone,
-      customerEmail: createForm.customerEmail,
-      pickupLocation: createForm.pickupLocation,
-      returnLocation: createForm.returnLocation,
-      notes: `Pre-status: ${createForm.preStatus} | Deposit: $${createForm.deposit}`,
+  // Fetch list
+  useEffect(() => {
+    let active = true;
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res: AdminBookingTransactionsResponse =
+          await staffAPI.getAdminBookingTransactions({ page, limit });
+        if (!active) return;
+        setItems(res.items || []);
+        setTotal(res.total || 0);
+      } catch (e: unknown) {
+        if (!active) return;
+        const msg = e instanceof Error ? e.message : "Failed to load bookings";
+        setError(msg);
+      } finally {
+        if (active) setLoading(false);
+      }
     };
-    setHandovers((s) => [newHandover, ...s]);
-    setCreateForm({
-      customerName: "",
-      customerPhone: "",
-      customerEmail: "",
-      vehicleId: "",
-      vehicleName: "",
-      color: "",
-      pickupDate: "",
-      returnDate: "",
-      pickupLocation: "",
-      returnLocation: "",
-      preStatus: "",
-      deposit: 0,
-      pricePerDay: 0,
-    });
-    closeCreateModal();
+    fetchData();
+    return () => {
+      active = false;
+    };
+  }, [page, limit]);
+
+  // Prefetch vehicles + stations for create modal
+  useEffect(() => {
+    let active = true;
+    const preload = async () => {
+      try {
+        const [vehiclesRes, stationsRes] = await Promise.all([
+          staffAPI.getVehicles({ page: 1, limit: 100 }),
+          getAllStations(),
+        ]);
+        if (!active) return;
+        setVehiclesOptions(
+          (vehiclesRes?.data || []).map((v: RawApiVehicle) => ({
+            value: v._id,
+            label: `${v.brand} ${v.model} - ${v.plateNumber}`,
+          }))
+        );
+        setStations(stationsRes || []);
+      } catch (err) {
+        // Silently ignore preload failures; the create modal can still show inputs
+        console.warn("Preload vehicles/stations failed", err);
+      }
+    };
+    preload();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const stats = useMemo(() => {
+    const byStatus = items.reduce((acc, it) => {
+      acc[it.status] = (acc[it.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    return {
+      total,
+      cancelled: byStatus["cancelled"] || 0,
+      expired: byStatus["expired"] || 0,
+      created: byStatus["created"] || 0,
+    };
+  }, [items, total]);
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    setCreateError(null);
+    // no toast state
+    try {
+      // Call new booking API payload shape (vehicleId, startTime, endTime, deposit)
+      await staffAPI.createBooking({
+        vehicleId: createForm.vehicle,
+        startTime: new Date(createForm.startDate).toISOString(),
+        endTime: new Date(createForm.endDate).toISOString(),
+        deposit: { provider: "payos" },
+      });
+      // Refresh list
+      setPage(1);
+      const res = await staffAPI.getAdminBookingTransactions({
+        page: 1,
+        limit,
+      });
+      setItems(res.items || []);
+      setTotal(res.total || 0);
+      // Reset form
+      setCreateForm({
+        vehicle: "",
+        pickupStation: "",
+        dropoffStation: "",
+        startDate: "",
+        endDate: "",
+        rentalType: "daily",
+      });
+      // optional: show toast here
+      closeCreateModal();
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to create booking";
+      setCreateError(msg);
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const handleHandoverClick = (handover: Handover) => {
-    setSelectedHandover(handover);
+  const openDetail = (b: BookingTransactionItem) => {
+    setSelected(b);
     setIsModalOpen(true);
   };
-
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedHandover(null);
+    setSelected(null);
   };
 
   return (
@@ -193,6 +211,12 @@ const VehicleHandover = () => {
         </div>
       </motion.div>
 
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-100">
+          {error}
+        </div>
+      )}
+
       {/* Stats Cards */}
       <motion.div
         className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
@@ -202,65 +226,46 @@ const VehicleHandover = () => {
       >
         {[
           {
-            title: "Available Vehicles",
-            value: vehicleStats.available,
-            icon: MdDirectionsCar,
-            color: "green",
-            subtitle: "Ready for rental",
-            progress: 75,
-          },
-          {
-            title: "Under Maintenance",
-            value: vehicleStats.maintenance,
-            icon: MdBuild,
-            color: "yellow",
-            subtitle: "Maintenance in progress",
-            progress: 25,
-          },
-          {
-            title: "Currently Rented",
-            value: vehicleStats.rented,
+            title: "Total Bookings",
+            value: stats.total,
             icon: MdAssignment,
-            color: "blue",
-            subtitle: "On rental",
-            progress: 80,
+            bg: "bg-blue-100",
+            fg: "text-blue-600",
           },
-        ].map((stat, index) => (
+          {
+            title: "Cancelled",
+            value: stats.cancelled,
+            icon: MdAssignment,
+            bg: "bg-red-100",
+            fg: "text-red-600",
+          },
+          {
+            title: "Expired",
+            value: stats.expired,
+            icon: MdDirectionsCar,
+            bg: "bg-amber-100",
+            fg: "text-amber-600",
+          },
+        ].map((s, i) => (
           <motion.div
-            key={stat.title}
+            key={s.title}
             className="bg-white rounded-xl p-6 border border-gray-100 hover:border-gray-200 transition-colors"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 + index * 0.1 }}
-            whileHover={{
-              y: -5,
-            }}
+            transition={{ delay: 0.3 + i * 0.1 }}
+            whileHover={{ y: -4 }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <motion.div
-                className={`w-12 h-12 bg-${stat.color}-100 rounded-lg flex items-center justify-center`}
-                whileHover={{ rotate: 5 }}
+            <div className="flex items-center justify-between mb-3">
+              <div
+                className={`w-12 h-12 ${s.bg} rounded-lg flex items-center justify-center`}
               >
-                <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
-              </motion.div>
-              <motion.span
-                className="text-2xl font-bold text-gray-900"
-                initial={{ scale: 1 }}
-                whileHover={{ scale: 1.1 }}
-              >
-                {stat.value}
-              </motion.span>
+                <s.icon className={`w-6 h-6 ${s.fg}`} />
+              </div>
+              <span className="text-2xl font-bold text-gray-900">
+                {s.value}
+              </span>
             </div>
-            <h3 className="text-gray-600 text-sm mb-2">{stat.title}</h3>
-            <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
-              <motion.div
-                className={`bg-${stat.color}-500 h-2 rounded-full`}
-                initial={{ width: 0 }}
-                animate={{ width: `${stat.progress}%` }}
-                transition={{ delay: 0.5 + index * 0.1, duration: 1 }}
-              />
-            </div>
-            <p className="text-xs text-gray-500">{stat.subtitle}</p>
+            <h3 className="text-gray-600 text-sm">{s.title}</h3>
           </motion.div>
         ))}
       </motion.div>
@@ -279,7 +284,7 @@ const VehicleHandover = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7 }}
           >
-            Recent Handovers
+            Booking Transactions
           </motion.h3>
         </div>
 
@@ -288,12 +293,12 @@ const VehicleHandover = () => {
             <thead className="bg-gray-50">
               <tr>
                 {[
-                  "Handover ID",
-                  "Customer Name",
+                  "Booking ID",
+                  "Renter",
                   "Vehicle",
-                  "Pickup Date",
-                  "Return Date",
+                  "Station",
                   "Status",
+                  "Created",
                   "Action",
                 ].map((header, index) => (
                   <motion.th
@@ -309,75 +314,292 @@ const VehicleHandover = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {handovers.map((handover, index) => (
-                <motion.tr
-                  key={index}
-                  className="hover:bg-gray-50 transition-colors"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.9 + index * 0.1 }}
-                  whileHover={{ x: 5 }}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <motion.button
-                      onClick={() => handleHandoverClick(handover)}
-                      className="text-sm font-medium text-gray-900 hover:text-gray-700 underline"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      {handover.id}
-                    </motion.button>
+              {loading && (
+                <tr>
+                  <td className="px-6 py-6 text-sm text-gray-500" colSpan={7}>
+                    Loading bookings...
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {handover.customerName}
+                </tr>
+              )}
+              {!loading && items.length === 0 && (
+                <tr>
+                  <td className="px-6 py-6 text-sm text-gray-500" colSpan={7}>
+                    No bookings found.
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {handover.vehicle}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {handover.pickupDate}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {handover.returnDate}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <motion.span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        handover.status === "complete"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 1 + index * 0.1 }}
-                    >
-                      {handover.status === "complete"
-                        ? "Completed"
-                        : "Cancelled"}
-                    </motion.span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <motion.button
-                      onClick={() => handleHandoverClick(handover)}
-                      className="text-gray-600 hover:text-gray-900 transition-colors"
-                      whileHover={{ scale: 1.2 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <MdVisibility className="w-5 h-5" />
-                    </motion.button>
-                  </td>
-                </motion.tr>
-              ))}
+                </tr>
+              )}
+              {!loading &&
+                items.map((b, index) => (
+                  <motion.tr
+                    key={b._id}
+                    className="hover:bg-gray-50 transition-colors"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.9 + index * 0.05 }}
+                    whileHover={{ x: 4 }}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => openDetail(b)}
+                        className="text-sm font-medium text-gray-900 hover:text-blue-600 underline"
+                      >
+                        {b.bookingId}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {b.renterInfo?.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {b.vehicleInfo?.brand} {b.vehicleInfo?.model} -{" "}
+                      {b.vehicleInfo?.plateNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {b.stationInfo?.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          b.status === "cancelled"
+                            ? "bg-red-100 text-red-700"
+                            : b.status === "expired"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        {b.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {formatDateTime(b.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => openDetail(b)}
+                        className="text-gray-600 hover:text-gray-900"
+                        title="View details"
+                      >
+                        <MdVisibility className="w-5 h-5" />
+                      </button>
+                    </td>
+                  </motion.tr>
+                ))}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between p-4 border-t border-gray-100">
+          <div className="text-sm text-gray-600">
+            Showing {total === 0 ? 0 : (page - 1) * limit + 1}-
+            {Math.min(page * limit, total)} of {total}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || loading}
+            >
+              Prev
+            </button>
+            <span className="text-sm text-gray-700">
+              Page {page} / {totalPages}
+            </span>
+            <button
+              className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || loading}
+            >
+              Next
+            </button>
+            <CustomSelect
+              className="ml-2"
+              value={limit}
+              options={[
+                { value: 5, label: "5 / page" },
+                { value: 10, label: "10 / page" },
+                { value: 20, label: "20 / page" },
+                { value: 50, label: "50 / page" },
+              ]}
+              onChange={(v: string | number) => {
+                setLimit(Number(v));
+                setPage(1);
+              }}
+            />
+          </div>
+        </div>
       </motion.div>
 
-      {/* Modal */}
+      {/* Create Booking Modal */}
       <AnimatePresence>
-        {isModalOpen && selectedHandover && (
+        {isCreateOpen && (
           <motion.div
-            className="fixed inset-0 bg-black/40 bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-xl max-w-3xl w-full p-6 overflow-y-auto"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Create Booking</h2>
+                <button
+                  onClick={closeCreateModal}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <MdClose className="w-6 h-6" />
+                </button>
+              </div>
+              {createError && (
+                <div className="mb-3 px-3 py-2 rounded bg-red-50 text-red-700 text-sm">
+                  {createError}
+                </div>
+              )}
+              <form onSubmit={handleCreateSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Vehicle
+                    </label>
+                    <CustomSelect
+                      className="mt-1"
+                      value={createForm.vehicle}
+                      options={[
+                        { value: "", label: "Select vehicle" },
+                        ...vehiclesOptions,
+                      ]}
+                      onChange={(v: string | number) =>
+                        setCreateForm((s) => ({ ...s, vehicle: String(v) }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Rental Type
+                    </label>
+                    <CustomSelect
+                      className="mt-1"
+                      value={createForm.rentalType}
+                      options={[
+                        { value: "daily", label: "Daily" },
+                        { value: "hourly", label: "Hourly" },
+                      ]}
+                      onChange={(v: string | number) =>
+                        setCreateForm((s) => ({
+                          ...s,
+                          rentalType: v as "daily" | "hourly",
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Pickup Station
+                    </label>
+                    <CustomSelect
+                      className="mt-1"
+                      value={createForm.pickupStation}
+                      options={[
+                        { value: "", label: "Select station" },
+                        ...stationOptions,
+                      ]}
+                      onChange={(v: string | number) =>
+                        setCreateForm((s) => ({
+                          ...s,
+                          pickupStation: String(v),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Dropoff Station
+                    </label>
+                    <CustomSelect
+                      className="mt-1"
+                      value={createForm.dropoffStation}
+                      options={[
+                        { value: "", label: "Same as pickup" },
+                        ...stationOptions,
+                      ]}
+                      onChange={(v: string | number) =>
+                        setCreateForm((s) => ({
+                          ...s,
+                          dropoffStation: String(v),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Start
+                    </label>
+                    <input
+                      type="datetime-local"
+                      className="w-full mt-1 border-2 rounded-xl px-3 py-2"
+                      value={createForm.startDate}
+                      onChange={(e) =>
+                        setCreateForm((s) => ({
+                          ...s,
+                          startDate: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      End
+                    </label>
+                    <input
+                      type="datetime-local"
+                      className="w-full mt-1 border-2 rounded-xl px-3 py-2"
+                      value={createForm.endDate}
+                      onChange={(e) =>
+                        setCreateForm((s) => ({
+                          ...s,
+                          endDate: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={closeCreateModal}
+                    className="px-4 py-2 border rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creating}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-60"
+                  >
+                    {creating ? "Creating..." : "Create Booking"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {isModalOpen && selected && (
+          <motion.div
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -389,412 +611,84 @@ const VehicleHandover = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
             >
-              {/* Modal content remains the same but wrapped in motion.div for sections */}
               <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Handover Details - {selectedHandover.id}
+                  Booking Details - {selected.bookingId}
                 </h2>
-                <motion.button
+                <button
                   onClick={closeModal}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  className="text-gray-400 hover:text-gray-600"
                 >
                   <MdClose className="w-6 h-6" />
-                </motion.button>
+                </button>
               </div>
 
-              <div className="p-6 space-y-6 h-[calc(100%_-_165.6px)] overflow-y-auto">
+              <div className="p-6 space-y-6 h-[calc(100%_-_100px)] overflow-y-auto">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                     <MdPerson className="w-5 h-5 mr-2" />
-                    Customer Information
+                    Renter
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Name
-                      </label>
-                      <p className="text-gray-900">
-                        {/* Create Handover Modal */}
-                        <AnimatePresence>
-                          {isCreateOpen && (
-                            <motion.div
-                              className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                            >
-                              <motion.div
-                                className="bg-white rounded-xl max-w-3xl w-full p-6 overflow-y-auto"
-                                initial={{ scale: 0.95, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                exit={{ scale: 0.95, opacity: 0 }}
-                              >
-                                <div className="flex items-center justify-between mb-4">
-                                  <h2 className="text-xl font-semibold">
-                                    Create Vehicle Handover
-                                  </h2>
-                                  <button
-                                    onClick={closeCreateModal}
-                                    className="text-gray-500 hover:text-gray-700"
-                                  >
-                                    Close
-                                  </button>
-                                </div>
-
-                                <form
-                                  onSubmit={handleCreateSubmit}
-                                  className="space-y-4"
-                                >
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-600">
-                                        Select Vehicle
-                                      </label>
-                                      <select
-                                        className="w-full mt-1 border rounded px-3 py-2"
-                                        value={createForm.vehicleId}
-                                        onChange={(e) => {
-                                          const v = sampleVehicles.find(
-                                            (s) => s.id === e.target.value
-                                          );
-                                          setCreateForm((s) => ({
-                                            ...s,
-                                            vehicleId: e.target.value,
-                                            vehicleName: v?.name || "",
-                                            pricePerDay: v?.pricePerDay || 0,
-                                          }));
-                                        }}
-                                      >
-                                        <option value="">
-                                          -- Select vehicle --
-                                        </option>
-                                        {sampleVehicles.map((v) => (
-                                          <option key={v.id} value={v.id}>
-                                            {v.name} - ${v.pricePerDay}/day
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
-
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-600">
-                                        Color
-                                      </label>
-                                      <input
-                                        className="w-full mt-1 border rounded px-3 py-2"
-                                        value={createForm.color}
-                                        onChange={(e) =>
-                                          setCreateForm((s) => ({
-                                            ...s,
-                                            color: e.target.value,
-                                          }))
-                                        }
-                                        placeholder="e.g. Red"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-600">
-                                        Pickup Date & Time
-                                      </label>
-                                      <input
-                                        type="datetime-local"
-                                        className="w-full mt-1 border rounded px-3 py-2"
-                                        value={createForm.pickupDate}
-                                        onChange={(e) =>
-                                          setCreateForm((s) => ({
-                                            ...s,
-                                            pickupDate: e.target.value,
-                                          }))
-                                        }
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-600">
-                                        Return Date & Time
-                                      </label>
-                                      <input
-                                        type="datetime-local"
-                                        className="w-full mt-1 border rounded px-3 py-2"
-                                        value={createForm.returnDate}
-                                        onChange={(e) =>
-                                          setCreateForm((s) => ({
-                                            ...s,
-                                            returnDate: e.target.value,
-                                          }))
-                                        }
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-600">
-                                        Customer Name
-                                      </label>
-                                      <input
-                                        className="w-full mt-1 border rounded px-3 py-2"
-                                        value={createForm.customerName}
-                                        onChange={(e) =>
-                                          setCreateForm((s) => ({
-                                            ...s,
-                                            customerName: e.target.value,
-                                          }))
-                                        }
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-600">
-                                        Customer Phone
-                                      </label>
-                                      <input
-                                        className="w-full mt-1 border rounded px-3 py-2"
-                                        value={createForm.customerPhone}
-                                        onChange={(e) =>
-                                          setCreateForm((s) => ({
-                                            ...s,
-                                            customerPhone: e.target.value,
-                                          }))
-                                        }
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div>
-                                    <label className="text-sm font-medium text-gray-600">
-                                      Customer Email
-                                    </label>
-                                    <input
-                                      className="w-full mt-1 border rounded px-3 py-2"
-                                      value={createForm.customerEmail}
-                                      onChange={(e) =>
-                                        setCreateForm((s) => ({
-                                          ...s,
-                                          customerEmail: e.target.value,
-                                        }))
-                                      }
-                                    />
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-600">
-                                        Deposit ($)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        className="w-full mt-1 border rounded px-3 py-2"
-                                        value={createForm.deposit}
-                                        onChange={(e) =>
-                                          setCreateForm((s) => ({
-                                            ...s,
-                                            deposit: Number(e.target.value),
-                                          }))
-                                        }
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-600">
-                                        Pre-rental Status
-                                      </label>
-                                      <input
-                                        className="w-full mt-1 border rounded px-3 py-2"
-                                        value={createForm.preStatus}
-                                        onChange={(e) =>
-                                          setCreateForm((s) => ({
-                                            ...s,
-                                            preStatus: e.target.value,
-                                          }))
-                                        }
-                                        placeholder="e.g. scratches, battery 80%"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-600">
-                                        Price Per Day ($)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        className="w-full mt-1 border rounded px-3 py-2"
-                                        value={createForm.pricePerDay}
-                                        onChange={(e) =>
-                                          setCreateForm((s) => ({
-                                            ...s,
-                                            pricePerDay: Number(e.target.value),
-                                          }))
-                                        }
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <p className="text-sm text-gray-600">
-                                        Total Estimated
-                                      </p>
-                                      <p className="text-xl font-bold">
-                                        $
-                                        {calculateTotal(
-                                          createForm.pickupDate,
-                                          createForm.returnDate,
-                                          createForm.pricePerDay
-                                        )}
-                                      </p>
-                                    </div>
-                                    <div className="space-x-2">
-                                      <button
-                                        type="button"
-                                        onClick={closeCreateModal}
-                                        className="px-4 py-2 border rounded"
-                                      >
-                                        Cancel
-                                      </button>
-                                      <button
-                                        type="submit"
-                                        className="px-4 py-2 bg-blue-600 text-white rounded"
-                                      >
-                                        Create
-                                      </button>
-                                    </div>
-                                  </div>
-                                </form>
-                              </motion.div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                        {selectedHandover.customerName}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Phone
-                      </label>
-                      <p className="text-gray-900 flex items-center">
-                        <MdPhone className="w-4 h-4 mr-1" />
-                        {selectedHandover.customerPhone}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Email
-                      </label>
-                      <p className="text-gray-900 flex items-center">
-                        <MdEmail className="w-4 h-4 mr-1" />
-                        {selectedHandover.customerEmail}
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-900">
+                    <p>
+                      <span className="text-gray-600">Name: </span>
+                      {selected.renterInfo?.name}
+                    </p>
+                    <p>
+                      <span className="text-gray-600">Phone: </span>
+                      {selected.renterInfo?.phone}
+                    </p>
+                    <p className="md:col-span-2">
+                      <span className="text-gray-600">Email: </span>
+                      {selected.renterInfo?.email}
+                    </p>
                   </div>
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                     <MdDirectionsCar className="w-5 h-5 mr-2" />
-                    Vehicle Information
+                    Vehicle
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Vehicle
-                      </label>
-                      <p className="text-gray-900">
-                        {selectedHandover.vehicle}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Total Amount
-                      </label>
-                      <p className="text-gray-900 font-semibold">
-                        {selectedHandover.totalAmount}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                    <MdCalendarToday className="w-5 h-5 mr-2" />
-                    Rental Period
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Pickup Date
-                      </label>
-                      <p className="text-gray-900">
-                        {selectedHandover.pickupDate}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Return Date
-                      </label>
-                      <p className="text-gray-900">
-                        {selectedHandover.returnDate}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Pickup Location
-                      </label>
-                      <p className="text-gray-900 flex items-center">
-                        <MdLocationOn className="w-4 h-4 mr-1" />
-                        {selectedHandover.pickupLocation}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Return Location
-                      </label>
-                      <p className="text-gray-900 flex items-center">
-                        <MdLocationOn className="w-4 h-4 mr-1" />
-                        {selectedHandover.returnLocation}
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-900">
+                    <p>
+                      {selected.vehicleInfo?.brand}{" "}
+                      {selected.vehicleInfo?.model} -{" "}
+                      {selected.vehicleInfo?.plateNumber}
+                    </p>
+                    <p className="flex items-center">
+                      <MdLocationOn className="w-4 h-4 mr-1" />
+                      {selected.stationInfo?.name}
+                    </p>
                   </div>
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Status & Notes
+                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <MdCalendarToday className="w-5 h-5 mr-2" />
+                    Meta
                   </h3>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Status
-                      </label>
-                      <div className="mt-1">
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            selectedHandover.status === "complete"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {selectedHandover.status === "complete"
-                            ? "Completed"
-                            : "Cancelled"}
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">
-                        Notes
-                      </label>
-                      <p className="text-gray-900 mt-1">
-                        {selectedHandover.notes}
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-900">
+                    <p>
+                      <span className="text-gray-600">Status: </span>
+                      {selected.status}
+                    </p>
+                    <p>
+                      <span className="text-gray-600">Created: </span>
+                      {formatDateTime(selected.createdAt)}
+                    </p>
+                    <p className="md:col-span-2">
+                      <span className="text-gray-600">Deposit: </span>
+                      {selected.deposit?.amount?.toLocaleString()}{" "}
+                      {selected.deposit?.currency}
+                    </p>
                   </div>
                 </div>
               </div>
-              <div className="p-6 border-t border-gray-100 flex justify-end space-x-3">
+              <div className="p-6 border-t border-gray-100 flex justify-end">
                 <button
                   onClick={closeModal}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                 >
                   Close
                 </button>

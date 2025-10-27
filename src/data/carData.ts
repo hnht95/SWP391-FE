@@ -1,3 +1,4 @@
+// src/data/carData.js
 import vf8 from "../assets/vehicles/vf8.png";
 import vf9 from "../assets/vehicles/vf9.png";
 export const carData = [
@@ -12,6 +13,8 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station A - Quận 1",
     type: "EV",
+    description:
+      "The Tesla Model S is a high-performance electric sedan known for its impressive range, rapid acceleration, and minimalist interior. It features a large touchscreen display and is a pioneer in the electric vehicle market, offering a blend of luxury and cutting-edge technology.",
     status: "active",
   },
   {
@@ -25,6 +28,8 @@ export const carData = [
     location: "Hà Nội",
     station: "Station D - Cầu Giấy",
     type: "EV",
+    description:
+      "The VinFast VF8 is a stylish and modern electric SUV designed for urban and suburban driving. It offers a spacious cabin, advanced driver-assistance systems, and a competitive range, making it a great choice for families and daily commutes.",
     status: "active",
   },
   {
@@ -38,6 +43,8 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station F - Hải Châu",
     type: "EV",
+    description:
+      "The BMW iX redefines the luxury electric SUV segment with its futuristic design and powerful performance. It boasts a state-of-the-art infotainment system, a luxurious interior crafted with sustainable materials, and a smooth, quiet ride.",
     status: "maintenance",
   },
   {
@@ -51,6 +58,8 @@ export const carData = [
     location: "Phan Thiết",
     station: "Station H - Mũi Né",
     type: "EV",
+    description:
+      "The Hyundai Ioniq 5 stands out with its retro-futuristic design and spacious, lounge-like interior. Built on a dedicated EV platform, it offers ultra-fast charging capabilities, a long range, and a comfortable, tech-filled driving experience.",
     status: "active",
   },
   {
@@ -64,6 +73,8 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station B - Quận 3",
     type: "EV",
+    description:
+      "The Tesla Model 3 is an affordable and popular electric sedan known for its exhilarating performance, long-range capabilities, and advanced Autopilot features. Its minimalist design and strong charging network make it a practical and exciting daily driver.",
     status: "active",
   },
   {
@@ -77,6 +88,8 @@ export const carData = [
     location: "Hà Nội",
     station: "Station E - Hoàn Kiếm",
     type: "EV",
+    description:
+      "The VinFast VF9 is a large 7-seater electric SUV perfect for bigger families. It combines spacious seating with a high-end feel and a generous driving range. The VF9 is designed to provide comfort and safety for all passengers on long journeys.",
     status: "rented",
   },
   {
@@ -90,6 +103,8 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station G - Sơn Trà",
     type: "EV",
+    description:
+      "The Audi e-tron GT is a sleek and sporty electric gran turismo. It offers breathtaking acceleration, a dynamic driving experience, and a stunning exterior design. Inside, it boasts Audi's signature high-tech and luxurious cabin.",
     status: "active",
   },
   {
@@ -103,6 +118,8 @@ export const carData = [
     location: "Phan Thiết",
     station: "Station I - Phan Thiết City",
     type: "EV",
+    description:
+      "The Mercedes EQS is the S-Class of electric vehicles. It's a top-tier luxury sedan with an incredible digital dashboard (Hyperscreen), unmatched comfort, and a class-leading range. The EQS provides a serene and sophisticated driving experience.",
     status: "active",
   },
   {
@@ -116,6 +133,8 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station C - Thủ Đức",
     type: "EV",
+    description:
+      "The Nissan Leaf is one of the most well-known and affordable electric cars. It's an excellent choice for city commuters with its easy-to-drive nature and practical hatchback design. It's a reliable and efficient entry point into the world of EVs.",
     status: "active",
   },
   {
@@ -129,6 +148,8 @@ export const carData = [
     location: "Hà Nội",
     station: "Station D - Cầu Giấy",
     type: "EV",
+    description:
+      "The Kia EV6 is a crossover that combines stunning looks with strong performance. It's built on a modern EV platform, which allows for fast charging and a long range. The interior is spacious and full of innovative technology.",
     status: "inactive",
   },
   {
@@ -142,6 +163,8 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station F - Hải Châu",
     type: "EV",
+    description:
+      "The Porsche Taycan is an electric sports car that maintains Porsche's legendary driving dynamics. It delivers supercar performance with the instant torque of an electric motor. The Taycan is a perfect mix of track-ready power and electric efficiency.",
     status: "maintenance",
   },
   {
@@ -155,6 +178,8 @@ export const carData = [
     location: "Phan Thiết",
     station: "Station H - Mũi Né",
     type: "EV",
+    description:
+      "The BYD Atto 3 is a versatile and family-friendly electric SUV. It offers a comfortable ride, a spacious interior, and a great set of standard features. The Atto 3 is known for its value and reliability, making it a popular choice.",
     status: "rented",
   },
   {
@@ -168,6 +193,8 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station B - Quận 3",
     type: "EV",
+    description:
+      "The Tesla Model X is a unique electric SUV famous for its falcon-wing doors and impressive performance. It offers seating for up to seven and is packed with technology, including a large touchscreen and advanced self-driving capabilities.",
     status: "maintenance",
   },
   {
@@ -181,6 +208,8 @@ export const carData = [
     location: "Hà Nội",
     station: "Station E - Hoàn Kiếm",
     type: "EV",
+    description:
+      "The VinFast VF6 is a compact electric crossover designed for urban adventures. It combines a nimble size with a comfortable cabin and a respectable driving range. The VF6 is a practical and efficient option for city living.",
     status: "active",
   },
   {
@@ -194,6 +223,8 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station G - Sơn Trà",
     type: "EV",
+    description:
+      "The BMW i4 is an all-electric gran coupe that delivers a sporty yet refined driving experience. It offers a perfect balance of performance and efficiency, with a sleek design and a driver-focused cockpit.",
     status: "active",
   },
   {
@@ -207,6 +238,8 @@ export const carData = [
     location: "Phan Thiết",
     station: "Station H - Mũi Né",
     type: "EV",
+    description:
+      "The Hyundai Kona Electric is a compact SUV that provides an excellent all-electric package. It has a practical size, a solid driving range, and a user-friendly interior, making it a reliable and versatile choice for many drivers.",
     status: "active",
   },
   {
@@ -220,6 +253,8 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station A - Quận 1",
     type: "EV",
+    description:
+      "The Tesla Cybertruck is a futuristic and highly durable electric pickup truck with a stainless-steel exoskeleton. It offers immense towing capacity, powerful acceleration, and a massive range. Its unique design sets it apart from all other vehicles on the road.",
     status: "active",
   },
   {
@@ -233,6 +268,8 @@ export const carData = [
     location: "Hà Nội",
     station: "Station D - Cầu Giấy",
     type: "EV",
+    description:
+      "The Lucid Air is a luxury electric sedan with a focus on efficiency and performance. It boasts the longest range of any production EV and a stunning, high-end interior. The Air is a true competitor in the premium electric vehicle market.",
     status: "active",
   },
   {
@@ -246,6 +283,8 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station F - Hải Châu",
     type: "EV",
+    description:
+      "The Ford Mustang Mach-E is an all-electric crossover that blends Mustang's iconic sporty styling with the practicality of an SUV. It offers powerful acceleration and a comfortable ride, making it a compelling choice for those who want a fun and functional EV.",
     status: "active",
   },
   {
@@ -259,6 +298,8 @@ export const carData = [
     location: "Phan Thiết",
     station: "Station I - Phan Thiết City",
     type: "EV",
+    description:
+      "The Peugeot e-2008 is a compact electric SUV with a distinctive and elegant design. It provides a comfortable and quiet driving experience, with a modern interior and a good set of features for daily use.",
     status: "rented",
   },
   {
@@ -272,6 +313,8 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station A - Quận 1",
     type: "EV",
+    description:
+      "The Volvo XC40 Recharge is a premium electric SUV that combines a compact footprint with a spacious interior and excellent safety features. It's a solid choice for drivers who value Scandinavian design and advanced technology.",
     status: "active",
   },
   {
@@ -285,6 +328,8 @@ export const carData = [
     location: "Hà Nội",
     station: "Station E - Hoàn Kiếm",
     type: "EV",
+    description:
+      "The Jaguar I-PACE is a luxury electric SUV that offers a compelling blend of performance, style, and practicality. It's known for its engaging handling and a beautifully crafted interior, providing a truly premium experience.",
     status: "active",
   },
   {
@@ -298,6 +343,8 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station B - Quận 3",
     type: "EV",
+    description:
+      "The Peugeot e-208 is a compact and stylish electric car that is perfect for urban living. It's easy to maneuver and offers a comfortable ride, with a modern and practical interior.",
     status: "active",
   },
   {
@@ -311,6 +358,8 @@ export const carData = [
     location: "Hà Nội",
     station: "Station D - Cầu Giấy",
     type: "EV",
+    description:
+      "The Renault Zoe is a popular and affordable electric city car. It provides a decent range for its size and is known for being very easy to drive and park in busy urban environments. It's a great entry-level EV.",
     status: "active",
   },
   {
@@ -324,6 +373,8 @@ export const carData = [
     location: "Huế",
     station: "Station J - Trung tâm TP",
     type: "EV",
+    description:
+      "The Subaru Solterra is a rugged electric SUV with standard all-wheel drive, making it a great option for those who live in areas with varied weather conditions. It offers a comfortable ride and a spacious cabin.",
     status: "inactive",
   },
   {
@@ -337,6 +388,8 @@ export const carData = [
     location: "Hải Phòng",
     station: "Station K - Đồ Sơn",
     type: "EV",
+    description:
+      "The Toyota bZ4X is Toyota's first dedicated electric SUV, offering a blend of reliability and modern technology. It has a spacious interior and is a great choice for those who value practicality and a comfortable ride.",
     status: "active",
   },
   {
@@ -350,6 +403,8 @@ export const carData = [
     location: "Nha Trang",
     station: "Station L - Bãi biển",
     type: "EV",
+    description:
+      "The Fisker Ocean is a sustainable electric SUV with unique features, like its 'California Mode,' which opens all windows and the sunroof at the push of a button. It has a long range and a commitment to using recycled and eco-friendly materials.",
     status: "active",
   },
   {
@@ -363,6 +418,8 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station C - Thủ Đức",
     type: "EV",
+    description:
+      "The Lotus Eletre is a hyper-SUV that blends the brand's performance heritage with the practicality of an electric SUV. It offers stunning acceleration and a dynamic driving experience while providing plenty of space and comfort.",
     status: "active",
   },
   {
@@ -376,6 +433,8 @@ export const carData = [
     location: "Đà Nẵng",
     station: "Station G - Sơn Trà",
     type: "EV",
+    description:
+      "The Polestar 2 is an electric fastback with a minimalist design and a sporty driving feel. It offers a premium interior, strong performance, and is one of the first cars with a built-in Android Automotive OS.",
     status: "active",
   },
   {
@@ -389,6 +448,8 @@ export const carData = [
     location: "Đà Lạt",
     station: "Station M - Hồ Xuân Hương",
     type: "EV",
+    description:
+      "The Polestar 3 is a sleek and aerodynamic electric SUV that focuses on performance and style. It features a sophisticated design and a long driving range, making it a great option for those who want a blend of sportiness and practicality.",
     status: "active",
   },
   {
@@ -402,6 +463,8 @@ export const carData = [
     location: "Hà Nội",
     station: "Station E - Hoàn Kiếm",
     type: "EV",
+    description:
+      "The Genesis GV60 is a luxury electric crossover that stands out with its unique 'Crystal Sphere' gear selector. It provides a smooth and quiet ride, a premium interior, and a strong set of standard features.",
     status: "active",
   },
   {
@@ -415,6 +478,8 @@ export const carData = [
     location: "Tp.HCM",
     station: "Station B - Quận 3",
     type: "EV",
+    description:
+      "The Rolls-Royce Spectre is the brand's first fully electric car, maintaining its signature luxury and silent, effortless ride. It features a stunning 'Starlight Headliner' and a powerful, smooth electric powertrain.",
     status: "active",
   },
 ];

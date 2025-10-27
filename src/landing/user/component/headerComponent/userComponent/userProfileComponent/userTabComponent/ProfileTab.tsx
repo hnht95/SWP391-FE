@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { User, Mail, Phone, CreditCard, Calendar, MapPin } from "lucide-react";
 
+// ✅ Extended interface with API data
 interface UserData {
   id: string;
   name: string;
@@ -8,6 +9,10 @@ interface UserData {
   phone: string;
   avatar?: string;
   role: "User" | "Staff" | "Admin";
+  kycVerified: boolean;
+  createdAt?: string;
+  gender?: "male" | "female";
+  address?: string;
 }
 
 interface ProfileTabProps {
@@ -15,6 +20,29 @@ interface ProfileTabProps {
 }
 
 const ProfileTab = ({ user }: ProfileTabProps) => {
+  // ✅ Format date to Vietnamese locale
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return "N/A";
+
+    try {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat("vi-VN", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).format(date);
+    } catch (error) {
+      return "N/A";
+    }
+  };
+
+  // ✅ Format gender
+  const formatGender = (gender?: "male" | "female"): string => {
+    if (!gender) return "Not specified";
+    return gender === "male" ? "Nam" : "Nữ";
+  };
+
+  // ✅ Dynamic profile fields from API
   const profileFields = [
     {
       label: "Full Name",
@@ -32,35 +60,38 @@ const ProfileTab = ({ user }: ProfileTabProps) => {
       icon: <Phone className="w-5 h-5" />,
     },
     {
-      label: "License Number",
-      value: "DL123456789",
-      icon: <CreditCard className="w-5 h-5" />,
+      label: "Gender",
+      value: formatGender(user.gender),
+      icon: <User className="w-5 h-5" />,
     },
     {
       label: "Address",
-      value: "123 Nguyen Hue Street, District 1, Ho Chi Minh City",
+      value: user.address || "Not provided",
       icon: <MapPin className="w-5 h-5" />,
     },
   ];
 
+  // ✅ Dynamic additional info from API
   const additionalInfo = [
     {
       label: "Member Since",
-      value: "January 15, 2024",
+      value: formatDate(user.createdAt),
       color: "text-blue-300",
       bgColor: "bg-blue-500/10",
       borderColor: "border-blue-500/20",
     },
     {
-      label: "Account Status",
-      value: "Verified",
-      color: "text-green-300",
-      bgColor: "bg-green-500/10",
-      borderColor: "border-green-500/20",
+      label: "KYC Status",
+      value: user.kycVerified ? "Verified ✓" : "Not Verified",
+      color: user.kycVerified ? "text-green-300" : "text-orange-300",
+      bgColor: user.kycVerified ? "bg-green-500/10" : "bg-orange-500/10",
+      borderColor: user.kycVerified
+        ? "border-green-500/20"
+        : "border-orange-500/20",
     },
     {
-      label: "Total Rentals",
-      value: "12 trips",
+      label: "Account Status",
+      value: "Active",
       color: "text-purple-300",
       bgColor: "bg-purple-500/10",
       borderColor: "border-purple-500/20",
@@ -94,10 +125,16 @@ const ProfileTab = ({ user }: ProfileTabProps) => {
         <div className="flex-1">
           <h4 className="text-xl font-bold text-black">{user.name}</h4>
           <p className="text-gray-600 text-sm">{user.email}</p>
-          <div className="flex items-center mt-2">
+          <div className="flex items-center mt-2 space-x-2">
             <span className="px-3 py-1 bg-black text-white text-xs font-medium rounded-full">
               {user.role}
             </span>
+            {user.kycVerified && (
+              <span className="px-3 py-1 bg-green-500 text-white text-xs font-medium rounded-full flex items-center space-x-1">
+                <span>✓</span>
+                <span>Verified</span>
+              </span>
+            )}
           </div>
         </div>
       </motion.div>
@@ -141,12 +178,12 @@ const ProfileTab = ({ user }: ProfileTabProps) => {
                 ease: "easeOut",
               }}
               whileHover={{ y: -4, scale: 1.02 }}
-              className={`p-6 bg-white rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 ease-out cursor-pointer`}
+              className="p-6 bg-white rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 ease-out cursor-pointer"
             >
               <div className="flex items-center space-x-3">
-                <Calendar className={`w-5 h-5 text-black`} />
+                <Calendar className="w-5 h-5 text-black" />
                 <div>
-                  <p className={`text-sm text-gray-600 font-medium`}>
+                  <p className="text-sm text-gray-600 font-medium">
                     {info.label}
                   </p>
                   <p className="text-black font-bold text-lg mt-1">

@@ -30,7 +30,14 @@ const Vehicles: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedBrand, setSelectedBrand] = useState("All");
-  const [selectedStation, setSelectedStation] = useState("All"); // ✅ NEW
+  const [selectedStation, setSelectedStation] = useState("All");
+
+  // ✅ Helper function để lấy station ID
+  const getStationId = (station: Vehicle["station"]): string | null => {
+    if (typeof station === "string") return station;
+    if (station && typeof station === "object") return station._id;
+    return null;
+  };
 
   // ✅ Set initial search term from URL params
   useEffect(() => {
@@ -53,14 +60,18 @@ const Vehicles: React.FC = () => {
           getAllStations(),
         ]);
 
-        console.log("Fetched vehicles:", vehiclesData);
-        console.log("Fetched stations:", stationsData);
-
         setVehicles(vehiclesData);
         setStations(stationsData);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch data:", err);
-        setError(err.message || "Failed to load data. Please try again.");
+        if (typeof err === "object" && err !== null && "message" in err) {
+          setError(
+            (err as { message?: string }).message ||
+              "Failed to load data. Please try again."
+          );
+        } else {
+          setError("Failed to load data. Please try again.");
+        }
       } finally {
         setLoading(false);
       }
@@ -84,14 +95,14 @@ const Vehicles: React.FC = () => {
     return ["All", ...new Set(brands)];
   }, [vehicles]);
 
-  // ✅ Get unique stations from vehicles (only stations that have vehicles)
+  // ✅ Get unique stations from vehicles (xử lý cả string và object)
   const allStations = useMemo(() => {
     if (stations.length === 0) return ["All"];
 
     // Get unique station IDs from vehicles
     const stationIds = new Set(
       vehicles
-        .map((car) => (typeof car.station === "string" ? car.station : null))
+        .map((car) => getStationId(car.station))
         .filter(Boolean) as string[]
     );
 
@@ -112,7 +123,7 @@ const Vehicles: React.FC = () => {
     "maintenance",
   ];
 
-  // ✅ Filter logic based on actual API fields
+  // ✅ Filter logic - sửa lại station filter
   const filterCars = () => {
     return vehicles.filter((car) => {
       // Search by brand + model + plate number
@@ -137,10 +148,10 @@ const Vehicles: React.FC = () => {
       const matchesBrand =
         selectedBrand === "All" || car.brand === selectedBrand;
 
-      // ✅ Station filter
+      // ✅ Station filter - xử lý cả string và object populated
       const matchesStation =
         selectedStation === "All" ||
-        (typeof car.station === "string" && car.station === selectedStation);
+        getStationId(car.station) === selectedStation;
 
       return (
         matchesSearchTerm && matchesStatus && matchesBrand && matchesStation
@@ -185,7 +196,7 @@ const Vehicles: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-10 select-none">
+    <div className="container mx-auto px-4 py-20 select-none">
       <h1 className="text-4xl font-bold text-center mb-4">
         Our Fleet of Electric Vehicles Available
       </h1>
@@ -273,9 +284,9 @@ const Vehicles: React.FC = () => {
               key={car._id}
               car={car}
               station={
-                typeof car.station === "string"
-                  ? stationMap[car.station]
-                  : undefined
+                typeof car.station === "object" && car.station !== null
+                  ? car.station // ✅ Truyền trực tiếp object station đã populate
+                  : stationMap[car.station as string] // ✅ Lookup từ map nếu là string
               }
             />
           ))}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { staffAPI, type RawApiVehicle } from "../service/apiStaff/API";
+import { staffAPI } from "../service/apiStaff/API";
+import type { RawApiVehicle } from "../types/vehicle";
 import type { ApiVehicle } from "../types/vehicle";
 
 interface VehiclesResponse {
@@ -48,8 +49,17 @@ export const useVehicles = (
     try {
       const response = await staffAPI.getVehicles(params);
 
-      // Map API response to local Vehicle interface
-      const mappedVehicles: ApiVehicle[] = response.data.map(
+      // Defensive: get vehicles array from response.items
+      const vehicleList = Array.isArray(response.items) ? response.items : [];
+
+      if (!Array.isArray(vehicleList)) {
+        setVehicles([]);
+        setPagination(response.pagination || null);
+        setCurrentParams(params);
+        throw new Error("API response does not contain items array");
+      }
+
+      const mappedVehicles: ApiVehicle[] = vehicleList.map(
         (apiVehicle: RawApiVehicle) => ({
           id: apiVehicle._id,
           name: `${apiVehicle.brand} ${apiVehicle.model}`,
@@ -76,12 +86,12 @@ export const useVehicles = (
           maintenanceHistory: apiVehicle.maintenanceHistory,
           createdAt: apiVehicle.createdAt,
           updatedAt: apiVehicle.updatedAt,
-          imageUrl: apiVehicle.defaultPhotos.exterior[0] || undefined,
+          imageUrl: apiVehicle.defaultPhotos?.exterior?.[0] || undefined,
         })
       );
 
       setVehicles(mappedVehicles);
-      setPagination(response.pagination);
+      setPagination(response.pagination || null);
       setCurrentParams(params);
     } catch (err) {
       const errorMessage =

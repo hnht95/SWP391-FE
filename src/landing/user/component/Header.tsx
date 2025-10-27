@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { MdSearch } from "react-icons/md"; // ✅ Import search icon
 import Search from "./headerComponent/Search";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 import {
@@ -140,19 +141,8 @@ export default function Header({
                   }}
                   className="group flex items-center gap-2 text-white transition duration-200 px-3 py-1 hover:brightness-200 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)] cursor-pointer"
                 >
-                  <svg
-                    className="w-6 h-5 text-white group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
+                  {/* ✅ Replace SVG with MdSearch */}
+                  <MdSearch className="w-6 h-6 text-white group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]" />
                   <span
                     className="text-[16px] font-medium group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
                     style={{ fontFamily: HEADER_STYLES.FONT_FAMILY }}
