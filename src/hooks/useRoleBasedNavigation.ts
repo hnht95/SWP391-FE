@@ -14,8 +14,7 @@ export const useRoleBasedNavigation = () => {
         return "/admin";
       case "staff":
         return "/staff";
-      case "renter":
-        return "/user";
+
       default:
         return "";
     }
@@ -40,20 +39,21 @@ export const useRoleBasedNavigation = () => {
     }
 
     if (user?.role === "renter") {
+      // Renter pages mostly mirror guest/public pages. Profile and booking remain renter-only.
       return {
         home: "/home",
-        vehicles: `${basePath}/vehicles`,
-        aboutus: `${basePath}/aboutus`,
-        contactus: `${basePath}/contactus`,
-        terms: `${basePath}/terms`,
-        faq: `${basePath}/faq`,
-        privacy: `${basePath}/privacy`,
+        vehicles: "/vehicles",
+        aboutus: "/aboutus",
+        contactus: "/contactus",
+        terms: "/terms",
+        faq: "/faq",
+        privacy: "/privacy",
         profile: "/profile",
         booking: (vehicleId: string) => `/booking/${vehicleId}`,
       };
     }
 
-    // Staff and admin don't need these paths, they have their own interfaces
+    // Staff and admin have their own interfaces
     return {
       home: basePath,
       vehicles: null,
@@ -62,7 +62,7 @@ export const useRoleBasedNavigation = () => {
       terms: null,
       faq: null,
       privacy: null,
-      profile: null,
+      profile: basePath, // Admin/Staff profile points to their dashboard
       booking: null,
     };
   };

@@ -1,8 +1,11 @@
+// contexts/AuthProvider.tsx
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import type { AuthContextType, User } from "../contexts/AuthContext";
-import { logout as logoutApi } from "../service/apiUser/API";
+import { logout as logoutApi } from "../service/apiUser/auth/API";
+import { getCurrentUser } from "../service/apiUser/profile/API";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -12,9 +15,9 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showGlobalLoader, setShowGlobalLoader] = useState(false);
 
   useEffect(() => {
-    // Check for existing auth on app load
     const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
 
@@ -23,14 +26,37 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const parsedUser = JSON.parse(storedUser) as User;
         setToken(storedToken);
         setUser(parsedUser);
+        fetchCurrentUser();
       } catch (error) {
         console.error("Failed to parse stored user:", error);
         localStorage.removeItem("token");
         localStorage.removeItem("user");
+        setIsLoading(false);
       }
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await getCurrentUser();
+
+      console.log("Fetch current user response:", response);
+
+      // ✅ Handle response from getCurrentUser
+      if (response.success && response.data) {
+        const updatedUser = response.data as User;
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error("Failed to fetch current user:", error);
+      // Don't clear auth on fetch error, just log it
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const login = (loginData: { token: string; user: User }) => {
     const { token: newToken, user: newUser } = loginData;
@@ -38,6 +64,9 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(newUser);
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
+
+    // Fetch latest user data to ensure we have populated fields
+    fetchCurrentUser();
   };
 
   const logout = async () => {
@@ -70,6 +99,8 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     isAuthenticated: !!user && !!token,
     hasRole,
+    showGlobalLoading: () => setShowGlobalLoader(true),
+    hideGlobalLoading: () => setShowGlobalLoader(false),
   };
 
   if (isLoading) {
@@ -80,7 +111,43 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     );
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {showGlobalLoader ? (
+        <div className="fixed inset-0 z-[9999] bg-white/70 backdrop-blur-sm flex items-center justify-center">
+          <div className="relative">
+            {/* Outer ring - slow rotation */}
+            <motion.div
+              className="rounded-full h-16 w-16 border border-black/15"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            />
+            {/* Middle ring - medium rotation (top border) */}
+            <motion.div
+              className="absolute inset-0 rounded-full h-16 w-16 border-t border-black/50"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+            />
+            {/* Inner ring - fast rotation (top/right) */}
+            <motion.div
+              className="absolute inset-2 rounded-full h-12 w-12 border-t border-r border-black"
+              animate={{ rotate: -360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            />
+            {/* Center dot pulsing */}
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center"
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <div className="w-2 h-2 rounded-full bg-black" />
+            </motion.div>
+          </div>
+        </div>
+      ) : null}
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export default AuthProvider;

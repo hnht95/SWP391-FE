@@ -1,99 +1,199 @@
-import React, { useState } from "react";
+// VehiclesCard.tsx
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import { GiGearStick, GiCarSeat } from "react-icons/gi";
-import { RiGasStationFill } from "react-icons/ri";
+import type { Vehicle } from "../../../../../service/apiAdmin/apiVehicles/API";
+import type { Station } from "../../../../../service/apiAdmin/apiStation/API";
+import {
+  FaBatteryFull,
+  FaCar,
+  FaStar,
+  FaMapMarkerAlt,
+  FaCamera,
+} from "react-icons/fa";
 
-interface Car {
-  id: number;
-  name: string;
-  price: number;
-  transmission: string;
-  seats: number;
-  range: string;
-  image: string;
-  location: string;
-  type: string;
-  station?: string;
+interface VehiclesCardProps {
+  car: Vehicle;
+  station?: Station;
 }
 
-interface CarCardProps {
-  car: Car;
-}
-
-const VehiclesCard: React.FC<CarCardProps> = ({ car }) => {
+const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
   const navigate = useNavigate();
-  const [isHovered, setIsHovered] = useState(false); // State to track hover
 
-  const handleImageClick = () => {
-    navigate(`/vehicles/${car.id}`);
+  const handleViewDetails = () => {
+    navigate(`/vehicles/${car._id}`);
   };
 
-  const handleRentNowClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevents the card's onClick from firing
-    console.log("Rent Now clicked for car ID:", car.id);
+  const getStatusColor = (status: string) => {
+    const statusColors = {
+      available: "bg-green-500 text-white",
+      rented: "bg-red-500 text-white",
+      maintenance: "bg-yellow-500 text-white",
+      reserved: "bg-purple-500 text-white",
+    };
+
+    return (
+      statusColors[status as keyof typeof statusColors] ||
+      "bg-gray-500 text-white"
+    );
   };
+
+  // ✅ Get vehicle image from defaultPhotos.exterior or interior
+  const getVehicleImage = (): string | null => {
+    // Try exterior first
+    if (car.defaultPhotos?.exterior?.[0]?.url) {
+      return car.defaultPhotos.exterior[0].url;
+    }
+    // Fallback to interior
+    if (car.defaultPhotos?.interior?.[0]?.url) {
+      return car.defaultPhotos.interior[0].url;
+    }
+    return null;
+  };
+
+  const vehicleImage = getVehicleImage();
+  const totalPhotos =
+    (car.defaultPhotos?.exterior?.length || 0) +
+    (car.defaultPhotos?.interior?.length || 0);
 
   return (
-    <div
-      key={car.id}
-      className="relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
-      onMouseEnter={() => setIsHovered(true)} // Set state on hover
-      onMouseLeave={() => setIsHovered(false)} // Reset state on mouse leave
-    >
-      <div className="bg-gray-50">
-        <div className="  left-4 z-10 pl-3 pt-3">
-          <h3 className="text-xl font-bold text-gray-800">{car.name}</h3>
-          <p className="text-sm font-bold text-gray-900">
-            {car.station} ({car.location})
-          </p>
-        </div>
-        <div
-          onClick={handleImageClick}
-          className="relative w-full h-50 flex items-center justify-center p-2  overflow-hidden cursor-pointer"
-        >
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+      {/* ✅ Image Section - Tăng height và width */}
+      <div className="relative h-64 bg-gray-200 overflow-hidden group">
+        {vehicleImage ? (
           <img
-            src={car.image}
-            alt={car.name}
-            className="max-h-full max-w-full object-contain transition-transform duration-300 transform scale-100 hover:scale-105"
+            src={vehicleImage}
+            alt={`${car.brand} ${car.model}`}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            onError={(e) => {
+              // ✅ Fallback với React Icons khi ảnh lỗi
+              const target = e.currentTarget;
+              target.style.display = "none";
+              const parent = target.parentElement;
+              if (parent && !parent.querySelector(".fallback-icon")) {
+                const fallbackDiv = document.createElement("div");
+                fallbackDiv.className =
+                  "fallback-icon w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200";
+                fallbackDiv.innerHTML = `
+                  <div class="text-center">
+                    <div class="text-gray-400 mb-2 flex justify-center">
+                      ${/* Use FaCar icon */ ""}
+                    </div>
+                    <p class="text-gray-500 text-sm">No Image</p>
+                  </div>
+                `;
+                parent.appendChild(fallbackDiv);
+              }
+            }}
           />
-        </div>
-        {/* Đã thay đổi các lớp CSS tại đây */}
-        <div className=" left-4 z-10 pl-3 pb-3">
-          <span className="text-xl font-bold">${car.price}</span>
-          <span className="text-sm font-normal text-gray-500">/day</span>
-        </div>
-      </div>
-      {/* Car Image (Clickable for details) */}
+        ) : (
+          // ✅ Placeholder với React Icons khi không có ảnh
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+            <div className="text-center">
+              <FaCar className="text-gray-400 text-7xl mx-auto mb-2" />
+              <p className="text-gray-500 text-sm font-medium">No Image</p>
+            </div>
+          </div>
+        )}
 
-      {/* Conditional Rendering based on hover state */}
-      {/* {!isHovered ? ( */}
+        {/* Overlay gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-      <div className="p-4 flex flex-col items-center justify-center text-gray-600 text-sm">
-        <div className="grid grid-cols-3 gap-2 w-full">
-          <div className="flex flex-col items-center">
-            <GiGearStick className="text-xl text-gray-500 mb-1" />
-            <span>{car.transmission}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <GiCarSeat className="text-xl text-gray-500 mb-1" />
-            <span>{car.seats} Seats</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <RiGasStationFill className="text-xl text-gray-500 mb-1" />
-            <span>{car.range}</span>
-          </div>
-        </div>
-      </div>
-      {/* ) : ( */}
-      <div className="p-2 flex items-center justify-center">
-        <button
-          onClick={handleRentNowClick}
-          className="w-full py-2 rounded-lg bg-black text-white font-semibold hover:bg-gray-700 transition-all"
+        {/* Status Badge */}
+        <div
+          className={`absolute top-3 right-3 px-4 py-1.5 rounded-full text-sm font-semibold ${getStatusColor(
+            car.status
+          )} backdrop-blur-md bg-opacity-90 shadow-lg`}
         >
-          Rent Now
-        </button>
+          {car.status.charAt(0).toUpperCase() + car.status.slice(1)}
+        </div>
+
+        {/* ✅ Photo count indicator với React Icons */}
+        {totalPhotos > 1 && (
+          <div className="absolute bottom-3 right-3 bg-black/70 text-white text-sm px-3 py-1.5 rounded-full backdrop-blur-sm flex items-center gap-1.5 shadow-lg">
+            <FaCamera className="text-xs" />
+            <span>{totalPhotos}</span>
+          </div>
+        )}
       </div>
-      {/* )} */}
+
+      {/* Content */}
+      <div className="p-5">
+        <h3 className="text-xl font-bold mb-2 text-gray-900 line-clamp-1">
+          {car.brand} {car.model}
+        </h3>
+
+        {/* Plate & Year */}
+        <p className="text-gray-600 text-sm mb-3 font-medium">
+          {car.plateNumber} • {car.year}
+        </p>
+
+        {/* ✅ Station Location */}
+        {station && (
+          <div className="flex items-start gap-2 mb-4 p-3 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+            <FaMapMarkerAlt className="text-red-500 mt-1 flex-shrink-0 text-sm" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 text-sm truncate">
+                {station.name}
+              </p>
+              <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
+                {station.location.address}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Features */}
+        <div className="flex items-center justify-between mb-4 text-gray-700 text-sm">
+          <div className="flex items-center gap-1.5 bg-green-50 px-2 py-1 rounded">
+            <FaBatteryFull className="text-green-600 text-base" />
+            <span className="font-medium">{car.batteryCapacity}%</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded">
+            <FaCar className="text-gray-600 text-base" />
+            <span className="font-medium">
+              {car.mileage.toLocaleString()} km
+            </span>
+          </div>
+
+          {/* Rating */}
+          {car.ratingAvg && car.ratingAvg > 0 ? (
+            <div className="flex items-center gap-1.5 bg-yellow-50 px-2 py-1 rounded">
+              <FaStar className="text-yellow-500 text-base" />
+              <span className="font-semibold text-gray-900">
+                {car.ratingAvg.toFixed(1)}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded">
+              <FaStar className="text-gray-400 text-base" />
+              <span className="font-medium text-gray-500">N/A</span>
+            </div>
+          )}
+        </div>
+
+        {/* Price & Button */}
+        <div className="flex items-end justify-between pt-4 border-t border-gray-100">
+          <div>
+            <p className="text-2xl font-bold text-green-600">
+              {car.pricePerDay.toLocaleString()}đ
+              <span className="text-sm text-gray-500 font-normal ml-1">
+                /day
+              </span>
+            </p>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {car.pricePerHour.toLocaleString()}đ/hour
+            </p>
+          </div>
+
+          <button
+            onClick={handleViewDetails}
+            className="bg-black text-white px-5 py-2.5 rounded-lg hover:bg-gray-800 transition-all duration-300 font-medium text-sm shadow-md hover:shadow-lg active:scale-95"
+          >
+            View Details
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

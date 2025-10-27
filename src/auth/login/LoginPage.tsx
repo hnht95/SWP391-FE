@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { motion } from "framer-motion";
-import AuthLayout from "../AuthLayout";
-
 import { useNavigate } from "react-router-dom";
+import AuthLayout from "../AuthLayout";
 import { useAuth } from "../../hooks/useAuth";
-import { login } from "../../service/apiUser/API";
+import { login } from "../../service/apiUser/auth/API";
 
 const LoginPage = () => {
   const navigate = useNavigate();
