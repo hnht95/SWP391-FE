@@ -15,8 +15,10 @@ interface UserData {
   phone: string;
   avatar?: string;
   role: "User" | "Staff" | "Admin";
-  kycVerified: boolean; // ✅ Added KYC field
-  createAt: string;
+  kycVerified: boolean;
+  createdAt: string;
+  gender?: string;
+  address?: string;
 }
 
 type TabType = "profile" | "booking" | "activity" | "settings";
@@ -28,7 +30,6 @@ const UserProfile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Prevent double fetch in StrictMode
   const hasFetched = useRef(false);
 
   const tabs = [
@@ -39,7 +40,6 @@ const UserProfile = () => {
   ] as const;
 
   useEffect(() => {
-    // ✅ Only fetch once
     if (hasFetched.current) return;
     hasFetched.current = true;
 
@@ -52,18 +52,36 @@ const UserProfile = () => {
 
         const response = await profileApi.getCurrentUser();
 
+        console.log("✅ User profile response:", response);
+
         if (response.success && response.data) {
           const userData = response.data;
+
+          // ✅ Extract avatar URL from nested object or use fallback
+          let avatarUrl: string | undefined;
+
+          if (userData.avatarUrl) {
+            // If avatarUrl is an object with url property
+            if (
+              typeof userData.avatarUrl === "object" &&
+              "url" in userData.avatarUrl
+            ) {
+              avatarUrl = userData.avatarUrl.url;
+            }
+            // If avatarUrl is already a string
+            else if (typeof userData.avatarUrl === "string") {
+              avatarUrl = userData.avatarUrl;
+            }
+          }
 
           setUser({
             id: userData._id || userData.id || "",
             name: userData.name,
             email: userData.email,
             phone: userData.phone,
-            avatar: userData.avatarUrl || userData.avatar,
+            avatar: avatarUrl || userData.avatar, // ✅ Fixed: Use extracted URL
             role: mapRoleToDisplay(userData.role),
             kycVerified: userData.kyc?.verified || false,
-            // ✅ Add these new fields
             createdAt: userData.createdAt,
             gender: userData.gender,
             address: userData.address,
@@ -79,7 +97,6 @@ const UserProfile = () => {
 
     fetchUserProfile();
 
-    // ✅ Cleanup function
     return () => {
       abortController.abort();
     };

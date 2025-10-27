@@ -27,7 +27,7 @@ const LoginPage = () => {
     const newErrors = { username: "", password: "" };
 
     if (!username) {
-      newErrors.username = "Please enter your username or email";
+      newErrors.username = "Please enter your email or phone number";
       hasError = true;
     }
 
@@ -116,7 +116,7 @@ const LoginPage = () => {
       >
         <motion.div variants={inputVariants}>
           <label className="text-sm font-medium text-black select-none">
-            Email or Username
+            Email or Phone Number
           </label>
           <motion.div
             className={`relative mt-1 justify-between p-2 flex items-center border rounded-lg focus:outline-none focus:ring-2 transition duration-200 bg-white ${
@@ -131,7 +131,7 @@ const LoginPage = () => {
             <input
               name="username"
               className="w-[92%] p-1 lg:p-0 xl:p-1 lg:text-sm xl:text-md focus:outline-none bg-white"
-              placeholder="Enter your email or username"
+              placeholder="Enter your email or phone number"
               autoComplete="username"
               onFocus={() => setErrors((prev) => ({ ...prev, username: "" }))}
             />
