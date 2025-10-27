@@ -5,6 +5,7 @@ import { useRoleBasedNavigation } from "../../../../../hooks/useRoleBasedNavigat
 import {
   getVehicleById,
   type Vehicle,
+  type VehiclePhoto,
 } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { Station } from "../../../../../service/apiAdmin/apiStation/API";
 import {
@@ -12,8 +13,117 @@ import {
   FaArrowLeft,
   FaBatteryFull,
   FaMapMarkerAlt,
+  FaChevronLeft,
+  FaChevronRight,
 } from "react-icons/fa";
 import StarRating from "./StarRating";
+
+// ✅ Carousel Component riêng biệt
+interface ImageCarouselProps {
+  images: VehiclePhoto[];
+  title: string;
+  emptyMessage: string;
+}
+
+const ImageCarousel: React.FC<ImageCarouselProps> = ({
+  images,
+  title,
+  emptyMessage,
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const nextImage = () => {
+    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const prevImage = () => {
+    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  if (images.length === 0) {
+    return (
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-3 text-gray-700">{title}</h3>
+        <div className="relative bg-gray-200 rounded-xl h-64 flex items-center justify-center">
+          <div className="text-center text-gray-400">
+            <FaCar className="text-6xl mx-auto mb-2" />
+            <p className="text-sm">{emptyMessage}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6">
+      <h3 className="text-lg font-semibold mb-3 text-gray-700">{title}</h3>
+
+      {/* Main Image */}
+      <div className="relative bg-gray-200 rounded-xl h-64 overflow-hidden group mb-3">
+        <img
+          src={images[currentIndex].url}
+          alt={`${title} - ${currentIndex + 1}`}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.currentTarget.src = "";
+            e.currentTarget.style.display = "none";
+          }}
+        />
+
+        {/* Navigation Arrows (only if multiple images) */}
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={prevImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-75 text-white p-2 rounded-full transition opacity-0 group-hover:opacity-100"
+              aria-label="Previous image"
+            >
+              <FaChevronLeft />
+            </button>
+            <button
+              onClick={nextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-75 text-white p-2 rounded-full transition opacity-0 group-hover:opacity-100"
+              aria-label="Next image"
+            >
+              <FaChevronRight />
+            </button>
+
+            {/* Image Counter */}
+            <div className="absolute bottom-3 right-3 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+              {currentIndex + 1} / {images.length}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Thumbnail Gallery (only if multiple images) */}
+      {images.length > 1 && (
+        <div className="grid grid-cols-4 gap-2">
+          {images.map((image, index) => (
+            <button
+              key={image._id}
+              onClick={() => setCurrentIndex(index)}
+              className={`relative h-16 rounded-lg overflow-hidden border-2 transition ${
+                currentIndex === index
+                  ? "border-black scale-105"
+                  : "border-gray-300 hover:border-gray-400"
+              }`}
+            >
+              <img
+                src={image.url}
+                alt={`Thumbnail ${index + 1}`}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const VehiclesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -86,22 +196,35 @@ const VehiclesDetail: React.FC = () => {
     );
   }
 
-  // ✅ Get station from vehicle data (already populated by backend)
   const station =
     typeof vehicle.station === "object" ? (vehicle.station as Station) : null;
 
+  // ✅ Get exterior and interior photos separately
+  const exteriorPhotos = vehicle.defaultPhotos?.exterior || [];
+  const interiorPhotos = vehicle.defaultPhotos?.interior || [];
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-20">
       <div className="bg-white rounded-2xl shadow-lg p-8">
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Vehicle Image Placeholder */}
+          {/* ✅ Left Column - Images Section */}
           <div className="lg:w-1/2 w-full">
-            <div className="bg-gray-200 rounded-xl h-96 flex items-center justify-center">
-              <FaCar className="text-gray-400 text-9xl" />
-            </div>
+            {/* Exterior Photos Carousel */}
+            <ImageCarousel
+              images={exteriorPhotos}
+              title="Outside Photos"
+              emptyMessage="No outside photos available"
+            />
+
+            {/* Interior Photos Carousel */}
+            <ImageCarousel
+              images={interiorPhotos}
+              title="Inside Photos"
+              emptyMessage="No inside photos available"
+            />
           </div>
 
-          {/* Vehicle Details */}
+          {/* ✅ Right Column - Vehicle Details */}
           <div className="lg:w-1/2 w-full">
             {/* Title */}
             <h1 className="text-4xl font-bold mb-2">
@@ -126,7 +249,7 @@ const VehiclesDetail: React.FC = () => {
               </span>
             </div>
 
-            {/* ✅ Station Location - Backend already populates this */}
+            {/* Station Location */}
             {station && (
               <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-start gap-3">
@@ -169,7 +292,7 @@ const VehiclesDetail: React.FC = () => {
 
             {/* Specifications Grid */}
             <div className="space-y-4 mb-6">
-              {/* Row 1 */}
+              {/* ✅ Row 1 - Removed VIN, only Plate Number */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Plate Number</p>
@@ -178,27 +301,17 @@ const VehiclesDetail: React.FC = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">VIN</p>
-                  <p className="font-semibold text-gray-900 text-xs">
-                    {vehicle.vin}
-                  </p>
+                  <p className="text-sm text-gray-500 mb-1">Year</p>
+                  <p className="font-semibold text-gray-900">{vehicle.year}</p>
                 </div>
               </div>
 
               {/* Row 2 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Year</p>
-                  <p className="font-semibold text-gray-900">{vehicle.year}</p>
-                </div>
-                <div>
                   <p className="text-sm text-gray-500 mb-1">Color</p>
                   <p className="font-semibold text-gray-900">{vehicle.color}</p>
                 </div>
-              </div>
-
-              {/* Row 3 */}
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Battery</p>
                   <p className="font-semibold text-gray-900 flex items-center gap-2">
@@ -206,22 +319,27 @@ const VehiclesDetail: React.FC = () => {
                     {vehicle.batteryCapacity}%
                   </p>
                 </div>
+              </div>
+
+              {/* Row 3 */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Mileage</p>
                   <p className="font-semibold text-gray-900">
                     {vehicle.mileage.toLocaleString()} km
                   </p>
                 </div>
-              </div>
-
-              {/* Rating */}
-              <div className="pt-2 border-t border-gray-200">
-                <StarRating
-                  rating={vehicle.ratingAvg || 0}
-                  showValue={true}
-                  reviewCount={vehicle.ratingCount}
-                  size="md"
-                />
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Rating</p>
+                  <div className="flex items-center gap-2">
+                    <StarRating
+                      rating={vehicle.ratingAvg || 0}
+                      showValue={true}
+                      reviewCount={vehicle.ratingCount}
+                      size="sm"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -236,7 +354,7 @@ const VehiclesDetail: React.FC = () => {
             </p>
 
             {/* Action Buttons */}
-            <div className="flex gap-4">
+            <div className="flex space-x-4">
               <button
                 onClick={() =>
                   requireAuth(

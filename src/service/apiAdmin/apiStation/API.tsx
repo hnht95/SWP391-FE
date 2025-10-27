@@ -72,14 +72,6 @@ const handleError = (error: unknown) => {
   throw new Error(errorMessage);
 };
 
-// ============================================
-// ✅ STATION CRUD OPERATIONS
-// ============================================
-
-/**
- * GET /api/stations?page=1&limit=20
- * Backend returns: { success: true, data: Station[], pagination: {...} }
- */
 export const getAllStations = async (
   page: number = 1,
   limit: number = 20
@@ -88,8 +80,6 @@ export const getAllStations = async (
     const response = await api.get<StationListResponse>("/stations", {
       params: { page, limit },
     });
-
-    console.log("API Response:", response.data);
 
     // ✅ Check for wrapped response
     if (response.data.success && Array.isArray(response.data.data)) {
@@ -124,7 +114,7 @@ export const getStationById = async (id: string): Promise<Station> => {
     }
 
     // ✅ Fallback: if backend returns station directly
-    if ((response.data as any)._id) {
+    if (response.data.data._id) {
       return response.data as unknown as Station;
     }
 
@@ -151,7 +141,7 @@ export const createStation = async (
     console.log("Create station response:", response.data);
 
     // ✅ Backend returns station directly (no wrapper for POST)
-    if (response.data && (response.data as any)._id) {
+    if (response.data && response.data._id) {
       return response.data;
     }
 
@@ -174,7 +164,10 @@ export const updateStation = async (
   try {
     console.log("Updating station:", id, stationData);
 
-    const response = await api.put<any>(`/stations/${id}`, stationData);
+    const response = await api.put<StationResponse>(
+      `/stations/${id}`,
+      stationData
+    );
 
     console.log("Update station response:", response.data);
 
@@ -184,8 +177,8 @@ export const updateStation = async (
     }
 
     // ✅ Fallback: if backend returns station directly
-    if (response.data._id) {
-      return response.data;
+    if (response.data.data._id) {
+      return response.data.data;
     }
 
     throw new Error("Failed to update station");

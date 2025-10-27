@@ -1,7 +1,7 @@
-// src/services/API.jsx
+// src/services/API.tsx
 import { AxiosError } from "axios";
-
-import api from "../Utils";
+import api from "../../Utils";
+// import api from "../Utils";
 
 const handleError = (error: unknown) => {
   const err = error as AxiosError;
@@ -72,6 +72,19 @@ export const logout = async () => {
     handleError(error);
   }
 };
+
+export const forgotPassword = async (email: string) => {
+  try {
+    const payload = { email };
+    const response = await api.post(
+      "/users/forgot-password-email-otp",
+      payload
+    );
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export async function getAllUsers(params?: { page?: number; limit?: number }) {
   try {
     const response = await api.get("admin/users", { params });
@@ -80,3 +93,18 @@ export async function getAllUsers(params?: { page?: number; limit?: number }) {
     handleError(error);
   }
 }
+
+export const resetPassword = async (
+  email: string,
+  code: string,
+  newPassword: string
+) => {
+  try {
+    const payload = { email, code, newPassword };
+    const response = await api.post("/users/reset-password-email-otp", payload);
+
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};

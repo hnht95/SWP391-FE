@@ -29,6 +29,8 @@ import VehiclesDetail from "../landing/user/component/subnavComponent/vehiclesCo
 import ContractStaff from "../landing/staff/homepageStaffComponent/ContractStaff";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import BookingPage from "../landing/user/component/BookingPage";
+import PaymentPage from "../landing/user/component/bookingComponent/PaymentPage";
+import BookingSuccessPage from "../landing/user/component/bookingComponent/BookingSuccessPage";
 
 const AllRouter = () => {
   return (
@@ -72,6 +74,11 @@ const AllRouter = () => {
         <Route path="/contactus" element={<ContactUs />} />
         <Route path="/profile" element={<LayoutUserProfile />} />
         <Route path="/booking/:vehicleId" element={<BookingPage />} />
+        <Route path="/payment/:bookingId" element={<PaymentPage />} />
+        <Route
+          path="/booking-success/:bookingId"
+          element={<BookingSuccessPage />}
+        />
       </Route>
 
       <Route

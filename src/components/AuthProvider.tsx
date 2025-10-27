@@ -1,9 +1,11 @@
+// contexts/AuthProvider.tsx
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import type { AuthContextType, User } from "../contexts/AuthContext";
-import { logout as logoutApi } from "../service/apiUser/API";
+import { logout as logoutApi } from "../service/apiUser/auth/API";
+import { getCurrentUser } from "../service/apiUser/profile/API";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -16,7 +18,6 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [showGlobalLoader, setShowGlobalLoader] = useState(false);
 
   useEffect(() => {
-    // Check for existing auth on app load
     const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
 
@@ -25,14 +26,37 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const parsedUser = JSON.parse(storedUser) as User;
         setToken(storedToken);
         setUser(parsedUser);
+        fetchCurrentUser();
       } catch (error) {
         console.error("Failed to parse stored user:", error);
         localStorage.removeItem("token");
         localStorage.removeItem("user");
+        setIsLoading(false);
       }
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await getCurrentUser();
+
+      console.log("Fetch current user response:", response);
+
+      // ✅ Handle response from getCurrentUser
+      if (response.success && response.data) {
+        const updatedUser = response.data as User;
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error("Failed to fetch current user:", error);
+      // Don't clear auth on fetch error, just log it
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const login = (loginData: { token: string; user: User }) => {
     const { token: newToken, user: newUser } = loginData;
@@ -40,6 +64,9 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(newUser);
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
+
+    // Fetch latest user data to ensure we have populated fields
+    fetchCurrentUser();
   };
 
   const logout = async () => {

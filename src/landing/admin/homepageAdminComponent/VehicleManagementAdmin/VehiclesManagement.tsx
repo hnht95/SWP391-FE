@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { MdAdd, MdDirectionsCar, MdSearch } from "react-icons/md";
-import { useVehicles } from "./hooks/useVehicles";
-import { useVehicleRequests } from "./hooks/useVehicleRequests";
-import { getAllStations, type Station } from "../../../../service/apiAdmin/apiStation/API";
-import type { Vehicle } from "../../../../service/apiAdmin/apiVehicles/API";
-import { getStationId, getStationName as getStationNameHelper } from "../../../../service/apiAdmin/apiVehicles/API";
-import PageTitle from "../../component/PageTitle";
-import VehicleTable from "./components/VehicleTable";
+import React, { useEffect, useState } from "react";
+import { MdAdd, MdDirectionsCar } from "react-icons/md";
+import VehicleFilters from "../../component/vehicle/VehicleFilters";
+import VehicleTable from "../../component/vehicle/VehicleTable";
+import { AddVehicleModal, UpdateVehicleModal } from "./index";
 import VehicleDetailModal from "./components/VehicleDetailModal";
+import { type Vehicle as UIVehicle } from "../../component/vehicle/VehicleRow";
+import { FadeIn } from "../../component/animations";
+import PageTitle from "../../component/PageTitle";
+import {
+  getAllVehicles,
+  type Vehicle as APIVehicle,
+} from "../../../../service/apiAdmin/apiVehicles/API";
+import { getAllStations, type Station } from "../../../../service/apiAdmin/apiStation/API";
 import TransferVehicleModal from "./components/TransferVehicleModal";
 import ReportMaintenanceModal from "./components/ReportMaintenanceModal";
 import RequestDeletionModal from "./components/RequestDeletionModal";
-import RequestsTab from "./components/RequestsTab/RequestsTab";
-import { AddVehicleModal, UpdateVehicleModal } from "./index";
 
 const VehiclesManagement: React.FC = () => {
   console.log("🚀 VehiclesManagement component rendering...");
@@ -22,155 +23,150 @@ const VehiclesManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"vehicles" | "requests">("vehicles");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedStation, setSelectedStation] = useState("all");
-  const [allStations, setAllStations] = useState<Station[]>([]);
-  
-  // Loading states for different filters
-  const [isSearchLoading, setIsSearchLoading] = useState(false);
-  const [isStatusLoading, setIsStatusLoading] = useState(false);
-  const [isStationLoading, setIsStationLoading] = useState(false);
-  
-  // Modal states
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<APIVehicle | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
   const [isDeletionModalOpen, setIsDeletionModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [vehicleToUpdate, setVehicleToUpdate] = useState<Vehicle | null>(null);
-  
-  // Data hooks
-  const { vehicles, isLoading, error, refetch } = useVehicles();
-  
-  console.log("📊 Data state:", { vehicles: vehicles.length, isLoading, error });
+  const [vehicleToUpdate, setVehicleToUpdate] = useState<APIVehicle | null>(null);
+  const [vehicles, setVehicles] = useState<UIVehicle[]>([]);
+  const [apiVehicles, setApiVehicles] = useState<APIVehicle[]>([]);
+  const [allStations, setAllStations] = useState<Station[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [maintenanceRequests] = useState<any[]>([]);
+  const [deletionRequests] = useState<any[]>([]);
 
-  // Fetch stations
-  useEffect(() => {
-    const fetchStations = async () => {
-      console.log("🏢 Fetching stations...");
-      try {
-        const stationsData = await getAllStations(1, 1000);
-        console.log("✅ Stations fetched:", stationsData);
-        setAllStations(stationsData);
-      } catch (err) {
-        console.error("❌ Error fetching stations:", err);
-      }
+  // ✅ Get station name by ID
+  const getStationName = (stationIdOrObject: string | Station): string => {
+    if (typeof stationIdOrObject === 'string') {
+      const station = allStations.find(s => s._id === stationIdOrObject);
+      console.log("Looking for station:", stationIdOrObject, "Found:", station?.name);
+      return station?.name || stationIdOrObject; // Fallback to ID if station not found
+    } else {
+      return stationIdOrObject.name || stationIdOrObject._id;
+    }
+  };
+
+  // ✅ Map API Vehicle to UI Vehicle
+  const mapApiToUi = (v: APIVehicle): UIVehicle => {
+    const stationData = typeof v.station === 'object' ? v.station : null;
+    return {
+      id: v._id,
+      brand: v.brand,
+      model: v.model,
+      licensePlate: v.plateNumber,
+      status: v.status as "available" | "rented" | "maintenance" | "reserved",
+      location: stationData?.name || getStationName(typeof v.station === 'string' ? v.station : ""),
+      dailyRate: v.pricePerDay,
+      lastService: v.updatedAt || v.createdAt || "",
+      batteryCapacity: v.batteryCapacity,
+      createdAt: v.createdAt,
+      updatedAt: v.updatedAt,
     };
+  };
 
-    fetchStations();
+  const fetchVehicles = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch both vehicles and stations
+      const [vehiclesData, stationsData] = await Promise.all([
+        getAllVehicles(),
+        getAllStations()
+      ]);
+      
+      setApiVehicles(vehiclesData);
+      setAllStations(stationsData);
+      setVehicles(vehiclesData.map(mapApiToUi));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load vehicles");
+      console.error("Fetch vehicles error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVehicles();
   }, []);
 
-  // Helper function to get station name by ID
-  const getStationName = (stationIdOrObject: string) => {
-    // If stationIdOrObject is already an object with a _id property, it's a station object
-    // Otherwise, it's a station ID string
-    const stationId = typeof stationIdOrObject === 'string' ? stationIdOrObject : stationIdOrObject._id || stationIdOrObject;
-    const station = allStations.find(s => s._id === stationId);
-    return station?.name || "Unknown";
-  };
-  const {
-    maintenanceRequests,
-    deletionRequests,
-    transferLogs,
-    isLoading: requestsLoading,
-    approveMaintenance,
-    rejectMaintenance,
-    approveDeletion,
-    rejectDeletion,
-    refetch: refetchRequests,
-  } = useVehicleRequests();
-
-
-  // Filter vehicles based on search and filters
-  const filteredVehicles = vehicles.filter((vehicle) => {
-    const matchesSearch =
-      vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.plateNumber.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus =
-      selectedStatus === "all" || vehicle.status === selectedStatus;
-
-
-    const matchesStation =
-      selectedStation === "all" || 
-      getStationId(vehicle.station) === selectedStation ||
-      (vehicle.stationData && vehicle.stationData._id === selectedStation);
-
-    return matchesSearch && matchesStatus && matchesStation;
-  });
-
-  // Event handlers
-  const handleViewDetails = (vehicle: Vehicle) => {
-    setSelectedVehicle(vehicle);
-    setIsDetailModalOpen(true);
+  const handleEdit = (vehicle: UIVehicle) => {
+    // Show detail modal first
+    const apiVehicle = apiVehicles.find(v => v._id === vehicle.id);
+    if (apiVehicle) {
+      setSelectedVehicle(apiVehicle);
+      setIsDetailModalOpen(true);
+    }
   };
 
-  // Filter handlers with loading states
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-    setIsSearchLoading(true);
-    setTimeout(() => setIsSearchLoading(false), 300);
-  };
-
-  const handleStatusChange = (value: string) => {
-    setSelectedStatus(value);
-    setIsStatusLoading(true);
-    setTimeout(() => setIsStatusLoading(false), 300);
-  };
-
-  const handleStationChange = (value: string) => {
-    setSelectedStation(value);
-    setIsStationLoading(true);
-    setTimeout(() => setIsStationLoading(false), 300);
-  };
-
-  const handleEdit = (vehicle: Vehicle) => {
+  const handleEditFromDetail = (vehicle: APIVehicle) => {
+    // Close detail modal and open update modal
+    setIsDetailModalOpen(false);
+    setSelectedVehicle(null);
+    
     setVehicleToUpdate(vehicle);
     setIsUpdateModalOpen(true);
   };
 
-  const handleTransfer = (vehicle: Vehicle) => {
+  const handleDelete = (vehicleId: string) => {
+    console.log("Delete vehicle:", vehicleId);
+  };
+
+  const handleTransfer = (vehicle: APIVehicle) => {
     setSelectedVehicle(vehicle);
     setIsTransferModalOpen(true);
   };
 
-  const handleReportMaintenance = (vehicle: Vehicle) => {
+  const handleReportMaintenance = (vehicle: APIVehicle) => {
     setSelectedVehicle(vehicle);
     setIsMaintenanceModalOpen(true);
   };
 
-  const handleRequestDeletion = (vehicle: Vehicle) => {
+  const handleRequestDeletion = (vehicle: APIVehicle) => {
     setSelectedVehicle(vehicle);
     setIsDeletionModalOpen(true);
   };
 
-  const handleModalSuccess = () => {
-    refetch();
-    refetchRequests();
-  };
-
-  const handleAddSuccess = async () => {
-    await refetch();
-    setIsAddModalOpen(false);
+  const handleAddSubmit = async () => {
+    try {
+      await fetchVehicles();
+      setIsAddModalOpen(false);
+    } catch (e) {
+      console.error("Add vehicle error:", e);
+    }
   };
 
   const handleUpdateSuccess = async () => {
-    await refetch();
-    setIsUpdateModalOpen(false);
-    setVehicleToUpdate(null);
-  };
-
-  const handleRequestAction = async (action: () => Promise<void>) => {
     try {
-      await action();
-      // Show success toast here if needed
-    } catch (error) {
-      // Show error toast here if needed
-      console.error("Request action failed:", error);
+      await fetchVehicles();
+      setIsUpdateModalOpen(false);
+      setVehicleToUpdate(null);
+    } catch (e) {
+      console.error("Update vehicle error:", e);
     }
   };
+
+  const handleModalSuccess = () => {
+    fetchVehicles();
+  };
+
+  // ✅ Filter vehicles based on search and status
+  const filteredVehicles = vehicles.filter((vehicle) => {
+    const matchesSearch =
+      vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.licensePlate.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      selectedStatus === "all" || vehicle.status === selectedStatus;
+
+    const matchesStation = true; // TODO: Add station filter if needed
+
+    return matchesSearch && matchesStatus && matchesStation;
+  });
 
   const tabs = [
     {
@@ -194,7 +190,7 @@ const VehiclesManagement: React.FC = () => {
           <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Vehicles</h2>
           <p className="text-red-600 mb-4">{error}</p>
           <button
-            onClick={refetch}
+            onClick={fetchVehicles}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Try Again
@@ -205,7 +201,7 @@ const VehiclesManagement: React.FC = () => {
   }
 
   // Simple fallback for testing
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 text-center">
@@ -262,120 +258,52 @@ const VehiclesManagement: React.FC = () => {
         </nav>
       </div>
 
-      {/* Tab Content */}
-      <motion.div
-        key={activeTab}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        {activeTab === "vehicles" ? (
-          <div className="space-y-6">
-            {/* Search and Filters */}
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Search */}
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MdSearch className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search by license plate, brand..."
-                    value={searchTerm}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                {/* Status Filter */}
-                <div className="relative">
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => handleStatusChange(e.target.value)}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="available">Available</option>
-                    <option value="rented">Rented</option>
-                    <option value="reserved">Reserved</option>
-                    <option value="maintenance">Maintenance</option>
-                  </select>
-                </div>
-
-                {/* Station Filter */}
-                <div className="relative">
-                  <select
-                    value={selectedStation}
-                    onChange={(e) => handleStationChange(e.target.value)}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="all">All Stations</option>
-                    {allStations.map((station) => (
-                      <option key={station._id} value={station._id}>
-                        {station.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Vehicle Table */}
-            {isLoading ? (
-              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-sm text-gray-600">Loading vehicles...</p>
-              </div>
-            ) : error ? (
-              <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
-                <p className="text-sm text-red-600 mb-2">{error}</p>
-                <button
-                  onClick={refetch}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                >
-                  Try Again
-                </button>
-              </div>
-            ) : isSearchLoading || isStatusLoading || isStationLoading ? (
-              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-sm text-gray-600">
-                  {isSearchLoading && "Loading vehicles..."}
-                  {isStatusLoading && "Loading status..."}
-                  {isStationLoading && "Loading station..."}
-                </p>
-              </div>
-            ) : filteredVehicles.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8 text-center">
-                <MdDirectionsCar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">No vehicles found</p>
-              </div>
-            ) : (
-              <VehicleTable
-                vehicles={filteredVehicles}
-                onViewDetails={handleViewDetails}
-                onEdit={handleEdit}
-                onTransfer={handleTransfer}
-                onReportMaintenance={handleReportMaintenance}
-                onRequestDeletion={handleRequestDeletion}
-                getStationName={getStationName}
-              />
-            )}
-          </div>
-        ) : (
-          <RequestsTab
-            maintenanceRequests={maintenanceRequests}
-            deletionRequests={deletionRequests}
-            transferLogs={transferLogs}
-            isLoading={requestsLoading}
-            onApproveMaintenance={(id) => handleRequestAction(() => approveMaintenance(id))}
-            onRejectMaintenance={(id) => handleRequestAction(() => rejectMaintenance(id))}
-            onApproveDeletion={(id) => handleRequestAction(() => approveDeletion(id))}
-            onRejectDeletion={(id) => handleRequestAction(() => rejectDeletion(id))}
+        <FadeIn delay={0.5} duration={0.6} direction="up">
+          <VehicleFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            selectedStatus={selectedStatus}
+            onStatusChange={setSelectedStatus}
           />
-        )}
-      </motion.div>
+        </FadeIn>
+
+        <FadeIn delay={0.7} duration={0.7} direction="up">
+          {loading ? (
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-sm text-gray-600">Loading vehicles...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
+              <p className="text-sm text-red-600 mb-2">{error}</p>
+              <button
+                onClick={fetchVehicles}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : filteredVehicles.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8 text-center">
+              <MdDirectionsCar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600">No vehicles found</p>
+            </div>
+          ) : (
+            <VehicleTable
+              vehicles={filteredVehicles}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onTransfer={(vehicle) => {
+                const apiVehicle = apiVehicles.find(v => v._id === vehicle.id);
+                if (apiVehicle) handleTransfer(apiVehicle);
+              }}
+              onMarkMaintenance={(vehicle) => {
+                const apiVehicle = apiVehicles.find(v => v._id === vehicle.id);
+                if (apiVehicle) handleReportMaintenance(apiVehicle);
+              }}
+            />
+          )}
+        </FadeIn>
 
       {/* Modals */}
       <VehicleDetailModal
@@ -385,7 +313,7 @@ const VehiclesManagement: React.FC = () => {
           setIsDetailModalOpen(false);
           setSelectedVehicle(null);
         }}
-        onEdit={handleEdit}
+        onEdit={handleEditFromDetail}
         onTransfer={handleTransfer}
         onReportMaintenance={handleReportMaintenance}
         onRequestDeletion={handleRequestDeletion}
@@ -426,7 +354,7 @@ const VehiclesManagement: React.FC = () => {
       <AddVehicleModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSuccess={handleAddSuccess}
+        onSuccess={handleAddSubmit}
       />
 
       <UpdateVehicleModal

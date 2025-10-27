@@ -27,6 +27,7 @@ import {
 } from "react-icons/md";
 import CustomSelect from "../../../components/CustomSelect";
 import type { ApiVehicle, Vehicle } from "../../../types/vehicle";
+import { formatDate } from "../../../utils/dateUtils";
 
 const VehiclesStaff = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -1135,9 +1136,7 @@ const VehiclesStaff = () => {
                                         {maintenance.description}
                                       </p>
                                       <p className="text-xs text-gray-500 mt-1">
-                                        {new Date(
-                                          maintenance.reportedAt
-                                        ).toLocaleDateString("vi-VN")}
+                                        {formatDate(maintenance.reportedAt)}
                                       </p>
                                     </div>
                                   ))}

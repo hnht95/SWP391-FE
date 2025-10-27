@@ -18,6 +18,7 @@ import type {
 } from "../../../types/bookings";
 import type { RawApiVehicle } from "../../../types/vehicle";
 import { getAllStations, type Station } from "../../../service/apiAdmin/apiStation/API";
+import { formatDateTime } from "../../../utils/dateUtils";
 
 const VehicleHandover = () => {
   // List state
@@ -37,7 +38,10 @@ const VehicleHandover = () => {
   const [vehiclesOptions, setVehiclesOptions] = useState<
     { value: string; label: string }[]
   >([]);
-  const [stations, setStations] = useState<Station[]>([]);
+  // Only need _id and name for select options; avoid cross-module Station type mismatch
+  const [stations, setStations] = useState<
+    Array<{ _id: string; name: string }>
+  >([]);
   const stationOptions = useMemo(
     () => stations.map((s) => ({ value: s._id, label: s.name })),
     [stations]
@@ -132,13 +136,12 @@ const VehicleHandover = () => {
     setCreateError(null);
     // no toast state
     try {
+      // Call new booking API payload shape (vehicleId, startTime, endTime, deposit)
       await staffAPI.createBooking({
-        vehicle: createForm.vehicle,
-        pickupStation: createForm.pickupStation,
-        dropoffStation: createForm.dropoffStation || createForm.pickupStation,
-        startDate: new Date(createForm.startDate).toISOString(),
-        endDate: new Date(createForm.endDate).toISOString(),
-        rentalType: createForm.rentalType,
+        vehicleId: createForm.vehicle,
+        startTime: new Date(createForm.startDate).toISOString(),
+        endTime: new Date(createForm.endDate).toISOString(),
+        deposit: { provider: "payos" },
       });
       // Refresh list
       setPage(1);
@@ -367,7 +370,7 @@ const VehicleHandover = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {new Date(b.createdAt).toLocaleString()}
+                      {formatDateTime(b.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
@@ -672,7 +675,7 @@ const VehicleHandover = () => {
                     </p>
                     <p>
                       <span className="text-gray-600">Created: </span>
-                      {new Date(selected.createdAt).toLocaleString()}
+                      {formatDateTime(selected.createdAt)}
                     </p>
                     <p className="md:col-span-2">
                       <span className="text-gray-600">Deposit: </span>

@@ -2,7 +2,27 @@
 import { AxiosError } from "axios";
 import api from "../../Utils";
 
-// ✅ Station interface
+// ✅ Photo interface
+export interface VehiclePhoto {
+  _id: string;
+  url: string;
+  type: "image";
+}
+
+// ✅ Station interface đầy đủ (khi populated)
+export interface StationData {
+  _id: string;
+  name: string;
+  code: string;
+  location: {
+    address: string;
+    lat: number;
+    lng: number;
+  };
+  isActive: boolean;
+}
+
+// ✅ Simple Station interface (for compatibility)
 export interface Station {
   _id: string;
   name: string;
@@ -15,45 +35,65 @@ export interface Station {
   isActive: boolean;
 }
 
-// ✅ Photo interface
-export interface Photo {
-  _id: string;
-  url: string;
-  type: string;
-}
-
-// ✅ Vehicle interface - updated to match new API structure
+// ✅ Vehicle interface đầy đủ theo response thực tế
 export interface Vehicle {
   _id: string;
-  owner?: string;
-  company?: string | null;
-  valuation?: {
+
+  // Owner & Company
+  owner: "internal" | "company";
+  company: string | null;
+
+  // Valuation
+  valuation: {
     valueVND: number;
     lastUpdatedAt?: string;
   };
+
+  // Basic info
   plateNumber: string;
   vin?: string;
   brand: string;
   model: string;
   year: number;
   color: string;
+
+  // Technical specs
   batteryCapacity: number;
   mileage: number;
   pricePerDay: number;
   pricePerHour: number;
+
+  // Status
   status: "available" | "reserved" | "rented" | "maintenance";
-  station: Station | string; // Can be full object or just ID
-  defaultPhotos?: {
-    exterior: Photo[];
-    interior: Photo[];
+
+  // Station - có thể là string (ObjectId) hoặc object (populated)
+  station: string | StationData;
+
+  // Photos
+  defaultPhotos: {
+    exterior: VehiclePhoto[];
+    interior: VehiclePhoto[];
   };
+
+  // Ratings
   ratingAvg?: number;
   ratingCount?: number;
-  tags?: string[];
-  maintenanceHistory?: any[];
+
+  // Tags & Maintenance
+  tags: string[];
+  maintenanceHistory: any[];
+
+  // Timestamps
   createdAt?: string;
   updatedAt?: string;
+
+  // Additional fields for UI compatibility
+  image?: string;
+  stationData?: StationData;
+  batteryLevel?: number;
 }
+
+// ✅ API Response format - sửa từ data sang items
 
 export interface TransferLog {
   _id: string;
