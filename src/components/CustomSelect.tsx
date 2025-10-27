@@ -16,6 +16,10 @@ interface CustomSelectProps {
   disabled?: boolean;
   prefix?: React.ReactNode; // optional left icon/emoji
   menuClassName?: string;
+  // where to render the menu relative to the button
+  // bottom: dropdown appears below (default)
+  // top: dropdown appears above
+  menuPlacement?: "bottom" | "top";
 }
 
 const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -27,6 +31,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   disabled = false,
   prefix,
   menuClassName = "",
+  menuPlacement = "bottom",
 }) => {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
@@ -79,17 +84,20 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -6 }}
+            initial={{ opacity: 0, y: menuPlacement === "top" ? 6 : -6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
+            exit={{ opacity: 0, y: menuPlacement === "top" ? 6 : -6 }}
             transition={{ duration: 0.15 }}
-            className={`absolute z-50 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden ${menuClassName}`}
+            className={`absolute z-50 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden ${
+              menuPlacement === "top" ? "bottom-full mb-2" : "top-full mt-2"
+            } ${menuClassName}`}
           >
             <div className="max-h-64 overflow-auto py-1">
               {options.map((opt) => {
                 const isActive = String(opt.value) === String(value);
                 return (
                   <button
+                    type="button"
                     key={String(opt.value)}
                     className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors ${
                       isActive
