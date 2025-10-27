@@ -2,11 +2,37 @@
 import { AxiosError } from "axios";
 import api from "../../Utils";
 
-// ✅ Vehicle interface - đã có station (ObjectId string)
+// ✅ Station interface
+export interface Station {
+  _id: string;
+  name: string;
+  code: string;
+  location: {
+    address: string;
+    lat: number;
+    lng: number;
+  };
+  isActive: boolean;
+}
+
+// ✅ Photo interface
+export interface Photo {
+  _id: string;
+  url: string;
+  type: string;
+}
+
+// ✅ Vehicle interface - updated to match new API structure
 export interface Vehicle {
   _id: string;
+  owner?: string;
+  company?: string | null;
+  valuation?: {
+    valueVND: number;
+    lastUpdatedAt?: string;
+  };
   plateNumber: string;
-  vin: string;
+  vin?: string;
   brand: string;
   model: string;
   year: number;
@@ -16,31 +42,17 @@ export interface Vehicle {
   pricePerDay: number;
   pricePerHour: number;
   status: "available" | "reserved" | "rented" | "maintenance";
-  station: string; // ObjectId của station
+  station: Station | string; // Can be full object or just ID
+  defaultPhotos?: {
+    exterior: Photo[];
+    interior: Photo[];
+  };
   ratingAvg?: number;
   ratingCount?: number;
-
-  // ✅ Optional fields có thể có từ populate
-  stationData?: {
-    _id: string;
-    name: string;
-    location: string;
-  };
-
+  tags?: string[];
+  maintenanceHistory?: any[];
   createdAt?: string;
   updatedAt?: string;
-}
-
-// ✅ API Response format
-interface VehicleApiResponse {
-  success: boolean;
-  data: Vehicle[];
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
 }
 
 export interface TransferLog {
@@ -58,6 +70,7 @@ export interface TransferLog {
 
 export interface CreateVehicleData {
   plateNumber: string;
+  vin?: string;
   brand: string;
   model: string;
   year: number;
@@ -81,6 +94,16 @@ export interface TransferStationData {
   reason?: string;
 }
 
+// ✅ Paginated response interface
+export interface PaginatedResponse<T> {
+  success: boolean;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  items: T[];
+}
+
 // ✅ Error handler
 const handleError = (error: unknown) => {
   const err = error as AxiosError;
@@ -101,19 +124,66 @@ const handleError = (error: unknown) => {
   throw new Error(errorMessage);
 };
 
+// ✅ Helper function to get station ID
+export const getStationId = (station: Station | string): string => {
+  return typeof station === 'string' ? station : station._id;
+};
+
+// ✅ Helper function to get station name
+export const getStationName = (station: Station | string | undefined): string => {
+  if (!station) return "Unknown";
+  if (typeof station === 'string') return station;
+  return station.name || "Unknown";
+};
+
 export const getAllVehicles = async (): Promise<Vehicle[]> => {
   try {
-    const response = await api.get<VehicleApiResponse>("/vehicles");
+    const response = await api.get<PaginatedResponse<Vehicle> | Vehicle[]>(
+      "/vehicles?populate=station"
+    );
 
-    // ✅ Extract data từ response
-    console.log("API Response:", response.data);
+    console.log("🔍 API Response:", response.data);
 
-    if (response.data.success && Array.isArray(response.data.data)) {
-      return response.data.data;
+    // Handle paginated response format: { success, page, limit, total, totalPages, items }
+    if (
+      response.data &&
+      typeof response.data === "object" &&
+      "success" in response.data &&
+      "items" in response.data
+    ) {
+      const paginatedResponse = response.data as PaginatedResponse<Vehicle>;
+      if (paginatedResponse.success && Array.isArray(paginatedResponse.items)) {
+        console.log(
+          "✅ Paginated response - Total:",
+          paginatedResponse.total,
+          "Items:",
+          paginatedResponse.items.length
+        );
+        return paginatedResponse.items;
+      }
     }
 
+    // Handle direct array response
+    if (Array.isArray(response.data)) {
+      console.log("✅ Response is directly an array:", response.data.length);
+      return response.data;
+    }
+
+    // Fallback for old format with 'data' property
+    if (
+      response.data &&
+      typeof response.data === "object" &&
+      "data" in response.data &&
+      Array.isArray((response.data as any).data)
+    ) {
+      console.log("✅ Response has data array");
+      return (response.data as any).data;
+    }
+
+    console.error("❌ Unexpected response format:", response.data);
     throw new Error("Invalid API response format");
   } catch (error) {
+    console.error("❌ Error in getAllVehicles:", error);
     handleError(error);
     throw error;
   }
@@ -122,7 +192,7 @@ export const getAllVehicles = async (): Promise<Vehicle[]> => {
 export const getVehicleById = async (id: string): Promise<Vehicle> => {
   try {
     const response = await api.get<{ success: boolean; data: Vehicle }>(
-      `/vehicles/${id}`
+      `/vehicles/${id}?populate=stationData`
     );
 
     if (response.data.success && response.data.data) {
@@ -246,6 +316,153 @@ export const uploadVehiclePhotos = async (photos: File[]): Promise<string[]> => 
     }
 
     throw new Error("Failed to upload photos");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Vehicle Management Request Functions
+export const reportMaintenance = async (
+  id: string,
+  body: { description: string }
+): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/${id}/report-maintenance`,
+      body
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to report maintenance");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const createDeletionRequest = async (
+  id: string,
+  body: { reason: string }
+): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/${id}/deletion-requests`,
+      body
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to create deletion request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Deletion Requests Management
+export const getDeletionRequests = async (): Promise<any[]> => {
+  try {
+    const response = await api.get<{ success: boolean; data: any[] }>(
+      "/vehicles/deletion-requests"
+    );
+    
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+    
+    return [];
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const approveDeletionRequest = async (requestId: string): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/deletion-requests/${requestId}/approve`
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to approve deletion request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const rejectDeletionRequest = async (requestId: string): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/deletion-requests/${requestId}/reject`
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to reject deletion request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Maintenance Requests Management
+export const getMaintenanceRequests = async (): Promise<any[]> => {
+  try {
+    const response = await api.get<{ success: boolean; data: any[] }>(
+      "/vehicles/maintenance-requests"
+    );
+    
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+    
+    return [];
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const approveMaintenanceRequest = async (requestId: string): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/maintenance-requests/${requestId}/approve`
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to approve maintenance request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const rejectMaintenanceRequest = async (requestId: string): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/maintenance-requests/${requestId}/reject`
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to reject maintenance request");
   } catch (error) {
     handleError(error);
     throw error;

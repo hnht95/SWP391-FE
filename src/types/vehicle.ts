@@ -29,6 +29,51 @@ export interface VehiclePhotos {
   interior: string[];
 }
 
+// Raw vehicle from backend API
+export interface RawApiVehicle {
+  _id: string;
+  owner: string;
+  company?: string | null;
+  valuation?: {
+    valueVND: number;
+    lastUpdatedAt?: string;
+  };
+  plateNumber: string;
+  vin: string;
+  brand: string;
+  model: string;
+  year: number;
+  color: string;
+  batteryCapacity: number;
+  mileage: number;
+  pricePerDay: number;
+  pricePerHour: number;
+  status: "available" | "rented" | "maintenance";
+  station: {
+    _id: string;
+    name: string;
+    code: string;
+    location: {
+      address: string;
+      lat: number;
+      lng: number;
+    };
+    isActive: boolean;
+  };
+  defaultPhotos: VehiclePhotos;
+  ratingAvg: number;
+  ratingCount: number;
+  tags: string[];
+  maintenanceHistory: Array<{
+    description: string;
+    reportedAt: string;
+    staff: string;
+    _id: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // API Vehicle interface (from useVehicles hook)
 export interface ApiVehicle {
   id: string;
@@ -110,4 +155,76 @@ export interface StatusStyle {
   color: string;
   label: string;
   dotColor: string;
+}
+
+// Request types for Vehicle Management
+export interface MaintenanceRequest {
+  _id: string;
+  vehicleId: string;
+  vehicle: {
+    _id: string;
+    plateNumber: string;
+    brand: string;
+    model: string;
+  };
+  description: string;
+  reportedBy: string;
+  reportedAt: string;
+  status: "pending" | "approved" | "rejected";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeletionRequest {
+  _id: string;
+  vehicleId: string;
+  vehicle: {
+    _id: string;
+    plateNumber: string;
+    brand: string;
+    model: string;
+  };
+  reason: string;
+  requestedBy: string;
+  requestedAt: string;
+  status: "pending" | "approved" | "rejected";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TransferLog {
+  _id: string;
+  vehicleId: string;
+  fromStationId: string;
+  toStationId: string;
+  transferredBy: string;
+  transferDate: string;
+  reason?: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Request types for API calls
+export interface TransferVehicleRequest {
+  toStationId: string;
+  reason?: string;
+}
+
+export interface ReportMaintenanceRequest {
+  description: string;
+}
+
+export interface CreateDeletionRequest {
+  reason: string;
 }

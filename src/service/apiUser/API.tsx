@@ -72,3 +72,11 @@ export const logout = async () => {
     handleError(error);
   }
 };
+export async function getAllUsers(params?: { page?: number; limit?: number }) {
+  try {
+    const response = await api.get("admin/users", { params });
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+}

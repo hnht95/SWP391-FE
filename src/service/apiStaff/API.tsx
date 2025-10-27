@@ -2,6 +2,13 @@
 import { AxiosError } from "axios";
 
 import api from "../Utils";
+import type { ContractsListResponse } from "../../types/contracts";
+import type { RawApiVehicle } from "../../types/vehicle";
+import type {
+  AdminBookingTransactionsResponse,
+  CreateBookingRequest,
+  CreateBookingResponse,
+} from "../../types/bookings";
 
 const handleError = (error: unknown) => {
   const err = error as AxiosError;
@@ -39,53 +46,7 @@ const handleError = (error: unknown) => {
   throw new Error(errorMessage);
 };
 
-// Vehicle Types - Raw API response structure
-interface RawApiVehicle {
-  _id: string;
-  owner: string;
-  company?: string | null;
-  valuation?: {
-    valueVND: number;
-    lastUpdatedAt?: string;
-  };
-  plateNumber: string;
-  vin: string;
-  brand: string;
-  model: string;
-  year: number;
-  color: string;
-  batteryCapacity: number;
-  mileage: number;
-  pricePerDay: number;
-  pricePerHour: number;
-  status: "available" | "rented" | "maintenance";
-  station: {
-    _id: string;
-    name: string;
-    code: string;
-    location: {
-      address: string;
-      lat: number;
-      lng: number;
-    };
-    isActive: boolean;
-  };
-  defaultPhotos: {
-    exterior: string[];
-    interior: string[];
-  };
-  ratingAvg: number;
-  ratingCount: number;
-  tags: string[];
-  maintenanceHistory: Array<{
-    description: string;
-    reportedAt: string;
-    staff: string;
-    _id: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
+// RawApiVehicle moved to shared types
 
 interface ApiVehiclesResponse {
   success: boolean;
@@ -177,9 +138,52 @@ export const staffAPI = {
       throw error;
     }
   },
+
+  // Get all contracts with filters
+  getContracts: async (params?: {
+    status?: string;
+    company?: string;
+  }): Promise<ContractsListResponse> => {
+    try {
+      const response = await api.get("/contracts", { params });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get booking transactions (admin)
+  getAdminBookingTransactions: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/bookings/admin/transactions", {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Create a booking
+  createBooking: async (
+    payload: CreateBookingRequest
+  ): Promise<CreateBookingResponse> => {
+    try {
+      const response = await api.post("/bookings", payload);
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
 };
 
 export default staffAPI;
 
-// Export types for use in components
-export type { RawApiVehicle, ApiVehiclesResponse, GetVehiclesParams };
+// Export selected local types
+export type { ApiVehiclesResponse, GetVehiclesParams };

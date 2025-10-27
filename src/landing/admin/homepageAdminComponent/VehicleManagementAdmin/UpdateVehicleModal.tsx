@@ -14,7 +14,7 @@ import {
   MdLocationOn,
   MdEdit,
 } from "react-icons/md";
-import { updateVehicle } from "../../../../service/apiAdmin/apiVehicles/API";
+import { updateVehicle, getStationId } from "../../../../service/apiAdmin/apiVehicles/API";
 import type { Vehicle, UpdateVehicleData } from "../../../../service/apiAdmin/apiVehicles/API";
 import UploadCarPhotos from "./UploadCarPhotos";
 
@@ -72,22 +72,22 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         pricePerDay: vehicle.pricePerDay || 0,
         pricePerHour: vehicle.pricePerHour || 0,
         status: vehicle.status || "available",
-        station: vehicle.station || "",
+        station: getStationId(vehicle.station) || "",
       });
       
       // Pre-fill photos from vehicle data
       if (vehicle.defaultPhotos) {
         const existingPhotos = {
-          exterior: vehicle.defaultPhotos.exterior.map((url, index) => ({
+          exterior: vehicle.defaultPhotos.exterior.map((photo, index) => ({
             id: `existing-exterior-${index}`,
             file: null as any, // We don't have the original file
-            preview: url,
+            preview: typeof photo === 'string' ? photo : photo.url,
             type: "exterior" as const
           })),
-          interior: vehicle.defaultPhotos.interior.map((url, index) => ({
+          interior: vehicle.defaultPhotos.interior.map((photo, index) => ({
             id: `existing-interior-${index}`,
             file: null as any, // We don't have the original file
-            preview: url,
+            preview: typeof photo === 'string' ? photo : photo.url,
             type: "interior" as const
           }))
         };
@@ -167,8 +167,12 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
       
       // Get existing photos (from vehicle.defaultPhotos)
       if (vehicle.defaultPhotos) {
-        updatedPhotos.exterior = [...(vehicle.defaultPhotos.exterior || [])];
-        updatedPhotos.interior = [...(vehicle.defaultPhotos.interior || [])];
+        updatedPhotos.exterior = vehicle.defaultPhotos.exterior.map(photo => 
+          typeof photo === 'string' ? photo : photo.url
+        );
+        updatedPhotos.interior = vehicle.defaultPhotos.interior.map(photo => 
+          typeof photo === 'string' ? photo : photo.url
+        );
       }
       
       console.log("Photos will be uploaded when backend endpoint is ready:", {
@@ -608,7 +612,7 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                       <select
                         value={formData.status}
                         onChange={(e) => {
-                          setFormData({ ...formData, status: e.target.value });
+                          setFormData({ ...formData, status: e.target.value as "available" | "reserved" | "rented" | "maintenance" });
                           if (errors.status) setErrors({ ...errors, status: "" });
                         }}
                         className={`w-full px-4 py-3 text-sm border ${

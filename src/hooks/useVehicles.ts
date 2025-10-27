@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { staffAPI, type RawApiVehicle } from "../service/apiStaff/API";
+import { staffAPI } from "../service/apiStaff/API";
+import type { RawApiVehicle } from "../types/vehicle";
 import type { ApiVehicle } from "../types/vehicle";
 
 interface VehiclesResponse {
