@@ -1,100 +1,53 @@
 import { useState, useEffect, useRef } from "react";
 import SidebarUser from "./SidebarUser";
 import ProfileTab from "./userProfileComponent/userTabComponent/ProfileTab";
-import SettingsTab from "./userProfileComponent/userTabComponent/SettingsTab";
-import ActivityTab from "./userProfileComponent/userTabComponent/ActivityTab";
 import BookingHistoryTab from "./userProfileComponent/userTabComponent/BookingHistoryTab";
+import EditProfileModal from "./userProfileComponent/userTabComponent/profileComponent/EditProfileModal"; // ✅ Import modal
 import profileApi, {
   type UserProfile as UserProfileType,
 } from "../../../../../service/apiUser/profile/API";
 
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  avatar?: string;
-  role: "User" | "Staff" | "Admin";
-  kycVerified: boolean;
-  createdAt: string;
-  gender?: string;
-  address?: string;
-}
-
-type TabType = "profile" | "booking" | "activity" | "settings";
+type TabType = "profile" | "booking";
 
 const UserProfile = () => {
-  const [user, setUser] = useState<UserData | null>(null);
+  const [user, setUser] = useState<UserProfileType | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false); // ✅ Modal state
 
   const hasFetched = useRef(false);
 
   const tabs = [
     { id: "profile", label: "Profile" },
     { id: "booking", label: "Booking History" },
-    { id: "activity", label: "Activity" },
-    { id: "settings", label: "Settings" },
   ] as const;
+
+  const fetchUserProfile = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await profileApi.getCurrentUser();
+      console.log("✅ User profile response:", response);
+
+      if (response.success && response.data) {
+        setUser(response.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch user profile:", err);
+      setError(err instanceof Error ? err.message : "Failed to load profile");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (hasFetched.current) return;
     hasFetched.current = true;
 
     const abortController = new AbortController();
-
-    const fetchUserProfile = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const response = await profileApi.getCurrentUser();
-
-        console.log("✅ User profile response:", response);
-
-        if (response.success && response.data) {
-          const userData = response.data;
-
-          // ✅ Extract avatar URL from nested object or use fallback
-          let avatarUrl: string | undefined;
-
-          if (userData.avatarUrl) {
-            // If avatarUrl is an object with url property
-            if (
-              typeof userData.avatarUrl === "object" &&
-              "url" in userData.avatarUrl
-            ) {
-              avatarUrl = userData.avatarUrl.url;
-            }
-            // If avatarUrl is already a string
-            else if (typeof userData.avatarUrl === "string") {
-              avatarUrl = userData.avatarUrl;
-            }
-          }
-
-          setUser({
-            id: userData._id || userData.id || "",
-            name: userData.name,
-            email: userData.email,
-            phone: userData.phone,
-            avatar: avatarUrl || userData.avatar, // ✅ Fixed: Use extracted URL
-            role: mapRoleToDisplay(userData.role),
-            kycVerified: userData.kyc?.verified || false,
-            createdAt: userData.createdAt,
-            gender: userData.gender,
-            address: userData.address,
-          });
-        }
-      } catch (err) {
-        console.error("Failed to fetch user profile:", err);
-        setError(err instanceof Error ? err.message : "Failed to load profile");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchUserProfile();
 
     return () => {
@@ -102,16 +55,8 @@ const UserProfile = () => {
     };
   }, []);
 
-  const mapRoleToDisplay = (
-    apiRole: UserProfileType["role"]
-  ): "User" | "Staff" | "Admin" => {
-    const roleMap: Record<UserProfileType["role"], "User" | "Staff" | "Admin"> =
-      {
-        renter: "User",
-        staff: "Staff",
-        admin: "Admin",
-      };
-    return roleMap[apiRole];
+  const handleRefresh = () => {
+    fetchUserProfile();
   };
 
   const renderTabContent = () => {
@@ -119,20 +64,20 @@ const UserProfile = () => {
 
     switch (activeTab) {
       case "profile":
-        return <ProfileTab user={user} />;
+        return <ProfileTab user={user} onRefresh={handleRefresh} />;
       case "booking":
         return <BookingHistoryTab />;
-      case "activity":
-        return <ActivityTab />;
-      case "settings":
-        return <SettingsTab />;
       default:
-        return <ProfileTab user={user} />;
+        return <ProfileTab user={user} onRefresh={handleRefresh} />;
     }
   };
 
   const handleEditProfile = () => {
-    console.log("Edit profile clicked");
+    setShowEditModal(true); // ✅ Open modal
+  };
+
+  const handleEditSuccess = () => {
+    fetchUserProfile(); // ✅ Refresh data after edit
   };
 
   const handleSignOut = () => {
@@ -163,7 +108,7 @@ const UserProfile = () => {
             {error || "User data not available"}
           </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={fetchUserProfile}
             className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
           >
             Retry
@@ -195,10 +140,6 @@ const UserProfile = () => {
                   "Manage your personal information and preferences"}
                 {activeTab === "booking" &&
                   "View your rental booking history and details"}
-                {activeTab === "activity" &&
-                  "Track your recent activities and updates"}
-                {activeTab === "settings" &&
-                  "Configure your account preferences and settings"}
               </p>
             </div>
 
@@ -221,6 +162,16 @@ const UserProfile = () => {
           </div>
         </div>
       </div>
+
+      {/* ✅ Edit Profile Modal */}
+      {user && (
+        <EditProfileModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          user={user}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 };

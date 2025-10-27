@@ -502,12 +502,12 @@ export const getBookingStatusColor = (status: BookingStatus): string => {
 
 export const getBookingStatusLabel = (status: BookingStatus): string => {
   const statusLabels: Record<BookingStatus, string> = {
-    pending: "Đang Chờ",
-    reserved: "Đã Đặt",
-    active: "Đang Thuê",
-    completed: "Hoàn Thành",
-    cancelled: "Đã Hủy",
-    expired: "Hết Hạn",
+    pending: "Pending",
+    reserved: "Reserved",
+    active: "Active",
+    completed: "Completed",
+    cancelled: "Cancled",
+    expired: "Expired",
   };
 
   return statusLabels[status] || status;

@@ -23,7 +23,6 @@ const BookingHistoryTab = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // ✅ Modal state
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null
   );
@@ -77,21 +76,24 @@ const BookingHistoryTab = () => {
     fetchBookings(nextPage, false);
   };
 
-  // ✅ Open modal handler
-  const handleViewDetails = (bookingId: string) => {
+  // ✅ Click on card to open modal
+  const handleCardClick = (bookingId: string) => {
     setSelectedBookingId(bookingId);
     setIsModalOpen(true);
   };
 
-  // ✅ Close modal handler
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedBookingId(null);
-    // ✅ Refresh bookings after modal closes
     fetchBookings(1, true);
   };
 
-  const handleCancelBooking = async (bookingId: string) => {
+  const handleCancelBooking = async (
+    bookingId: string,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation(); // ✅ Prevent card click
+
     if (!confirm("Are you sure you want to cancel this booking?")) return;
 
     try {
@@ -116,6 +118,16 @@ const BookingHistoryTab = () => {
   const calculateDuration = (startTime: string, endTime: string): string => {
     const days = bookingApi.calculateDuration(startTime, endTime);
     return `${days} ${days === 1 ? "day" : "days"}`;
+  };
+
+  const getVehicleImage = (booking: Booking): string | null => {
+    if (typeof booking.vehicle === "object" && booking.vehicle.defaultPhotos) {
+      const exteriorPhotos = booking.vehicle.defaultPhotos.exterior;
+      if (exteriorPhotos && exteriorPhotos.length > 0) {
+        return exteriorPhotos[0].url;
+      }
+    }
+    return null;
   };
 
   if (isLoading) {
@@ -190,155 +202,156 @@ const BookingHistoryTab = () => {
         {/* Bookings List */}
         <div className="space-y-4">
           <AnimatePresence mode="popLayout">
-            {bookings.map((booking, index) => (
-              <motion.div
-                key={booking._id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{
-                  delay: index * 0.05,
-                  duration: 0.4,
-                  ease: "easeOut",
-                  layout: { duration: 0.3 },
-                }}
-                whileHover={{ y: -2 }}
-                className="bg-white rounded-2xl border border-gray-200 p-6 hover:bg-gray-50 transition-all duration-300 ease-in-out shadow-lg hover:shadow-xl group cursor-pointer"
-              >
-                <div className="flex items-start space-x-4">
-                  <div className="flex-shrink-0">
-                    <div className="w-16 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl shadow-md flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                      <Car className="w-8 h-8 text-gray-600" />
-                    </div>
-                  </div>
+            {bookings.map((booking, index) => {
+              const vehicleImage = getVehicleImage(booking);
 
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="text-lg font-semibold text-black group-hover:text-gray-700 transition-colors duration-300">
-                          {booking.vehicle.brand} {booking.vehicle.model}
-                        </h4>
-                        <p className="text-gray-600 text-sm">
-                          {booking.vehicle.plateNumber} •{" "}
-                          {booking._id.slice(-8)}
-                        </p>
+              return (
+                <motion.div
+                  key={booking._id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{
+                    delay: index * 0.05,
+                    duration: 0.4,
+                    ease: "easeOut",
+                    layout: { duration: 0.3 },
+                  }}
+                  whileHover={{ y: -2 }}
+                  onClick={() => handleCardClick(booking._id)} // ✅ Click on card opens modal
+                  className="bg-white rounded-2xl border border-gray-200 p-6 hover:bg-gray-50 transition-all duration-300 ease-in-out shadow-lg hover:shadow-xl group cursor-pointer"
+                >
+                  <div className="flex items-start space-x-4">
+                    {/* Vehicle Image */}
+                    <div className="flex-shrink-0">
+                      <div className="w-20 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl shadow-md overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                        {vehicleImage ? (
+                          <img
+                            src={vehicleImage}
+                            alt={`${booking.vehicle.brand} ${booking.vehicle.model}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Car className="w-8 h-8 text-gray-600" />
+                          </div>
+                        )}
                       </div>
+                    </div>
 
-                      <div
-                        className={`flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium border ${bookingApi.getBookingStatusColor(
-                          booking.status
-                        )}`}
-                      >
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="text-lg font-semibold text-black group-hover:text-gray-700 transition-colors duration-300">
+                            {booking.vehicle.brand} {booking.vehicle.model}
+                          </h4>
+                          <p className="text-gray-600 text-sm">
+                            {booking.vehicle.plateNumber} •{" "}
+                            {booking._id.slice(-8)}
+                          </p>
+                        </div>
+
                         <div
-                          className={`w-2 h-2 rounded-full ${
-                            booking.status === "active"
-                              ? "animate-pulse bg-green-500"
-                              : booking.status === "reserved"
-                              ? "bg-blue-500"
-                              : booking.status === "completed"
-                              ? "bg-purple-500"
-                              : booking.status === "cancelled"
-                              ? "bg-red-500"
-                              : "bg-gray-500"
-                          }`}
-                        ></div>
-                        <span className="capitalize">
-                          {bookingApi.getBookingStatusLabel(booking.status)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Clock className="w-4 h-4 text-gray-600" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium">
-                            Duration
-                          </p>
-                          <p className="text-sm font-bold text-black">
-                            {calculateDuration(
-                              booking.startTime,
-                              booking.endTime
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="w-4 h-4 text-gray-600" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium">
-                            Station
-                          </p>
-                          <p className="text-sm font-bold text-black truncate">
-                            {booking.station.name}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <CreditCard className="w-4 h-4 text-gray-600" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium">
-                            Total Cost
-                          </p>
-                          <p className="text-sm font-bold text-black">
-                            {bookingApi.formatCurrency(
-                              booking.amounts.grandTotal
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-gray-600" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium">
-                            Start Date
-                          </p>
-                          <p className="text-sm font-bold text-black">
-                            {formatDate(booking.startTime)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-gray-200">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center space-x-4">
-                          <span className="text-gray-600">
-                            Paid:{" "}
-                            <span className="font-semibold text-black">
-                              {bookingApi.formatCurrency(
-                                booking.amounts.totalPaid
-                              )}
-                            </span>
+                          className={`flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium border ${bookingApi.getBookingStatusColor(
+                            booking.status
+                          )}`}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              booking.status === "active"
+                                ? "animate-pulse bg-green-500"
+                                : booking.status === "reserved"
+                                ? "bg-blue-500"
+                                : booking.status === "completed"
+                                ? "bg-purple-500"
+                                : booking.status === "cancelled"
+                                ? "bg-red-500"
+                                : "bg-gray-500"
+                            }`}
+                          ></div>
+                          <span className="capitalize">
+                            {bookingApi.getBookingStatusLabel(booking.status)}
                           </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="w-4 h-4 text-gray-600" />
+                          <div>
+                            <p className="text-xs text-gray-500 font-medium">
+                              Duration
+                            </p>
+                            <p className="text-sm font-bold text-black">
+                              {calculateDuration(
+                                booking.startTime,
+                                booking.endTime
+                              )}
+                            </p>
+                          </div>
                         </div>
 
                         <div className="flex items-center space-x-2">
-                          {/* ✅ View Details Button */}
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewDetails(booking._id);
-                            }}
-                            className="px-3 py-1 bg-black text-white rounded-lg text-xs hover:bg-gray-800 transition-colors duration-300 font-medium"
-                          >
-                            View Details
-                          </motion.button>
+                          <MapPin className="w-4 h-4 text-gray-600" />
+                          <div>
+                            <p className="text-xs text-gray-500 font-medium">
+                              Station
+                            </p>
+                            <p className="text-sm font-bold text-black truncate">
+                              {booking.station.name}
+                            </p>
+                          </div>
+                        </div>
 
+                        <div className="flex items-center space-x-2">
+                          <CreditCard className="w-4 h-4 text-gray-600" />
+                          <div>
+                            <p className="text-xs text-gray-500 font-medium">
+                              Total Cost
+                            </p>
+                            <p className="text-sm font-bold text-black">
+                              {bookingApi.formatCurrency(
+                                booking.amounts.grandTotal
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="w-4 h-4 text-gray-600" />
+                          <div>
+                            <p className="text-xs text-gray-500 font-medium">
+                              Start Date
+                            </p>
+                            <p className="text-sm font-bold text-black">
+                              {formatDate(booking.startTime)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-gray-200">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center space-x-4">
+                            <span className="text-gray-600">
+                              Paid:{" "}
+                              <span className="font-semibold text-black">
+                                {bookingApi.formatCurrency(
+                                  booking.amounts.totalPaid
+                                )}
+                              </span>
+                            </span>
+                          </div>
+
+                          {/* ✅ Only show Cancel button, no View Details */}
                           {booking.status === "reserved" && (
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCancelBooking(booking._id);
-                              }}
+                              onClick={(e) =>
+                                handleCancelBooking(booking._id, e)
+                              }
                               className="px-3 py-1 bg-red-50 text-red-600 rounded-lg text-xs hover:bg-red-100 transition-colors duration-300 font-medium"
                             >
                               Cancel
@@ -348,9 +361,9 @@ const BookingHistoryTab = () => {
                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
 
@@ -392,7 +405,6 @@ const BookingHistoryTab = () => {
         )}
       </div>
 
-      {/* ✅ Modal */}
       {selectedBookingId && (
         <BookingDetailModal
           isOpen={isModalOpen}
