@@ -80,6 +80,7 @@ export const forgotPassword = async (email: string) => {
       "/users/forgot-password-email-otp",
       payload
     );
+    return response.data;
   } catch (error) {
     handleError(error);
   }
@@ -102,6 +103,19 @@ export const resetPassword = async (
   try {
     const payload = { email, code, newPassword };
     const response = await api.post("/users/reset-password-email-otp", payload);
+
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+export const getCurrentUser = async () => {
+  try {
+    const response = await api.get("/users/me", {
+      params: {
+        populate: ["avatarUrl", "station"],
+      },
+    });
 
     return response.data;
   } catch (error) {

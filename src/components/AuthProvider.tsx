@@ -4,7 +4,10 @@ import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import type { AuthContextType, User } from "../contexts/AuthContext";
-import { logout as logoutApi } from "../service/apiUser/auth/API";
+import {
+  logout as logoutApi,
+  getCurrentUser,
+} from "../service/apiUser/auth/API";
 
 interface AuthProviderProps {
   children: ReactNode;
