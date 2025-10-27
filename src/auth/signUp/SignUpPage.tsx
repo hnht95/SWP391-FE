@@ -12,7 +12,7 @@ import AuthLayout from "../AuthLayout";
 import SuccessModal from "../../components/SuccessModal";
 
 import { useNavigate } from "react-router-dom";
-import { register } from "../../service/apiUser/API";
+import { register } from "../../service/apiUser/auth/API";
 
 const SignUpPage = () => {
   const navigate = useNavigate();

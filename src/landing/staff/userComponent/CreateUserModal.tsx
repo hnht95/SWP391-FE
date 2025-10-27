@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { MdPerson, MdEmail, MdPhone, MdLock, MdClose } from "react-icons/md";
-import { register } from "../../../service/apiUser/API";
+import { register } from "../../../service/apiUser/auth/API";
 import type {
   CreateUserForm,
   RawApiUser,
@@ -73,7 +73,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
       });
 
       // Refresh users list after creation
-      const { getAllUsers } = await import("../../../service/apiUser/API");
+      const { getAllUsers } = await import("../../../service/apiUser/auth/API");
       const data = await getAllUsers({ page: currentPage, limit: pageSize });
       const mapped = (data.items || []).map((u: RawApiUser) => ({
         id: u._id,

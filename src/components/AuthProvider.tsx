@@ -1,9 +1,10 @@
+// contexts/AuthProvider.tsx
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import type { AuthContextType, User } from "../contexts/AuthContext";
-import { logout as logoutApi, getCurrentUser } from "../service/apiUser/API";
+import { logout as logoutApi } from "../service/apiUser/auth/API";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -40,13 +41,17 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await getCurrentUser();
 
-      if (response?.success && response?.data) {
+      console.log("Fetch current user response:", response);
+
+      // ✅ Handle response from getCurrentUser
+      if (response.success && response.data) {
         const updatedUser = response.data as User;
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
       }
     } catch (error) {
       console.error("Failed to fetch current user:", error);
+      // Don't clear auth on fetch error, just log it
     } finally {
       setIsLoading(false);
     }
@@ -62,6 +67,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Fetch latest user data to ensure we have populated fields
     fetchCurrentUser();
   };
+
   const logout = async () => {
     try {
       // Call logout API to invalidate token on server
