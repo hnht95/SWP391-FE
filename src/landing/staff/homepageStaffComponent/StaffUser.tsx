@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MdPerson, MdAdd } from "react-icons/md";
-import { getAllUsers } from "../../../service/apiUser/auth/API";
+import staffAPI from "../../../service/apiStaff/API";
+import useDebounce from "../../../hooks/useDebounce";
 import {
   UserStatsCards,
   UserFilters,
@@ -21,19 +22,21 @@ const StaffUser = () => {
   const [total, setTotal] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedType, setSelectedType] = useState("all");
+  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce 500ms
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
 
-  // Fetch users from API
+  // Fetch renters only from API
   useEffect(() => {
     async function fetchUsers() {
       setLoading(true);
       try {
-        const data = await getAllUsers({ page, limit: pageSize });
+        const data = await staffAPI.getRenters({
+          page,
+          limit: pageSize,
+          search: debouncedSearchTerm,
+        });
         // Map BE fields to UI User type
         const mapped = (data.items || []).map((u: RawApiUser) => ({
           id: u._id,
@@ -69,22 +72,15 @@ const StaffUser = () => {
       setLoading(false);
     }
     fetchUsers();
-  }, [page, pageSize]);
+  }, [page, pageSize, debouncedSearchTerm]);
+
+  // Reset to page 1 when search term changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm]);
 
   // Calculate stats from users
   const stats = calculateUserStats(users);
-
-  // Filter users based on search and status (client-side)
-  const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (u.phone && u.phone.includes(searchTerm));
-    const matchesStatus =
-      selectedStatus === "all" || u.status === selectedStatus;
-    const matchesType = selectedType === "all" || u.type === selectedType;
-    return matchesSearch && matchesStatus && matchesType;
-  });
 
   // Open detail modal
   const openDetail = (user: User) => {
@@ -153,20 +149,11 @@ const StaffUser = () => {
       >
         <div className="p-6 border-b border-gray-100 space-y-4">
           {/* Filters */}
-          <UserFilters
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            selectedStatus={selectedStatus}
-            setSelectedStatus={setSelectedStatus}
-            selectedType={selectedType}
-            setSelectedType={setSelectedType}
-            showFilters={showFilters}
-            setShowFilters={setShowFilters}
-          />
+          <UserFilters searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
 
           {/* User Table */}
           <UserTable
-            users={filteredUsers}
+            users={users}
             loading={loading}
             onViewDetail={openDetail}
           />

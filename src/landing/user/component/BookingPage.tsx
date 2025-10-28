@@ -9,6 +9,8 @@ import type { Station } from "../../../service/apiAdmin/apiStation/API";
 import { createBooking } from "../../../service/apiBooking/API";
 import { FaArrowLeft, FaBatteryFull, FaCheckCircle } from "react-icons/fa";
 
+// pages/BookingPage.tsx
+
 const BookingPage: React.FC = () => {
   const { vehicleId } = useParams<{ vehicleId: string }>();
   const navigate = useNavigate();
@@ -19,7 +21,6 @@ const BookingPage: React.FC = () => {
   const [error, setError] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
 
-  // ✅ Modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [bookingData, setBookingData] = useState<any>(null);
 
@@ -67,7 +68,6 @@ const BookingPage: React.FC = () => {
   const totalPrice = vehicle ? duration * vehicle.pricePerDay : 0;
   const grandTotal = totalPrice + depositAmount;
 
-  // ✅ Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -103,7 +103,6 @@ const BookingPage: React.FC = () => {
 
       console.log("✅ Booking created successfully:", response);
 
-      // ✅ Store booking data and show modal
       setBookingData(response);
       setShowSuccessModal(true);
     } catch (err: any) {
@@ -114,16 +113,33 @@ const BookingPage: React.FC = () => {
     }
   };
 
-  // ✅ Navigate to payment page
+  // ✅ FIXED: Use _id instead of bookingId
   const handleProceedToPayment = () => {
-    if (bookingData?.bookingId) {
-      navigate(`/payment/${bookingData.bookingId}`, {
-        state: {
-          booking: bookingData,
-          vehicle: vehicle,
-        },
-      });
+    console.log("🔄 Proceeding to payment with data:", bookingData);
+
+    if (!bookingData) {
+      console.error("❌ No booking data available");
+      alert("Booking data is missing. Please try again.");
+      return;
     }
+
+    // ✅ Use _id (normalized in API.tsx)
+    const bookingIdToUse = bookingData._id;
+
+    if (!bookingIdToUse) {
+      console.error("❌ No booking ID found:", bookingData);
+      alert("Booking ID is missing. Please try again.");
+      return;
+    }
+
+    console.log("✅ Navigating to payment page:", bookingIdToUse);
+
+    navigate(`/payment/${bookingIdToUse}`, {
+      state: {
+        booking: bookingData,
+        vehicle: vehicle,
+      },
+    });
   };
 
   if (loading) {
@@ -164,8 +180,6 @@ const BookingPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 py-20">
         <div className="max-w-4xl mx-auto px-4">
           <div className="bg-white rounded-lg shadow-lg p-6">
-            {/* ... Rest of the form (same as before) ... */}
-
             <div className="border-b pb-4 mb-6">
               <h1 className="text-3xl font-bold text-gray-900">
                 Book Your Vehicle
@@ -176,7 +190,7 @@ const BookingPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Vehicle Info - Same as before */}
+              {/* Vehicle Info */}
               <div>
                 <h2 className="text-xl font-semibold mb-4">Vehicle Details</h2>
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -252,7 +266,7 @@ const BookingPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Booking Form - Same as before */}
+              {/* Booking Form */}
               <div>
                 <h2 className="text-xl font-semibold mb-4">
                   Booking Information
@@ -396,7 +410,7 @@ const BookingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ✅ Success Modal */}
+      {/* Success Modal */}
       {showSuccessModal && bookingData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fade-in">
@@ -417,7 +431,7 @@ const BookingPage: React.FC = () => {
                 <div className="space-y-1 text-sm">
                   <p>
                     <span className="text-gray-600">Booking ID:</span>{" "}
-                    <span className="font-mono">{bookingData.bookingId}</span>
+                    <span className="font-mono">{bookingData._id}</span>
                   </p>
                   <p>
                     <span className="text-gray-600">Status:</span>{" "}

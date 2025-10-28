@@ -4,8 +4,10 @@ import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import type { AuthContextType, User } from "../contexts/AuthContext";
-import { logout as logoutApi } from "../service/apiUser/auth/API";
-import { getCurrentUser } from "../service/apiUser/profile/API";
+import {
+  logout as logoutApi,
+  getCurrentUser,
+} from "../service/apiUser/auth/API";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -42,17 +44,40 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await getCurrentUser();
 
-      console.log("Fetch current user response:", response);
+      console.log("✅ Fetch current user response:", response);
 
-      // ✅ Handle response from getCurrentUser
       if (response.success && response.data) {
-        const updatedUser = response.data as User;
+        const userData = response.data;
+
+        // ✅ Extract avatar URL from avatarUrl object
+        let avatarUrl: string | undefined;
+        if (userData.avatarUrl) {
+          if (
+            typeof userData.avatarUrl === "object" &&
+            "url" in userData.avatarUrl
+          ) {
+            avatarUrl = userData.avatarUrl.url;
+          } else if (typeof userData.avatarUrl === "string") {
+            avatarUrl = userData.avatarUrl;
+          }
+        }
+
+        const updatedUser: User = {
+          id: userData._id || userData.id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          avatar: avatarUrl || userData.avatar,
+          phone: userData.phone,
+        };
+
+        console.log("✅ Updated user with avatar:", updatedUser);
+
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
       }
     } catch (error) {
       console.error("Failed to fetch current user:", error);
-      // Don't clear auth on fetch error, just log it
     } finally {
       setIsLoading(false);
     }
@@ -65,19 +90,15 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
 
-    // Fetch latest user data to ensure we have populated fields
     fetchCurrentUser();
   };
 
   const logout = async () => {
     try {
-      // Call logout API to invalidate token on server
       await logoutApi();
     } catch (error) {
-      // Even if API call fails, we should still clear local storage
       console.error("Logout API error:", error);
     } finally {
-      // Always clear local state and storage
       setToken(null);
       setUser(null);
       localStorage.removeItem("token");
@@ -116,25 +137,21 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       {showGlobalLoader ? (
         <div className="fixed inset-0 z-[9999] bg-white/70 backdrop-blur-sm flex items-center justify-center">
           <div className="relative">
-            {/* Outer ring - slow rotation */}
             <motion.div
               className="rounded-full h-16 w-16 border border-black/15"
               animate={{ rotate: 360 }}
               transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
             />
-            {/* Middle ring - medium rotation (top border) */}
             <motion.div
               className="absolute inset-0 rounded-full h-16 w-16 border-t border-black/50"
               animate={{ rotate: 360 }}
               transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
             />
-            {/* Inner ring - fast rotation (top/right) */}
             <motion.div
               className="absolute inset-2 rounded-full h-12 w-12 border-t border-r border-black"
               animate={{ rotate: -360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             />
-            {/* Center dot pulsing */}
             <motion.div
               className="absolute inset-0 flex items-center justify-center"
               animate={{ scale: [1, 1.15, 1] }}

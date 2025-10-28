@@ -1,135 +1,402 @@
 // service/apiBooking/API.tsx
-import { AxiosError } from "axios";
+import axios, { AxiosError } from "axios";
 import api from "../Utils";
-// import api from "../../Utils";
 
-// ============ INTERFACES ============
+// ============ TYPE DEFINITIONS ============
 
-// Renter info
-export interface Renter {
+export type BookingStatus =
+  | "pending"
+  | "reserved"
+  | "active"
+  | "completed"
+  | "cancelled"
+  | "expired";
+
+export type DepositStatus =
+  | "none"
+  | "pending"
+  | "captured"
+  | "failed"
+  | "refunded";
+
+// ✅ Renter info (populated)
+export type Renter = {
   _id: string;
   name: string;
   email: string;
   phone: string;
   avatar?: string;
-}
+  id?: string; // Backend sometimes returns this
+};
 
-// Deposit info
-export interface Deposit {
+// ✅ Vehicle info (populated)
+export type VehicleInBooking = {
+  _id: string;
+  plateNumber: string;
+  brand: string;
+  model: string;
+  year: number;
+  color: string;
+  pricePerDay: number;
+  pricePerHour: number;
+  status: string;
+  defaultPhotos?: {
+    exterior: Array<{ _id: string; url: string; type: string }>;
+    interior: Array<{ _id: string; url: string; type: string }>;
+  };
+};
+
+// ✅ Station info (populated)
+export type StationInfo = {
+  _id: string;
+  name: string;
+  code?: string;
+  location: {
+    address: string;
+    lat: number;
+    lng: number;
+  };
+};
+
+// ✅ Deposit info with PayOS details
+export type DepositInfo = {
   amount: number;
   currency: string;
   provider: string;
-  status: "pending" | "captured" | "failed" | "refunded";
-  providerRef?: string;
+  providerRef: string | null;
+  status: DepositStatus;
   payos?: {
     orderCode: number;
     paymentLinkId: string;
     checkoutUrl: string;
     qrCode: string;
+    amountCaptured: number;
+    paidAt?: string;
+    lastWebhook?: {
+      code: string;
+      desc: string;
+      success: boolean;
+      data: any;
+      signature: string;
+    };
   };
-}
+};
 
-// Pricing snapshot
-export interface PricingSnapshot {
+// ✅ Pricing snapshot
+export type PricingSnapshot = {
   baseUnit: "hour" | "day";
   basePrice: number;
   computedQty?: number;
-}
+};
 
-// Vehicle in booking (can be populated or just ID)
-export interface VehicleInBooking {
+// ✅ Booking amounts
+export type BookingAmounts = {
+  rentalEstimated?: number;
+  overKmFee: number;
+  lateFee: number;
+  batteryFee: number;
+  damageCharge: number;
+  discounts: number;
+  subtotal: number;
+  tax: number;
+  grandTotal: number;
+  totalPaid: number;
+};
+
+// ✅ Main Booking interface
+export type Booking = {
   _id: string;
-  brand?: string;
-  model?: string;
-  plateNumber?: string;
-  [key: string]: any;
-}
+  renter: string | Renter;
+  vehicle: string | VehicleInBooking;
+  station: string | StationInfo;
+  company: string | null;
+  startTime: string;
+  endTime: string;
+  status: BookingStatus;
+  deposit: DepositInfo;
+  holdExpiresAt: string | null;
 
-// Booking interface
-export interface Booking {
-  _id?: string;
-  bookingId?: string;
-  renter: Renter | string;
-  vehicle?: VehicleInBooking | string;
-  status: "pending" | "reserved" | "active" | "completed" | "cancelled";
-  holdExpiresAt?: string;
-  deposit?: Deposit;
-  pricingSnapshot?: PricingSnapshot;
-  amountEstimated?: number;
+  // ✅ Payment URLs (from createBooking response)
   checkoutUrl?: string;
   qrCode?: string;
-  startTime?: string;
-  endTime?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
 
-// Create booking request
-export interface CreateBookingRequest {
+  counterCheck: {
+    licenseSnapshot: string[];
+    contractPhotos: string[];
+  };
+  handoverPhotos: {
+    exteriorBefore: string[];
+    interiorBefore: string[];
+    exteriorAfter: string[];
+    interiorAfter: string[];
+  };
+  cancellationPolicySnapshot: {
+    windows: any[];
+    specialCases: any[];
+  };
+  amounts: BookingAmounts;
+  amountEstimated?: number;
+  pricingSnapshot?: PricingSnapshot;
+  createdAt: string;
+  updatedAt: string;
+  __v?: number;
+};
+
+// ✅ Create booking request
+export type CreateBookingRequest = {
   vehicleId: string;
-  startTime: string; // ISO 8601 format
-  endTime: string; // ISO 8601 format
+  startTime: string;
+  endTime: string;
   deposit: {
     provider: "payos";
   };
-}
+};
+
+// ✅ Create booking response (has extra fields)
+export type CreateBookingResponse = Booking & {
+  checkoutUrl: string;
+  qrCode: string;
+};
+
+// ✅ Paginated response
+export type PaginatedBookingsResponse = {
+  success: boolean;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  items: Booking[];
+};
+
+// ✅ Query params
+export type BookingQueryParams = {
+  page?: number;
+  limit?: number;
+  status?: BookingStatus;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: "startTime" | "createdAt" | "status";
+  sortOrder?: "asc" | "desc";
+};
 
 // ============ ERROR HANDLER ============
 
-const handleError = (error: unknown) => {
-  const err = error as AxiosError;
-  console.error("Booking API Error:", {
-    status: err?.response?.status,
-    data: err?.response?.data,
-    message: err?.message,
-  });
+const handleError = (error: unknown, context: string) => {
+  if (axios.isAxiosError(error)) {
+    console.error(`Booking API Error [${context}]:`, {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+    });
 
-  let errorMessage = err?.message || "Unknown error";
-  if (err?.response?.data) {
-    const responseData: any = err.response.data;
-    if (responseData.message) {
-      errorMessage = responseData.message;
+    let errorMessage = error.message || "Unknown error";
+
+    if (error.response?.data) {
+      const responseData = error.response.data as any;
+      if (responseData.message) {
+        errorMessage = responseData.message;
+      } else if (responseData.error) {
+        errorMessage = responseData.error;
+      }
     }
-  }
 
-  throw new Error(errorMessage);
+    throw new Error(errorMessage);
+  } else {
+    console.error(`Booking API Error [${context}]:`, error);
+    throw new Error("An unexpected error occurred");
+  }
 };
 
 // ============ API FUNCTIONS ============
 
 /**
  * POST /api/bookings
- * Tạo booking mới với thanh toán cọc PayOS
+ * Create new booking with PayOS deposit
  */
 export const createBooking = async (
   data: CreateBookingRequest
-): Promise<Booking> => {
+): Promise<CreateBookingResponse> => {
   try {
-    const response = await api.post("/bookings", data);
+    console.log("🔄 Creating booking with data:", data);
 
-    console.log("✅ Create booking response:", response.data);
+    const response = await api.post<any>("/bookings", data);
 
-    // Backend returns data directly at root level
-    if (response.data && response.data.bookingId) {
+    console.log("✅ Create booking raw response:", response.data);
+
+    // ✅ Backend returns different format - normalize it
+    if (response.data) {
+      // Check if wrapped in success/data
+      const bookingData = response.data.data || response.data;
+
+      // ✅ Backend returns "bookingId" instead of "_id"
+      const normalizedResponse: CreateBookingResponse = {
+        _id: bookingData.bookingId || bookingData._id || "",
+        renter: bookingData.renter || "",
+        vehicle: bookingData.vehicle || "",
+        station: bookingData.station || "",
+        company: bookingData.company || null,
+        startTime: bookingData.startTime || "",
+        endTime: bookingData.endTime || "",
+        status: bookingData.status || "pending",
+        deposit: bookingData.deposit || {
+          amount: 0,
+          currency: "VND",
+          provider: "payos",
+          providerRef: null,
+          status: "none",
+        },
+        holdExpiresAt: bookingData.holdExpiresAt || null,
+
+        // ✅ Extract payment URLs from multiple possible locations
+        checkoutUrl:
+          bookingData.checkoutUrl ||
+          bookingData.deposit?.payos?.checkoutUrl ||
+          "",
+        qrCode: bookingData.qrCode || bookingData.deposit?.payos?.qrCode || "",
+
+        counterCheck: bookingData.counterCheck || {
+          licenseSnapshot: [],
+          contractPhotos: [],
+        },
+        handoverPhotos: bookingData.handoverPhotos || {
+          exteriorBefore: [],
+          interiorBefore: [],
+          exteriorAfter: [],
+          interiorAfter: [],
+        },
+        cancellationPolicySnapshot: bookingData.cancellationPolicySnapshot || {
+          windows: [],
+          specialCases: [],
+        },
+        amounts: bookingData.amounts || {
+          rentalEstimated: bookingData.amountEstimated || 0,
+          overKmFee: 0,
+          lateFee: 0,
+          batteryFee: 0,
+          damageCharge: 0,
+          discounts: 0,
+          subtotal: bookingData.amountEstimated || 0,
+          tax: 0,
+          grandTotal: bookingData.amountEstimated || 0,
+          totalPaid: 0,
+        },
+        amountEstimated: bookingData.amountEstimated || 0,
+        pricingSnapshot: bookingData.pricingSnapshot || {
+          baseUnit: "day",
+          basePrice: 0,
+        },
+        createdAt: bookingData.createdAt || new Date().toISOString(),
+        updatedAt: bookingData.updatedAt || new Date().toISOString(),
+      };
+
+      console.log("✅ Normalized booking response:", normalizedResponse);
+
+      // ✅ Validate we have at least an ID
+      if (!normalizedResponse._id) {
+        console.error("❌ Missing ID in response:", bookingData);
+        throw new Error(
+          "Invalid booking response: missing both _id and bookingId"
+        );
+      }
+
+      return normalizedResponse;
+    }
+
+    throw new Error("Invalid booking response: empty data");
+  } catch (error) {
+    handleError(error, "createBooking");
+    throw error;
+  }
+};
+
+/**
+ * GET /api/bookings/mine
+ * Get user's bookings with pagination and filters
+ */
+export const getMyBookings = async (
+  params: BookingQueryParams = {}
+): Promise<PaginatedBookingsResponse> => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      startDate,
+      endDate,
+      sortBy,
+      sortOrder,
+    } = params;
+
+    console.log("Fetching user bookings with params:", params);
+
+    const response = await api.get<PaginatedBookingsResponse>(
+      "/bookings/mine",
+      {
+        params: {
+          page,
+          limit,
+          ...(status && { status }),
+          ...(startDate && { startDate }),
+          ...(endDate && { endDate }),
+          ...(sortBy && { sortBy }),
+          ...(sortOrder && { sortOrder }),
+        },
+      }
+    );
+
+    console.log("✅ Get bookings response:", response.data);
+
+    return response.data;
+  } catch (error) {
+    handleError(error, "getMyBookings");
+    throw error;
+  }
+};
+
+/**
+ * GET /api/bookings/{id}
+ * Get booking details by ID
+ */
+export const getBookingById = async (bookingId: string): Promise<Booking> => {
+  try {
+    console.log("Fetching booking:", bookingId);
+
+    const response = await api.get(`/bookings/${bookingId}`);
+
+    console.log("✅ Get booking response:", response.data);
+
+    // ✅ Handle different response formats
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    // Direct booking object
+    if (response.data._id) {
       return response.data;
     }
 
-    throw new Error("Invalid booking response: missing bookingId");
+    throw new Error("Booking not found");
   } catch (error) {
-    handleError(error);
+    handleError(error, "getBookingById");
     throw error;
   }
 };
 
 /**
  * POST /api/bookings/{id}/payment/link
- * Tạo lại link thanh toán booking (khi link cũ hết hạn)
+ * Create new payment link (when old link expired)
  */
 export const createPaymentLink = async (
   bookingId: string
 ): Promise<{ checkoutUrl: string; qrCode: string }> => {
   try {
-    const response = await api.post(`/bookings/${bookingId}/payment/link`);
+    console.log("Creating payment link for:", bookingId);
+
+    const response = await api.post<{
+      checkoutUrl: string;
+      qrCode: string;
+      data?: { checkoutUrl: string; qrCode: string };
+    }>(`/bookings/${bookingId}/payment/link`);
 
     console.log("✅ Payment link response:", response.data);
 
@@ -144,200 +411,175 @@ export const createPaymentLink = async (
 
     throw new Error("Invalid payment link response");
   } catch (error) {
-    handleError(error);
-    throw error;
-  }
-};
-
-/**
- * POST /api/bookings/{id}/cancel
- * Hủy booking (pending/reserved -> cancelled)
- */
-export const cancelBooking = async (bookingId: string): Promise<void> => {
-  try {
-    const response = await api.post(`/bookings/${bookingId}/cancel`);
-
-    console.log("✅ Cancel booking response:", response.data);
-
-    if (response.status === 200 || response.status === 201) {
-      return;
-    }
-
-    throw new Error("Failed to cancel booking");
-  } catch (error) {
-    handleError(error);
-    throw error;
-  }
-};
-
-/**
- * POST /api/bookings/{id}/refund
- * Refund deposit booking
- */
-export const refundBooking = async (bookingId: string): Promise<void> => {
-  try {
-    const response = await api.post(`/bookings/${bookingId}/refund`);
-
-    console.log("✅ Refund booking response:", response.data);
-
-    if (response.status === 200 || response.status === 201) {
-      return;
-    }
-
-    throw new Error("Failed to refund booking");
-  } catch (error) {
-    handleError(error);
+    handleError(error, "createPaymentLink");
     throw error;
   }
 };
 
 /**
  * GET /api/bookings/{id}/payment
- * Lấy trạng thái thanh toán booking
+ * Get payment status for booking
  */
-export const getPaymentStatus = async (bookingId: string): Promise<any> => {
+export const getPaymentStatus = async (
+  bookingId: string
+): Promise<{ current: { depositStatus: DepositStatus }; deposit?: any }> => {
   try {
+    console.log("Fetching payment status for:", bookingId);
+
     const response = await api.get(`/bookings/${bookingId}/payment`);
 
     console.log("✅ Payment status response:", response.data);
 
-    // Backend trả về object với current.depositStatus
     return response.data;
   } catch (error) {
-    handleError(error);
+    handleError(error, "getPaymentStatus");
     throw error;
   }
 };
 
 /**
- * GET /api/bookings/mine
- * Danh sách booking của tôi (user đang login)
+ * POST /api/bookings/{id}/cancel
+ * Cancel booking (pending/reserved -> cancelled)
  */
-export const getMyBookings = async (): Promise<Booking[]> => {
+export const cancelBooking = async (
+  bookingId: string,
+  reason?: string
+): Promise<{ success: boolean; message: string }> => {
   try {
-    const response = await api.get("/bookings/mine");
+    console.log("Cancelling booking:", bookingId);
 
-    console.log("✅ My bookings response:", response.data);
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/bookings/${bookingId}/cancel`,
+      { reason }
+    );
 
-    // Handle different response formats
-    if (Array.isArray(response.data)) {
-      return response.data;
-    }
+    console.log("✅ Cancel booking response:", response.data);
 
-    if (response.data.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-
-    if (response.data.items && Array.isArray(response.data.items)) {
-      return response.data.items;
-    }
-
-    return [];
+    return response.data;
   } catch (error) {
-    handleError(error);
+    handleError(error, "cancelBooking");
     throw error;
   }
 };
 
 /**
- * GET /api/bookings/{id}
- * Lấy chi tiết 1 booking
- * Response: { success: true, data: {...} }
+ * POST /api/bookings/{id}/refund
+ * Refund deposit for booking
  */
-export const getBookingById = async (bookingId: string): Promise<Booking> => {
+export const refundBooking = async (
+  bookingId: string
+): Promise<{ success: boolean; message: string }> => {
   try {
-    const response = await api.get(`/bookings/${bookingId}`);
+    console.log("Refunding booking:", bookingId);
 
-    console.log("✅ Booking detail response:", response.data);
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/bookings/${bookingId}/refund`
+    );
 
-    // ✅ Backend response: { success: true, data: {...} }
-    if (response.data.success && response.data.data) {
-      return response.data.data;
-    }
+    console.log("✅ Refund booking response:", response.data);
 
-    // ✅ Fallback: direct data
-    if (response.data.bookingId || response.data._id) {
-      return response.data;
-    }
-
-    throw new Error("Booking not found");
+    return response.data;
   } catch (error) {
-    handleError(error);
+    handleError(error, "refundBooking");
     throw error;
   }
 };
 
 // ============ HELPER FUNCTIONS ============
 
-/**
- * Get status color for UI
- */
-export const getBookingStatusColor = (status: Booking["status"]): string => {
-  const statusColors = {
-    pending: "bg-yellow-500 text-white",
-    reserved: "bg-blue-500 text-white",
-    active: "bg-green-500 text-white",
-    completed: "bg-gray-500 text-white",
-    cancelled: "bg-red-500 text-white",
+export const getBookingStatusColor = (status: BookingStatus): string => {
+  const statusColors: Record<BookingStatus, string> = {
+    pending: "bg-yellow-100 text-yellow-800",
+    reserved: "bg-blue-100 text-blue-800",
+    active: "bg-green-100 text-green-800",
+    completed: "bg-purple-100 text-purple-800",
+    cancelled: "bg-red-100 text-red-800",
+    expired: "bg-gray-100 text-gray-800",
   };
 
-  return statusColors[status] || "bg-gray-500 text-white";
+  return statusColors[status] || "bg-gray-100 text-gray-800";
 };
 
-/**
- * Get deposit status color for UI
- */
-export const getDepositStatusColor = (status: Deposit["status"]): string => {
-  const statusColors = {
-    pending: "bg-yellow-500 text-white",
-    captured: "bg-green-500 text-white",
-    failed: "bg-red-500 text-white",
-    refunded: "bg-blue-500 text-white",
+export const getBookingStatusLabel = (status: BookingStatus): string => {
+  const statusLabels: Record<BookingStatus, string> = {
+    pending: "Pending",
+    reserved: "Reserved",
+    active: "Active",
+    completed: "Completed",
+    cancelled: "Cancled",
+    expired: "Expired",
   };
 
-  return statusColors[status] || "bg-gray-500 text-white";
+  return statusLabels[status] || status;
 };
 
-/**
- * Format currency VND
- */
-export const formatCurrency = (amount: number): string => {
-  return amount.toLocaleString("vi-VN") + "đ";
+export const getDepositStatusColor = (status: DepositStatus): string => {
+  const statusColors: Record<DepositStatus, string> = {
+    none: "bg-gray-100 text-gray-800",
+    pending: "bg-yellow-100 text-yellow-800",
+    captured: "bg-green-100 text-green-800",
+    failed: "bg-red-100 text-red-800",
+    refunded: "bg-blue-100 text-blue-800",
+  };
+
+  return statusColors[status] || "bg-gray-100 text-gray-800";
 };
 
-/**
- * Check if booking is expired (hold time)
- */
-export const isBookingExpired = (holdExpiresAt?: string): boolean => {
+export const formatCurrency = (
+  amount: number,
+  currency: string = "VND"
+): string => {
+  if (currency === "VND") {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
+  }
+  return `${amount} ${currency}`;
+};
+
+export const isBookingExpired = (holdExpiresAt?: string | null): boolean => {
   if (!holdExpiresAt) return false;
   return new Date(holdExpiresAt) < new Date();
 };
 
-/**
- * Calculate total amount
- */
-export const calculateTotalAmount = (
-  basePrice: number,
-  quantity: number,
-  depositAmount: number
+export const calculateDuration = (
+  startTime: string,
+  endTime: string
 ): number => {
-  return basePrice * quantity + depositAmount;
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const diffMs = end.getTime() - start.getTime();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 };
 
-// Export default
+export const formatDate = (dateString: string): string => {
+  return new Intl.DateTimeFormat("vi-VN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(dateString));
+};
+
+// ============ EXPORT DEFAULT ============
+
 const bookingApi = {
   createBooking,
-  createPaymentLink,
-  cancelBooking,
-  refundBooking,
-  getPaymentStatus,
   getMyBookings,
   getBookingById,
+  createPaymentLink,
+  getPaymentStatus,
+  cancelBooking,
+  refundBooking,
   getBookingStatusColor,
+  getBookingStatusLabel,
   getDepositStatusColor,
   formatCurrency,
   isBookingExpired,
-  calculateTotalAmount,
+  calculateDuration,
+  formatDate,
 };
 
 export default bookingApi;

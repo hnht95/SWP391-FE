@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   MdClose,
   MdDirectionsCar,
-  MdCode,
   MdBusiness,
   MdModelTraining,
   MdCalendarToday,
@@ -14,7 +13,7 @@ import {
   MdLocationOn,
   MdEdit,
 } from "react-icons/md";
-import { updateVehicle, getStationId } from "../../../../service/apiAdmin/apiVehicles/API";
+import { updateVehicle, getPhotoUrls } from "../../../../service/apiAdmin/apiVehicles/API";
 import type { Vehicle, UpdateVehicleData } from "../../../../service/apiAdmin/apiVehicles/API";
 import UploadCarPhotos from "./UploadCarPhotos";
 
@@ -65,6 +64,15 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
   useEffect(() => {
     if (vehicle) {
       console.log("Pre-filling form with vehicle data:", vehicle);
+      
+      // Get station ID - can be string or object
+      let stationId = "";
+      if (typeof vehicle.station === 'string') {
+        stationId = vehicle.station;
+      } else if (vehicle.station && typeof vehicle.station === 'object' && vehicle.station._id) {
+        stationId = vehicle.station._id;
+      }
+      
       setFormData({
         plateNumber: vehicle.plateNumber || "",
         brand: vehicle.brand || "",
@@ -76,7 +84,7 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         pricePerDay: vehicle.pricePerDay || 0,
         pricePerHour: vehicle.pricePerHour || 0,
         status: vehicle.status || "available",
-        station: getStationId(vehicle.station) || "",
+        station: stationId,
       });
       
       // Pre-fill existing photos from vehicle data
@@ -207,7 +215,7 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         defaultPhotos: updatedPhotos,
       };
       
-      await updateVehicle(vehicle.id || vehicle._id || "", updateData);
+      await updateVehicle(vehicle._id || "", updateData);
 
       // Success - Show popup first, then close modal
       setShowSuccessModal(true);
@@ -689,52 +697,39 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                       </h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {existingPhotos.exterior.map((photoId, index) => {
-                          // Try multiple possible endpoints
-                          const baseURL = import.meta.env.VITE_API_BASE_URL;
-                          const possibleUrls = [
-                            `${baseURL}/uploads/${photoId}`,
-                            `${baseURL}/vehicles/photos/${photoId}`,
-                            `${baseURL}/photos/${photoId}`,
-                            `https://be-ev-rental-system-production.up.railway.app/uploads/${photoId}`,
-                            `https://be-ev-rental-system-production.up.railway.app/vehicles/photos/${photoId}`,
-                          ];
-                          
-                          const photoUrl = possibleUrls[0];
-                          console.log(`🖼️ Rendering exterior photo ${index}:`, photoId, "Trying URLs:", possibleUrls);
+                          // Convert photo ID to URL using the utility function
+                          const photoUrl = getPhotoUrls([photoId])[0];
                           
                           return (
                             <div key={`existing-exterior-${photoId}-${index}`} className="relative group">
-                              {/* Try multiple URLs */}
-                              {possibleUrls.map((url, urlIndex) => (
-                                <img
-                                  key={url}
-                                  src={url}
-                                  alt={`Exterior ${index + 1}`}
-                                  className={`w-full h-32 object-cover rounded-lg border-2 border-blue-200 ${urlIndex === 0 ? '' : 'hidden'}`}
-                                  onLoad={() => console.log(`✅ Loaded exterior photo from URL ${urlIndex}:`, url)}
-                                  onError={(e) => {
-                                    if (urlIndex === possibleUrls.length - 1) {
-                                      console.error(`❌ All URLs failed for exterior photo ${photoId}`);
-                                    }
-                                  }}
-                                />
-                              ))}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setExistingPhotos(prev => ({
-                                  ...prev,
-                                  exterior: prev.exterior.filter(id => id !== photoId)
-                                }));
-                              }}
-                              disabled={loading}
-                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 disabled:opacity-50"
-                              title="Delete photo"
-                            >
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                              </svg>
-                            </button>
+                              <img
+                                src={photoUrl}
+                                alt={`Exterior ${index + 1}`}
+                                className="w-full h-32 object-cover rounded-lg border-2 border-blue-200"
+                                onLoad={() => console.log(`✅ Loaded exterior photo:`, photoUrl)}
+                                onError={(e) => {
+                                  console.error(`❌ Failed to load exterior photo ${photoId}`);
+                                  // Show a placeholder on error
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExistingPhotos(prev => ({
+                                    ...prev,
+                                    exterior: prev.exterior.filter(id => id !== photoId)
+                                  }));
+                                }}
+                                disabled={loading}
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 disabled:opacity-50"
+                                title="Delete photo"
+                              >
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
                             </div>
                           );
                         })}
@@ -750,52 +745,39 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                       </h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {existingPhotos.interior.map((photoId, index) => {
-                          // Try multiple possible endpoints
-                          const baseURL = import.meta.env.VITE_API_BASE_URL;
-                          const possibleUrls = [
-                            `${baseURL}/uploads/${photoId}`,
-                            `${baseURL}/vehicles/photos/${photoId}`,
-                            `${baseURL}/photos/${photoId}`,
-                            `https://be-ev-rental-system-production.up.railway.app/uploads/${photoId}`,
-                            `https://be-ev-rental-system-production.up.railway.app/vehicles/photos/${photoId}`,
-                          ];
-                          
-                          const photoUrl = possibleUrls[0];
-                          console.log(`🖼️ Rendering interior photo ${index}:`, photoId, "Trying URLs:", possibleUrls);
+                          // Convert photo ID to URL using the utility function
+                          const photoUrl = getPhotoUrls([photoId])[0];
                           
                           return (
                             <div key={`existing-interior-${photoId}-${index}`} className="relative group">
-                              {/* Try multiple URLs */}
-                              {possibleUrls.map((url, urlIndex) => (
-                                <img
-                                  key={url}
-                                  src={url}
-                                  alt={`Interior ${index + 1}`}
-                                  className={`w-full h-32 object-cover rounded-lg border-2 border-green-200 ${urlIndex === 0 ? '' : 'hidden'}`}
-                                  onLoad={() => console.log(`✅ Loaded interior photo from URL ${urlIndex}:`, url)}
-                                  onError={(e) => {
-                                    if (urlIndex === possibleUrls.length - 1) {
-                                      console.error(`❌ All URLs failed for interior photo ${photoId}`);
-                                    }
-                                  }}
-                                />
-                              ))}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setExistingPhotos(prev => ({
-                                  ...prev,
-                                  interior: prev.interior.filter(id => id !== photoId)
-                                }));
-                              }}
-                              disabled={loading}
-                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 disabled:opacity-50"
-                              title="Delete photo"
-                            >
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                              </svg>
-                            </button>
+                              <img
+                                src={photoUrl}
+                                alt={`Interior ${index + 1}`}
+                                className="w-full h-32 object-cover rounded-lg border-2 border-green-200"
+                                onLoad={() => console.log(`✅ Loaded interior photo:`, photoUrl)}
+                                onError={(e) => {
+                                  console.error(`❌ Failed to load interior photo ${photoId}`);
+                                  // Show a placeholder on error
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExistingPhotos(prev => ({
+                                    ...prev,
+                                    interior: prev.interior.filter(id => id !== photoId)
+                                  }));
+                                }}
+                                disabled={loading}
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 disabled:opacity-50"
+                                title="Delete photo"
+                              >
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
                             </div>
                           );
                         })}

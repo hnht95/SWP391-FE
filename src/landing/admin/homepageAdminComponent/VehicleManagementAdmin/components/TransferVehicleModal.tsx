@@ -46,7 +46,7 @@ const TransferVehicleModal: React.FC<TransferVehicleModalProps> = ({
     setError(null);
 
     try {
-      await transferVehicleStation(vehicle.id || vehicle._id || "", formData);
+      await transferVehicleStation(vehicle._id || "", formData);
       onSuccess?.();
       onClose();
     } catch (err) {

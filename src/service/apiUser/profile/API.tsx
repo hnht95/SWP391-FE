@@ -9,18 +9,28 @@ export type UserProfile = {
   name: string;
   email: string;
   phone: string;
-  gender?: "male" | "female";
+  gender?: "male" | "female" | "other";
   isActive?: boolean;
-  station?: string;
+  station?: string | null;
   address?: string;
   dateOfBirth?: string;
-  avatarUrl?: string;
+  avatarUrl?: string | { url: string } | null;
   avatar?: string;
   createdAt?: string;
   updatedAt?: string;
+  defaultRefundWallet?: string | null;
+  kyc?: {
+    verified: boolean;
+    idNumber?: string | null; // ✅ Added
+    licenseNumber?: string | null; // ✅ Added
+    idFrontImage?: { url: string } | string | null;
+    idBackImage?: { url: string } | string | null;
+    licenseFrontImage?: { url: string } | string | null;
+    licenseBackImage?: { url: string } | string | null;
+    verifiedAt?: string | null;
+  };
 };
 
-// Response types
 export type GetUserResponse = {
   success: boolean;
   data?: UserProfile;
@@ -60,18 +70,12 @@ const handleError = (error: unknown, context: string) => {
 /**
  * GET /api/users/me
  * Get current logged-in user profile
- * Response formats:
- * - { success: true, data: UserProfile }
- * - { ok: true, user: UserProfile }
- * - UserProfile (direct)
  */
 export const getCurrentUser = async (): Promise<GetUserResponse> => {
   try {
     const response = await api.get("/users/me");
-
     console.log("✅ Get current user response:", response.data);
 
-    // ✅ Case 1: { success: true, data: {...} }
     if (response.data.success && response.data.data) {
       return {
         success: true,
@@ -79,7 +83,6 @@ export const getCurrentUser = async (): Promise<GetUserResponse> => {
       };
     }
 
-    // ✅ Case 2: { ok: true, user: {...} }
     if (response.data.ok && response.data.user) {
       return {
         success: true,
@@ -87,7 +90,6 @@ export const getCurrentUser = async (): Promise<GetUserResponse> => {
       };
     }
 
-    // ✅ Case 3: Direct user object
     if (response.data._id || response.data.id) {
       return {
         success: true,
@@ -103,42 +105,107 @@ export const getCurrentUser = async (): Promise<GetUserResponse> => {
 };
 
 /**
- * PATCH /api/auth/{userId}
- * Update user profile
+ * PATCH /api/users/me
+ * Update basic profile info ONLY (name, phone, gender)
  */
-export const updateUserProfile = async (
-  userId: string,
-  data: FormData | Record<string, any>
-): Promise<UserProfile> => {
+export const updateUserProfile = async (data: {
+  name?: string;
+  phone?: string;
+  gender?: "male" | "female" | "other";
+}): Promise<UpdateUserResponse> => {
   try {
-    console.log("Updating user profile:", userId);
-
-    const isFormData = data instanceof FormData;
-
-    const response = await api.patch<UpdateUserResponse>(
-      `/auth/${userId}`,
-      data,
-      isFormData
-        ? {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        : undefined
-    );
-
+    console.log("Updating user profile (basic info only):", data);
+    const response = await api.patch<UpdateUserResponse>(`/users/me`, data);
     console.log("✅ Update profile response:", response.data);
-
-    // Handle different response formats
-    const userData = response.data.user || response.data.data || response.data;
-
-    if (userData && (userData._id || userData.id)) {
-      return userData as UserProfile;
-    }
-
-    throw new Error(response.data.message || "Failed to update profile");
+    return response.data;
   } catch (error) {
     handleError(error, "updateUserProfile");
+    throw error;
+  }
+};
+
+/**
+ * ✅ PATCH /api/users/me
+ * Upload KYC documents with ID/License numbers
+ */
+export const uploadKYCDocuments = async (documents: {
+  idNumber?: string; // ✅ Added
+  licenseNumber?: string; // ✅ Added
+  idFrontImage?: File;
+  idBackImage?: File;
+  licenseFrontImage?: File;
+  licenseBackImage?: File;
+}): Promise<UpdateUserResponse> => {
+  try {
+    console.log("Uploading KYC documents with numbers");
+
+    const formData = new FormData();
+
+    // ✅ Append text fields
+    if (documents.idNumber) {
+      formData.append("kyc.idNumber", documents.idNumber);
+    }
+    if (documents.licenseNumber) {
+      formData.append("kyc.licenseNumber", documents.licenseNumber);
+    }
+
+    // ✅ Append image files
+    if (documents.idFrontImage) {
+      formData.append("kyc.idFrontImage", documents.idFrontImage);
+    }
+    if (documents.idBackImage) {
+      formData.append("kyc.idBackImage", documents.idBackImage);
+    }
+    if (documents.licenseFrontImage) {
+      formData.append("kyc.licenseFrontImage", documents.licenseFrontImage);
+    }
+    if (documents.licenseBackImage) {
+      formData.append("kyc.licenseBackImage", documents.licenseBackImage);
+    }
+
+    const response = await api.patch<UpdateUserResponse>(
+      `/users/me`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    console.log("✅ KYC upload response:", response.data);
+    return response.data;
+  } catch (error) {
+    handleError(error, "uploadKYCDocuments");
+    throw error;
+  }
+};
+
+/**
+ * PATCH /api/users/me
+ * Upload avatar image ONLY
+ */
+export const uploadAvatar = async (file: File): Promise<UpdateUserResponse> => {
+  try {
+    console.log("Uploading avatar");
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const response = await api.patch<UpdateUserResponse>(
+      `/users/me`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    console.log("✅ Avatar upload response:", response.data);
+    return response.data;
+  } catch (error) {
+    handleError(error, "uploadAvatar");
     throw error;
   }
 };
@@ -155,6 +222,8 @@ export const getRoleLabel = (role: UserProfile["role"]): string => {
 const profileApi = {
   getCurrentUser,
   updateUserProfile,
+  uploadKYCDocuments, // ✅ Updated with idNumber & licenseNumber
+  uploadAvatar,
   getRoleLabel,
 };
 

@@ -54,65 +54,68 @@ const StationManagement: React.FC = () => {
   });
 
   // Fetch stations from API
-  const fetchStations = useCallback(async (useHardLoading: boolean = true) => {
-    try {
-      if (useHardLoading) {
-        setLoading(true);
-      } else {
-        setUiLoading(true);
+  const fetchStations = useCallback(
+    async (useHardLoading: boolean = true) => {
+      try {
+        if (useHardLoading) {
+          setLoading(true);
+        } else {
+          setUiLoading(true);
+        }
+        setError(null);
+
+        // ✅ Fetch all stations (API doesn't support pagination params)
+        const apiItems: APIStation[] = await getAllStations();
+
+        // ✅ Map API items to UI Station type
+        const stationsData: Station[] = apiItems.map((s) => ({
+          id: s._id, // ✅ Use _id from API
+          name: s.name,
+          code: s.code || "",
+          location: s.location
+            ? {
+                address: s.location.address,
+                latitude: s.location.lat,
+                longitude: s.location.lng,
+              }
+            : { address: "", latitude: 0, longitude: 0 },
+          note: s.note,
+          isActive: s.isActive,
+          createdAt: s.createdAt || "",
+          updatedAt: s.updatedAt || "",
+        }));
+
+        // ✅ Loại bỏ bản ghi không hợp lệ (thiếu tên hoặc id)
+        const cleanedStations = stationsData.filter(
+          (st) => st.id && st.name && st.name.trim().length > 0
+        );
+
+        const total = cleanedStations.length;
+        const totalPages = Math.ceil(total / filters.limit);
+
+        setStations(cleanedStations);
+        setPagination({
+          page: filters.page,
+          limit: filters.limit,
+          total,
+          totalPages,
+        });
+
+        // Apply client-side filtering
+        applyFilters(cleanedStations);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+        console.error("Error fetching stations:", err);
+      } finally {
+        if (useHardLoading) {
+          setLoading(false);
+        } else {
+          setUiLoading(false);
+        }
       }
-      setError(null);
-
-      // ✅ Fetch all stations (API doesn't support pagination params)
-      const apiItems: APIStation[] = await getAllStations();
-
-      // ✅ Map API items to UI Station type
-      const stationsData: Station[] = apiItems.map((s) => ({
-        id: s._id, // ✅ Use _id from API
-        name: s.name,
-        code: s.code || "",
-        location: s.location
-          ? {
-              address: s.location.address,
-              latitude: s.location.lat,
-              longitude: s.location.lng,
-            }
-          : { address: "", latitude: 0, longitude: 0 },
-        note: s.note,
-        isActive: s.isActive,
-        createdAt: s.createdAt || "",
-        updatedAt: s.updatedAt || "",
-      }));
-
-      // ✅ Loại bỏ bản ghi không hợp lệ (thiếu tên hoặc id)
-      const cleanedStations = stationsData.filter(
-        (st) => st.id && st.name && st.name.trim().length > 0
-      );
-
-      const total = cleanedStations.length;
-      const totalPages = Math.ceil(total / filters.limit);
-
-      setStations(cleanedStations);
-      setPagination({
-        page: filters.page,
-        limit: filters.limit,
-        total,
-        totalPages,
-      });
-
-      // Apply client-side filtering
-      applyFilters(cleanedStations);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      console.error("Error fetching stations:", err);
-    } finally {
-      if (useHardLoading) {
-        setLoading(false);
-      } else {
-        setUiLoading(false);
-      }
-    }
-  }, [filters.page, filters.limit]); // Only depend on pagination params
+    },
+    [filters.page, filters.limit]
+  ); // Only depend on pagination params
 
   // Apply client-side filters
   const applyFilters = useCallback(
@@ -246,7 +249,7 @@ const StationManagement: React.FC = () => {
       await fetchStations(false);
       const movedCount = res?.movedVehiclesCount ?? 0;
       const nameInfo = stationPendingDelete.name
-        ? `Station \"${stationPendingDelete.name}\" deleted successfully`
+        ? `Station "${stationPendingDelete.name}" deleted successfully`
         : "Station deleted successfully";
       const moveInfo = movedCount > 0 ? ` • Moved vehicles: ${movedCount}` : "";
       setSuccessMessage(`${nameInfo}${moveInfo}`);
@@ -254,9 +257,12 @@ const StationManagement: React.FC = () => {
       setConfirmDeleteOpen(false);
       setStationPendingDelete(null);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to delete station";
+      const msg =
+        err instanceof Error ? err.message : "Failed to delete station";
       if (msg.toLowerCase().includes("transferstationid")) {
-        setDeleteInlineError("Station còn xe, hãy chọn trạm để chuyển trước khi xóa.");
+        setDeleteInlineError(
+          "Station còn xe, hãy chọn trạm để chuyển trước khi xóa."
+        );
       } else {
         setError(msg);
         setConfirmDeleteOpen(false);
@@ -460,7 +466,9 @@ const StationManagement: React.FC = () => {
                       </h3>
                       <p className="text-sm text-gray-600 mb-5">
                         Are you sure you want to delete station {""}
-                        <span className="font-semibold">"{stationPendingDelete?.name}"</span>
+                        <span className="font-semibold">
+                          "{stationPendingDelete?.name}"
+                        </span>
                         ? This action cannot be undone.
                       </p>
                       {deleteInlineError && (
@@ -472,10 +480,14 @@ const StationManagement: React.FC = () => {
                         {deleteInlineError && (
                           <select
                             value={transferToStationId}
-                            onChange={(e) => setTransferToStationId(e.target.value)}
+                            onChange={(e) =>
+                              setTransferToStationId(e.target.value)
+                            }
                             className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
                           >
-                            <option value="">-- Select destination station --</option>
+                            <option value="">
+                              -- Select destination station --
+                            </option>
                             {stations
                               .filter((s) => s.id !== stationPendingDelete?.id)
                               .map((s) => (

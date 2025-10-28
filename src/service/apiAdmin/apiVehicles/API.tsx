@@ -9,7 +9,7 @@ export interface VehiclePhoto {
   type: "image";
 }
 
-// ✅ Station interface đầy đủ (khi populated)
+// ✅ Station interface
 export interface StationData {
   _id: string;
   name: string;
@@ -22,69 +22,35 @@ export interface StationData {
   isActive: boolean;
 }
 
-// ✅ Simple Station interface (for compatibility)
-export interface Station {
-  _id: string;
-  name: string;
-  code: string;
-  location: {
-    address: string;
-    lat: number;
-    lng: number;
-  };
-  isActive: boolean;
-}
-
-// ✅ Vehicle interface đầy đủ theo response thực tế
+// ✅ Vehicle interface
 export interface Vehicle {
-  _id?: string;  // Optional for compatibility with some endpoints
-  id: string;     // Main ID field from backend response
-
-  // Owner & Company
+  _id: string;
   owner: "internal" | "company";
   company: string | null;
-
-  // Valuation
   valuation: {
     valueVND: number;
     lastUpdatedAt?: string;
   };
-
-  // Basic info
   plateNumber: string;
   vin?: string;
   brand: string;
   model: string;
   year: number;
   color: string;
-
-  // Technical specs
   batteryCapacity: number;
   mileage: number;
   pricePerDay: number;
   pricePerHour: number;
-
-  // Status
   status: "available" | "reserved" | "rented" | "maintenance";
-
-  // Station - có thể là string (ObjectId) hoặc object (populated)
   station: string | StationData;
-
-  // Photos - can be string[] (IDs) or VehiclePhoto[] (populated)
   defaultPhotos: {
     exterior: (string | VehiclePhoto)[];
     interior: (string | VehiclePhoto)[];
   };
-
-  // Ratings
   ratingAvg?: number;
   ratingCount?: number;
-
-  // Tags & Maintenance
   tags: string[];
   maintenanceHistory: any[];
-
-  // Timestamps
   createdAt?: string;
   updatedAt?: string;
 
@@ -95,7 +61,20 @@ export interface Vehicle {
   isPartnerVehicle?: boolean;  // From backend response
 }
 
-// ✅ API Response format - sửa từ data sang items
+// ✅ API Response formats
+interface VehicleApiResponse {
+  success: boolean;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  items: Vehicle[];
+}
+
+interface SingleVehicleResponse {
+  success: boolean;
+  data: Vehicle;
+}
 
 export interface TransferLog {
   _id: string;
@@ -140,6 +119,55 @@ export interface TransferStationData {
   reason?: string;
 }
 
+/**
+ * Utility function to convert photo IDs or objects to URLs
+ * Handles both string IDs and VehiclePhoto objects
+ */
+export const getPhotoUrls = (photos: (string | VehiclePhoto)[]): string[] => {
+  if (!photos || !Array.isArray(photos)) return [];
+  
+  return photos.map((photo) => {
+    // If it's a string, assume it's a photo ID
+    if (typeof photo === 'string') {
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://be-ev-rental-system-production.up.railway.app';
+      return `${baseURL}/uploads/${photo}`;
+    }
+    
+    // If it's an object with url property
+    if (photo && typeof photo === 'object' && photo.url) {
+      return photo.url;
+    }
+    
+    // If it's an object with _id, construct URL
+    if (photo && typeof photo === 'object' && photo._id) {
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://be-ev-rental-system-production.up.railway.app';
+      return `${baseURL}/uploads/${photo._id}`;
+    }
+    
+    return '';
+  }).filter(url => url !== '');
+};
+
+/**
+ * Utility function to extract station ID from vehicle station data
+ * Handles both string IDs and StationData objects
+ */
+export const getStationId = (station: string | StationData | undefined): string => {
+  if (!station) return '';
+  
+  // If it's a string, return it directly
+  if (typeof station === 'string') {
+    return station;
+  }
+  
+  // If it's an object with _id, return the _id
+  if (station && typeof station === 'object' && station._id) {
+    return station._id;
+  }
+  
+  return '';
+};
+
 // ✅ Paginated response interface
 export interface PaginatedResponse<T> {
   success: boolean;
@@ -170,93 +198,39 @@ const handleError = (error: unknown) => {
   throw new Error(errorMessage);
 };
 
-// ✅ Helper function to get station ID
-export const getStationId = (station: Station | string): string => {
-  return typeof station === 'string' ? station : station._id;
-};
-
-// ✅ Helper function to get station name
-export const getStationName = (station: Station | string | undefined): string => {
-  if (!station) return "Unknown";
-  if (typeof station === 'string') return station;
-  return station.name || "Unknown";
-};
-
-// ✅ Helper function to convert photo ID to URL
-export const getPhotoUrl = (photoId: string): string => {
-  const baseURL = import.meta.env.VITE_API_BASE_URL;
-  
-  // For now, use /uploads endpoint. Change if needed after checking console
-  const photoUrl = `${baseURL}/uploads/${photoId}`;
-  
-  console.log("🖼️ Photo ID:", photoId);
-  console.log("🖼️ Base URL:", baseURL);
-  console.log("🖼️ Trying URL:", photoUrl);
-  
-  return photoUrl;
-};
-
-// ✅ Helper function to get photo URLs from photo data (handles both string IDs and objects)
-export const getPhotoUrls = (photos: string[] | VehiclePhoto[]): string[] => {
-  if (!photos || photos.length === 0) return [];
-  
-  return photos.map(photo => {
-    if (typeof photo === 'string') {
-      // It's an ID, convert to URL
-      return getPhotoUrl(photo);
-    } else if (typeof photo === 'object' && photo.url) {
-      // It's already an object with URL
-      return photo.url;
-    }
-    return '';
-  }).filter(url => url !== '');
-};
-
+/**
+ * GET /api/vehicles
+ * Response formats:
+ * 1. Array trực tiếp: Vehicle[]
+ * 2. Wrapped: { success: true, items: Vehicle[] }
+ * 3. Paginated: { success: true, page, limit, total, totalPages, items }
+ */
 export const getAllVehicles = async (): Promise<Vehicle[]> => {
   try {
-    const response = await api.get<PaginatedResponse<Vehicle> | Vehicle[]>(
-      "/vehicles?populate=station,defaultPhotos"
-    );
+    const response = await api.get("/vehicles");
 
-    console.log("🔍 API Response:", response.data);
+    console.log("✅ API Response:", response.data);
 
-    // Handle paginated response format: { success, page, limit, total, totalPages, items }
-    if (
-      response.data &&
-      typeof response.data === "object" &&
-      "success" in response.data &&
-      "items" in response.data
-    ) {
-      const paginatedResponse = response.data as PaginatedResponse<Vehicle>;
-      if (paginatedResponse.success && Array.isArray(paginatedResponse.items)) {
-        console.log(
-          "✅ Paginated response - Total:",
-          paginatedResponse.total,
-          "Items:",
-          paginatedResponse.items.length
-        );
-        return paginatedResponse.items;
-      }
-    }
-
-    // Handle direct array response
+    // ✅ Case 1: Direct array response
     if (Array.isArray(response.data)) {
-      console.log("✅ Response is directly an array:", response.data.length);
       return response.data;
     }
 
-    // Fallback for old format with 'data' property
-    if (
-      response.data &&
-      typeof response.data === "object" &&
-      "data" in response.data &&
-      Array.isArray((response.data as any).data)
-    ) {
-      console.log("✅ Response has data array");
-      return (response.data as any).data;
+    // ✅ Case 2: Wrapped in success/items
+    if (response.data.success && Array.isArray(response.data.items)) {
+      return response.data.items;
     }
 
-    console.error("❌ Unexpected response format:", response.data);
+    // ✅ Case 3: Wrapped in success/data
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+
+    // ✅ Case 4: Just items array
+    if (Array.isArray(response.data.items)) {
+      return response.data.items;
+    }
+
     throw new Error("Invalid API response format");
   } catch (error) {
     console.error("❌ Error in getAllVehicles:", error);
@@ -265,14 +239,23 @@ export const getAllVehicles = async (): Promise<Vehicle[]> => {
   }
 };
 
+/**
+ * GET /api/vehicles/:id
+ */
 export const getVehicleById = async (id: string): Promise<Vehicle> => {
   try {
-    const response = await api.get<{ success: boolean; data: Vehicle }>(
-      `/vehicles/${id}?populate=stationData,defaultPhotos`
-    );
+    const response = await api.get<SingleVehicleResponse>(`/vehicles/${id}`);
 
+    console.log("✅ API Response:", response.data);
+
+    // ✅ Case 1: { success: true, data: {...} }
     if (response.data.success && response.data.data) {
       return response.data.data;
+    }
+
+    // ✅ Case 2: Direct vehicle object
+    if ((response.data as any)._id) {
+      return response.data as any;
     }
 
     throw new Error("Vehicle not found");
@@ -282,67 +265,24 @@ export const getVehicleById = async (id: string): Promise<Vehicle> => {
   }
 };
 
+/**
+ * POST /api/vehicles
+ */
 export const createVehicle = async (
   vehicleData: CreateVehicleData
 ): Promise<Vehicle> => {
   try {
-    // Check if we need to send FormData (has files) or JSON (has defaultPhotos)
-    const hasFiles = (vehicleData.exteriorFiles && vehicleData.exteriorFiles.length > 0) || 
-                     (vehicleData.interiorFiles && vehicleData.interiorFiles.length > 0);
-    
-    let response;
-    
-    if (hasFiles) {
-      // Send as FormData for file upload
-      const formData = new FormData();
-      
-      // Add all vehicle fields
-      formData.append('plateNumber', vehicleData.plateNumber);
-      formData.append('brand', vehicleData.brand);
-      formData.append('model', vehicleData.model);
-      formData.append('year', vehicleData.year.toString());
-      formData.append('color', vehicleData.color);
-      formData.append('batteryCapacity', vehicleData.batteryCapacity.toString());
-      formData.append('mileage', vehicleData.mileage.toString());
-      formData.append('pricePerDay', vehicleData.pricePerDay.toString());
-      formData.append('pricePerHour', vehicleData.pricePerHour.toString());
-      formData.append('status', vehicleData.status);
-      formData.append('station', vehicleData.station);
-      
-      // Add files
-      if (vehicleData.exteriorFiles) {
-        vehicleData.exteriorFiles.forEach((file) => {
-          formData.append('exteriorFiles', file);
-        });
-      }
-      
-      if (vehicleData.interiorFiles) {
-        vehicleData.interiorFiles.forEach((file) => {
-          formData.append('interiorFiles', file);
-        });
-      }
-      
-      console.log("📤 Creating vehicle with FormData (includes files)");
-      response = await api.post<{ success: boolean; data: Vehicle }>(
-        "/vehicles",
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-    } else {
-      // Send as JSON if no files
-      console.log("📤 Creating vehicle with JSON (no files)");
-      response = await api.post<{ success: boolean; data: Vehicle }>(
-        "/vehicles",
-        vehicleData
-      );
-    }
+    const response = await api.post<SingleVehicleResponse>(
+      "/vehicles",
+      vehicleData
+    );
 
     if (response.data.success && response.data.data) {
       return response.data.data;
+    }
+
+    if ((response.data as any)._id) {
+      return response.data as any;
     }
 
     throw new Error("Failed to create vehicle");
@@ -352,18 +292,25 @@ export const createVehicle = async (
   }
 };
 
+/**
+ * PUT /api/vehicles/:id
+ */
 export const updateVehicle = async (
   id: string,
   vehicleData: UpdateVehicleData
 ): Promise<Vehicle> => {
   try {
-    const response = await api.put<{ success: boolean; data: Vehicle }>(
+    const response = await api.put<SingleVehicleResponse>(
       `/vehicles/${id}`,
       vehicleData
     );
 
     if (response.data.success && response.data.data) {
       return response.data.data;
+    }
+
+    if ((response.data as any)._id) {
+      return response.data as any;
     }
 
     throw new Error("Failed to update vehicle");
@@ -373,6 +320,9 @@ export const updateVehicle = async (
   }
 };
 
+/**
+ * DELETE /api/vehicles/:id
+ */
 export const deleteVehicle = async (id: string): Promise<void> => {
   try {
     await api.delete(`/vehicles/${id}`);
@@ -382,18 +332,25 @@ export const deleteVehicle = async (id: string): Promise<void> => {
   }
 };
 
+/**
+ * POST /api/vehicles/:id/transfer-station
+ */
 export const transferVehicleStation = async (
   id: string,
   transferData: TransferStationData
 ): Promise<Vehicle> => {
   try {
-    const response = await api.post<{ success: boolean; data: Vehicle }>(
+    const response = await api.post<SingleVehicleResponse>(
       `/vehicles/${id}/transfer-station`,
       transferData
     );
 
     if (response.data.success && response.data.data) {
       return response.data.data;
+    }
+
+    if ((response.data as any)._id) {
+      return response.data as any;
     }
 
     throw new Error("Failed to transfer vehicle");
@@ -403,14 +360,19 @@ export const transferVehicleStation = async (
   }
 };
 
+/**
+ * GET /api/vehicles/transfer-logs
+ */
 export const getAllTransferLogs = async (): Promise<TransferLog[]> => {
   try {
-    const response = await api.get<{ success: boolean; data: TransferLog[] }>(
-      "/vehicles/transfer-logs"
-    );
+    const response = await api.get("/vehicles/transfer-logs");
 
     if (response.data.success && Array.isArray(response.data.data)) {
       return response.data.data;
+    }
+
+    if (Array.isArray(response.data)) {
+      return response.data;
     }
 
     return [];
@@ -420,9 +382,29 @@ export const getAllTransferLogs = async (): Promise<TransferLog[]> => {
   }
 };
 
-// REMOVED: uploadVehiclePhotos is no longer needed
-// Photos are now sent directly with vehicle creation using FormData
-// This function was causing 404 errors
+/**
+ * GET /api/vehicles/:vehicleId/transfer-logs
+ */
+export const getVehicleTransferLogs = async (
+  vehicleId: string
+): Promise<TransferLog[]> => {
+  try {
+    const response = await api.get(`/vehicles/${vehicleId}/transfer-logs`);
+
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+
+    return [];
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
 
 // Vehicle Management Request Functions
 export const reportMaintenance = async (
@@ -477,7 +459,11 @@ export const getDeletionRequests = async (): Promise<any[]> => {
     if (response.data.success && Array.isArray(response.data.data)) {
       return response.data.data;
     }
-    
+
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+
     return [];
   } catch (error) {
     handleError(error);

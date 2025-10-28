@@ -161,10 +161,10 @@ export default function Header({
                 <User
                   isLoggedIn={isAuthenticated}
                   userName={user?.name}
+                  userAvatar={user?.avatar} // ✅ ADDED: Pass avatar to User component
                   onLogout={logout}
                 />
               </div>
-
               {/* Close Search with fly-down animation */}
               <div className={getCloseSearchClasses(isSearchOpen)}>
                 <button
