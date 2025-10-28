@@ -153,15 +153,36 @@ export const staffAPI = {
     }
   },
 
-  // Get booking transactions (admin)
+  // Get booking transactions (admin) - payment oriented
   getAdminBookingTransactions: async (params?: {
     page?: number;
     limit?: number;
+    provider?: string; // e.g. 'payos'
+    status?: string; // payment status: none | pending | captured | refunded
+    dateField?: string; // createdAt | updatedAt
+    from?: string;
+    to?: string;
+    sort?: string;
   }): Promise<AdminBookingTransactionsResponse> => {
     try {
       const response = await api.get("/bookings/admin/transactions", {
         params,
       });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+  // Search bookings (admin/staff)
+  searchBookings: async (params?: {
+    q?: string;
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/bookings/search", { params });
       return response.data;
     } catch (error) {
       handleError(error);
@@ -175,6 +196,33 @@ export const staffAPI = {
   ): Promise<CreateBookingResponse> => {
     try {
       const response = await api.post("/bookings", payload);
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get renters only (for staff) - using search endpoint
+  getRenters: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }) => {
+    try {
+      const queryParams = new URLSearchParams();
+
+      // Add search query if provided
+      if (params?.search && params.search.trim()) {
+        queryParams.append("q", params.search.trim());
+      }
+
+      // Always add pagination and sort
+      if (params?.page) queryParams.append("page", params.page.toString());
+      if (params?.limit) queryParams.append("limit", params.limit.toString());
+      queryParams.append("sort", "-createdAt");
+
+      const response = await api.get(`/users/search?${queryParams.toString()}`);
       return response.data;
     } catch (error) {
       handleError(error);
