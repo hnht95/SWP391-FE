@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   MdAdd,
@@ -10,9 +10,10 @@ import {
 
 interface PhotoFile {
   id: string;
-  file: File;
+  file: File | null;
   preview: string;
   type: "exterior" | "interior";
+  isExisting?: boolean;
 }
 
 interface UploadCarPhotosProps {
@@ -32,6 +33,11 @@ const UploadCarPhotos: React.FC<UploadCarPhotosProps> = ({
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
+  // Notify parent component when photos change
+  useEffect(() => {
+    onPhotosChange?.(photos);
+  }, [photos, onPhotosChange]);
+
   const handleFileSelect = (files: FileList | null, type: "exterior" | "interior") => {
     if (!files) return;
 
@@ -47,7 +53,6 @@ const UploadCarPhotos: React.FC<UploadCarPhotosProps> = ({
         ...prev,
         [type]: [...prev[type], ...newPhotos]
       };
-      onPhotosChange?.(updated);
       return updated;
     });
   };
@@ -74,7 +79,6 @@ const UploadCarPhotos: React.FC<UploadCarPhotosProps> = ({
         ...prev,
         [type]: prev[type].filter(photo => photo.id !== id)
       };
-      onPhotosChange?.(updated);
       return updated;
     });
   };
@@ -139,13 +143,20 @@ const UploadCarPhotos: React.FC<UploadCarPhotosProps> = ({
                   alt="Exterior"
                   className="w-full h-32 object-cover rounded-lg border border-gray-200"
                 />
-                <button
-                  onClick={() => removePhoto(photo.id, "exterior")}
-                  disabled={disabled}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 disabled:opacity-50"
-                >
-                  <MdDelete className="w-3 h-3" />
-                </button>
+                {!photo.isExisting && (
+                  <button
+                    onClick={() => removePhoto(photo.id, "exterior")}
+                    disabled={disabled}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 disabled:opacity-50"
+                  >
+                    <MdDelete className="w-3 h-3" />
+                  </button>
+                )}
+                {photo.isExisting && (
+                  <div className="absolute top-1 right-1 bg-blue-500 text-white text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                    Existing
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>
@@ -198,13 +209,20 @@ const UploadCarPhotos: React.FC<UploadCarPhotosProps> = ({
                   alt="Interior"
                   className="w-full h-32 object-cover rounded-lg border border-gray-200"
                 />
-                <button
-                  onClick={() => removePhoto(photo.id, "interior")}
-                  disabled={disabled}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 disabled:opacity-50"
-                >
-                  <MdDelete className="w-3 h-3" />
-                </button>
+                {!photo.isExisting && (
+                  <button
+                    onClick={() => removePhoto(photo.id, "interior")}
+                    disabled={disabled}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 disabled:opacity-50"
+                  >
+                    <MdDelete className="w-3 h-3" />
+                  </button>
+                )}
+                {photo.isExisting && (
+                  <div className="absolute top-1 right-1 bg-blue-500 text-white text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                    Existing
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>

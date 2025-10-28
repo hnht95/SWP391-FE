@@ -44,6 +44,7 @@ export interface CreateStationData {
   lat: number;
   lng: number;
   note?: string;
+  isActive?: boolean;
 }
 
 // ✅ Update Station Data

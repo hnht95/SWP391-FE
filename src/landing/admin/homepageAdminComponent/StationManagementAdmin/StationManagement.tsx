@@ -12,7 +12,7 @@ import AddStationModal from "./AddStationModal";
 import EditStationModal from "./EditStationModal";
 import MeasurementIndex from "./MeasurementIndex";
 import type { Station, StationFilters as Filters, Pagination } from "./types";
-import SuccessModal from "../StaffManagementAdmin/SuccessModal";
+import SuccessModal from "../UserManagementAdmin/SuccessModal";
 import {
   deleteStation,
   getAllStations,
@@ -315,8 +315,8 @@ const StationManagement: React.FC = () => {
               {!isMapVisible && (
                 <button
                   onClick={handleAddStation}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 hover:shadow-lg hover:scale-105"
-                >
+                  className="flex items-center space-x-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all duration-300 hover:shadow-lg hover:scale-105"
+                    >
                   <MdAdd className="w-5 h-5" />
                   <span>Add Station</span>
                 </button>
@@ -446,13 +446,13 @@ const StationManagement: React.FC = () => {
             <AnimatePresence>
               <>
                 <motion.div
-                  className="fixed inset-0 bg-black/50 z-[99998]"
+                  className="fixed inset-0 bg-black/50 z-[9999]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setConfirmDeleteOpen(false)}
                 />
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pointer-events-none">
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none">
                   <motion.div
                     className="pointer-events-auto bg-white rounded-2xl shadow-2xl w-full max-w-md"
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}

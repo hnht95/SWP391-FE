@@ -130,7 +130,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 bg-black/40 z-[9998]"
+            className="fixed inset-0 bg-black/40 z-[9999]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -146,16 +146,16 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
               transition={{ type: "spring", damping: 30, stiffness: 200 }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-white sticky top-0 z-10">
+              <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gradient-to-r from-black via-gray-900 to-gray-800">
                 <div className="flex items-center space-x-2.5">
-                  <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-md">
-                    <MdLocationOn className="w-5 h-5 text-white" />
+                  <div className="w-11 h-11 bg-gradient-to-br from-black-700 to-black rounded-2xl flex items-center justify-center shadow-md">
+                    <MdLocationOn className="w-7 h-7 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-gray-800">
+                    <h2 className="ttext-lg font-bold text-white">
                       Add New Station
                     </h2>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-200">
                       Fill in the station information below
                     </p>
                   </div>
@@ -355,7 +355,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md text-sm flex items-center gap-2"
+                    className="px-6 py-2 bg-black text-white rounded-xl hover:bg-white hover:text-black hover:shadow-lg transition-all duration-100 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md text-sm flex items-center gap-2"
                   >
                     {loading ? (
                       <>
