@@ -41,7 +41,7 @@ const ReportMaintenanceModal: React.FC<ReportMaintenanceModalProps> = ({
     setError(null);
 
     try {
-      await reportMaintenance(vehicle._id, formData);
+      await reportMaintenance(vehicle.id || vehicle._id || "", formData);
       onSuccess?.();
       onClose();
     } catch (err) {
@@ -77,7 +77,7 @@ const ReportMaintenanceModal: React.FC<ReportMaintenanceModalProps> = ({
           {/* Modal */}
           <div className="flex min-h-full items-center justify-center p-4">
             <motion.div
-              className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full"
+              className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
               initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 30 }}

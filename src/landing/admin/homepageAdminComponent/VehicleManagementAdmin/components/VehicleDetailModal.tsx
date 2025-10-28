@@ -1,7 +1,8 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MdClose, MdEdit, MdSwapHoriz, MdBuild, MdWarning, MdDirectionsCar } from "react-icons/md";
+import { MdClose, MdEdit, MdSwapHoriz, MdBuild, MdWarning, MdDirectionsCar, MdPhotoCamera, MdImage } from "react-icons/md";
 import type { Vehicle, Station } from "../../../../../service/apiAdmin/apiVehicles/API";
+import { getPhotoUrls } from "../../../../../service/apiAdmin/apiVehicles/API";
 
 interface VehicleDetailModalProps {
   vehicle: Vehicle | null;
@@ -103,20 +104,89 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
 
               {/* Content */}
               <div className="p-6 space-y-6">
-                {/* Vehicle Image */}
+                {/* Vehicle Main Image */}
                 <div className="flex justify-center">
-                  {vehicle.image ? (
-                    <img
-                      src={vehicle.image}
-                      alt={`${vehicle.brand} ${vehicle.model}`}
-                      className="w-64 h-48 object-cover rounded-lg shadow-md"
-                    />
-                  ) : (
-                    <div className="w-64 h-48 bg-gray-200 rounded-lg flex items-center justify-center">
-                      <MdDirectionsCar className="w-16 h-16 text-gray-400" />
-                    </div>
-                  )}
+                  {(() => {
+                    const exteriorPhotos = vehicle.defaultPhotos?.exterior ? getPhotoUrls(vehicle.defaultPhotos.exterior) : [];
+                    const mainPhoto = exteriorPhotos[0];
+                    
+                    return mainPhoto ? (
+                      <img
+                        src={mainPhoto}
+                        alt={`${vehicle.brand} ${vehicle.model}`}
+                        className="w-64 h-48 object-cover rounded-lg shadow-md"
+                      />
+                    ) : (
+                      <div className="w-64 h-48 bg-gray-200 rounded-lg flex items-center justify-center">
+                        <MdDirectionsCar className="w-16 h-16 text-gray-400" />
+                      </div>
+                    );
+                  })()}
                 </div>
+
+                {/* Vehicle Photos Gallery */}
+                {(vehicle.defaultPhotos?.exterior?.length || vehicle.defaultPhotos?.interior?.length) ? (
+                  <div className="space-y-4">
+                    {/* Exterior Photos */}
+                    {vehicle.defaultPhotos?.exterior && vehicle.defaultPhotos.exterior.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <MdPhotoCamera className="w-5 h-5 text-blue-600" />
+                          Exterior Photos ({getPhotoUrls(vehicle.defaultPhotos.exterior).length})
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {getPhotoUrls(vehicle.defaultPhotos.exterior).map((photoUrl, index) => (
+                            <motion.div
+                              key={`exterior-${index}`}
+                              className="relative group cursor-pointer"
+                              whileHover={{ scale: 1.05 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <img
+                                src={photoUrl}
+                                alt={`Exterior ${index + 1}`}
+                                className="w-full h-24 object-cover rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors"
+                              />
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interior Photos */}
+                    {vehicle.defaultPhotos?.interior && vehicle.defaultPhotos.interior.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <MdImage className="w-5 h-5 text-green-600" />
+                          Interior Photos ({getPhotoUrls(vehicle.defaultPhotos.interior).length})
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {getPhotoUrls(vehicle.defaultPhotos.interior).map((photoUrl, index) => (
+                            <motion.div
+                              key={`interior-${index}`}
+                              className="relative group cursor-pointer"
+                              whileHover={{ scale: 1.05 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <img
+                                src={photoUrl}
+                                alt={`Interior ${index + 1}`}
+                                className="w-full h-24 object-cover rounded-lg border-2 border-green-200 hover:border-green-400 transition-colors"
+                              />
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg">
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <MdPhotoCamera className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <p className="text-sm text-gray-500">No photos available for this vehicle</p>
+                  </div>
+                )}
 
                 {/* Vehicle Details Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

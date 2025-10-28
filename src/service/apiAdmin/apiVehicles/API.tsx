@@ -37,7 +37,8 @@ export interface Station {
 
 // ✅ Vehicle interface đầy đủ theo response thực tế
 export interface Vehicle {
-  _id: string;
+  _id?: string;  // Optional for compatibility with some endpoints
+  id: string;     // Main ID field from backend response
 
   // Owner & Company
   owner: "internal" | "company";
@@ -69,10 +70,10 @@ export interface Vehicle {
   // Station - có thể là string (ObjectId) hoặc object (populated)
   station: string | StationData;
 
-  // Photos
+  // Photos - can be string[] (IDs) or VehiclePhoto[] (populated)
   defaultPhotos: {
-    exterior: VehiclePhoto[];
-    interior: VehiclePhoto[];
+    exterior: (string | VehiclePhoto)[];
+    interior: (string | VehiclePhoto)[];
   };
 
   // Ratings
@@ -91,6 +92,7 @@ export interface Vehicle {
   image?: string;
   stationData?: StationData;
   batteryLevel?: number;
+  isPartnerVehicle?: boolean;  // From backend response
 }
 
 // ✅ API Response format - sửa từ data sang items
@@ -121,6 +123,10 @@ export interface CreateVehicleData {
   pricePerHour: number;
   status: "available" | "reserved" | "rented" | "maintenance";
   station: string;
+  // For FormData upload
+  exteriorFiles?: File[];
+  interiorFiles?: File[];
+  // For JSON with photo IDs
   defaultPhotos?: {
     exterior: string[];
     interior: string[];
@@ -176,10 +182,40 @@ export const getStationName = (station: Station | string | undefined): string =>
   return station.name || "Unknown";
 };
 
+// ✅ Helper function to convert photo ID to URL
+export const getPhotoUrl = (photoId: string): string => {
+  const baseURL = import.meta.env.VITE_API_BASE_URL;
+  
+  // For now, use /uploads endpoint. Change if needed after checking console
+  const photoUrl = `${baseURL}/uploads/${photoId}`;
+  
+  console.log("🖼️ Photo ID:", photoId);
+  console.log("🖼️ Base URL:", baseURL);
+  console.log("🖼️ Trying URL:", photoUrl);
+  
+  return photoUrl;
+};
+
+// ✅ Helper function to get photo URLs from photo data (handles both string IDs and objects)
+export const getPhotoUrls = (photos: string[] | VehiclePhoto[]): string[] => {
+  if (!photos || photos.length === 0) return [];
+  
+  return photos.map(photo => {
+    if (typeof photo === 'string') {
+      // It's an ID, convert to URL
+      return getPhotoUrl(photo);
+    } else if (typeof photo === 'object' && photo.url) {
+      // It's already an object with URL
+      return photo.url;
+    }
+    return '';
+  }).filter(url => url !== '');
+};
+
 export const getAllVehicles = async (): Promise<Vehicle[]> => {
   try {
     const response = await api.get<PaginatedResponse<Vehicle> | Vehicle[]>(
-      "/vehicles?populate=station"
+      "/vehicles?populate=station,defaultPhotos"
     );
 
     console.log("🔍 API Response:", response.data);
@@ -232,7 +268,7 @@ export const getAllVehicles = async (): Promise<Vehicle[]> => {
 export const getVehicleById = async (id: string): Promise<Vehicle> => {
   try {
     const response = await api.get<{ success: boolean; data: Vehicle }>(
-      `/vehicles/${id}?populate=stationData`
+      `/vehicles/${id}?populate=stationData,defaultPhotos`
     );
 
     if (response.data.success && response.data.data) {
@@ -250,10 +286,60 @@ export const createVehicle = async (
   vehicleData: CreateVehicleData
 ): Promise<Vehicle> => {
   try {
-    const response = await api.post<{ success: boolean; data: Vehicle }>(
-      "/vehicles",
-      vehicleData
-    );
+    // Check if we need to send FormData (has files) or JSON (has defaultPhotos)
+    const hasFiles = (vehicleData.exteriorFiles && vehicleData.exteriorFiles.length > 0) || 
+                     (vehicleData.interiorFiles && vehicleData.interiorFiles.length > 0);
+    
+    let response;
+    
+    if (hasFiles) {
+      // Send as FormData for file upload
+      const formData = new FormData();
+      
+      // Add all vehicle fields
+      formData.append('plateNumber', vehicleData.plateNumber);
+      formData.append('brand', vehicleData.brand);
+      formData.append('model', vehicleData.model);
+      formData.append('year', vehicleData.year.toString());
+      formData.append('color', vehicleData.color);
+      formData.append('batteryCapacity', vehicleData.batteryCapacity.toString());
+      formData.append('mileage', vehicleData.mileage.toString());
+      formData.append('pricePerDay', vehicleData.pricePerDay.toString());
+      formData.append('pricePerHour', vehicleData.pricePerHour.toString());
+      formData.append('status', vehicleData.status);
+      formData.append('station', vehicleData.station);
+      
+      // Add files
+      if (vehicleData.exteriorFiles) {
+        vehicleData.exteriorFiles.forEach((file) => {
+          formData.append('exteriorFiles', file);
+        });
+      }
+      
+      if (vehicleData.interiorFiles) {
+        vehicleData.interiorFiles.forEach((file) => {
+          formData.append('interiorFiles', file);
+        });
+      }
+      
+      console.log("📤 Creating vehicle with FormData (includes files)");
+      response = await api.post<{ success: boolean; data: Vehicle }>(
+        "/vehicles",
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+    } else {
+      // Send as JSON if no files
+      console.log("📤 Creating vehicle with JSON (no files)");
+      response = await api.post<{ success: boolean; data: Vehicle }>(
+        "/vehicles",
+        vehicleData
+      );
+    }
 
     if (response.data.success && response.data.data) {
       return response.data.data;
@@ -334,33 +420,9 @@ export const getAllTransferLogs = async (): Promise<TransferLog[]> => {
   }
 };
 
-export const uploadVehiclePhotos = async (photos: File[]): Promise<string[]> => {
-  try {
-    const formData = new FormData();
-    photos.forEach((photo) => {
-      formData.append(`photos`, photo);
-    });
-
-    const response = await api.post<{ success: boolean; data: string[] }>(
-      "/vehicles/upload-photos",
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-
-    if (response.data.success && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-
-    throw new Error("Failed to upload photos");
-  } catch (error) {
-    handleError(error);
-    throw error;
-  }
-};
+// REMOVED: uploadVehiclePhotos is no longer needed
+// Photos are now sent directly with vehicle creation using FormData
+// This function was causing 404 errors
 
 // Vehicle Management Request Functions
 export const reportMaintenance = async (

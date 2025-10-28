@@ -3,6 +3,7 @@ import { MdAdd, MdDirectionsCar } from "react-icons/md";
 import VehicleFilters from "../../component/vehicle/VehicleFilters";
 import VehicleTable from "../../component/vehicle/VehicleTable";
 import { AddVehicleModal, UpdateVehicleModal } from "./index";
+import RequestsTab from "./components/RequestsTab/RequestsTab";
 import VehicleDetailModal from "./components/VehicleDetailModal";
 import { type Vehicle as UIVehicle } from "../../component/vehicle/VehicleRow";
 import { FadeIn } from "../../component/animations";
@@ -35,6 +36,8 @@ const VehiclesManagement: React.FC = () => {
   const [apiVehicles, setApiVehicles] = useState<APIVehicle[]>([]);
   const [allStations, setAllStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  console.log("🔍 Current searchLoading state:", searchLoading);
   const [error, setError] = useState<string | null>(null);
   const [maintenanceRequests] = useState<any[]>([]);
   const [deletionRequests] = useState<any[]>([]);
@@ -54,7 +57,7 @@ const VehiclesManagement: React.FC = () => {
   const mapApiToUi = (v: APIVehicle): UIVehicle => {
     const stationData = typeof v.station === 'object' ? v.station : null;
     return {
-      id: v._id,
+      id: v.id || v._id || "",
       brand: v.brand,
       model: v.model,
       licensePlate: v.plateNumber,
@@ -65,6 +68,7 @@ const VehiclesManagement: React.FC = () => {
       batteryCapacity: v.batteryCapacity,
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
+      defaultPhotos: v.defaultPhotos, // Include photos
     };
   };
 
@@ -95,7 +99,7 @@ const VehiclesManagement: React.FC = () => {
 
   const handleEdit = (vehicle: UIVehicle) => {
     // Show detail modal first
-    const apiVehicle = apiVehicles.find(v => v._id === vehicle.id);
+    const apiVehicle = apiVehicles.find(v => (v.id || v._id) === vehicle.id);
     if (apiVehicle) {
       setSelectedVehicle(apiVehicle);
       setIsDetailModalOpen(true);
@@ -117,16 +121,19 @@ const VehiclesManagement: React.FC = () => {
 
   const handleTransfer = (vehicle: APIVehicle) => {
     setSelectedVehicle(vehicle);
+    setIsDetailModalOpen(false); // Close detail modal first
     setIsTransferModalOpen(true);
   };
 
   const handleReportMaintenance = (vehicle: APIVehicle) => {
     setSelectedVehicle(vehicle);
+    setIsDetailModalOpen(false); // Close detail modal first
     setIsMaintenanceModalOpen(true);
   };
 
   const handleRequestDeletion = (vehicle: APIVehicle) => {
     setSelectedVehicle(vehicle);
+    setIsDetailModalOpen(false); // Close detail modal first
     setIsDeletionModalOpen(true);
   };
 
@@ -153,7 +160,7 @@ const VehiclesManagement: React.FC = () => {
     fetchVehicles();
   };
 
-  // ✅ Filter vehicles based on search and status
+  // ✅ Filter vehicles based on search and status with loading effect
   const filteredVehicles = vehicles.filter((vehicle) => {
     const matchesSearch =
       vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,6 +174,38 @@ const VehiclesManagement: React.FC = () => {
 
     return matchesSearch && matchesStatus && matchesStation;
   });
+
+  // Handle search with loading effect (non-blocking)
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    if (value.trim()) {
+      setSearchLoading(true);
+      console.log("🔍 Search loading started");
+      // Simulate search delay - show loading in table
+      setTimeout(() => {
+        setSearchLoading(false);
+        console.log("🔍 Search loading ended");
+      }, 800); // Longer delay to see table loading
+    } else {
+      setSearchLoading(false);
+    }
+  };
+
+  // Handle status change with loading effect (non-blocking)
+  const handleStatusChange = (value: string) => {
+    setSelectedStatus(value);
+    if (value !== "all") {
+      setSearchLoading(true);
+      console.log("🔍 Filter loading started");
+      // Simulate filter delay - show loading in table
+      setTimeout(() => {
+        setSearchLoading(false);
+        console.log("🔍 Filter loading ended");
+      }, 600); // Longer delay to see table loading
+    } else {
+      setSearchLoading(false);
+    }
+  };
 
   const tabs = [
     {
@@ -258,20 +297,25 @@ const VehiclesManagement: React.FC = () => {
         </nav>
       </div>
 
-        <FadeIn delay={0.5} duration={0.6} direction="up">
-          <VehicleFilters
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            selectedStatus={selectedStatus}
-            onStatusChange={setSelectedStatus}
-          />
-        </FadeIn>
+        {activeTab === "vehicles" ? (
+          <>
+            <FadeIn delay={0.5} duration={0.6} direction="up">
+              <VehicleFilters
+                searchTerm={searchTerm}
+                onSearchChange={handleSearchChange}
+                selectedStatus={selectedStatus}
+                onStatusChange={handleStatusChange}
+                isLoading={searchLoading}
+              />
+            </FadeIn>
 
-        <FadeIn delay={0.7} duration={0.7} direction="up">
-          {loading ? (
+            <FadeIn delay={0.7} duration={0.7} direction="up">
+              {loading || searchLoading ? (
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-sm text-gray-600">Loading vehicles...</p>
+              <p className="text-sm text-gray-600">
+                {searchLoading ? "Searching vehicles..." : "Loading vehicles..."}
+              </p>
             </div>
           ) : error ? (
             <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
@@ -294,16 +338,44 @@ const VehiclesManagement: React.FC = () => {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onTransfer={(vehicle) => {
-                const apiVehicle = apiVehicles.find(v => v._id === vehicle.id);
+                const apiVehicle = apiVehicles.find(v => (v.id || v._id) === vehicle.id);
                 if (apiVehicle) handleTransfer(apiVehicle);
               }}
               onMarkMaintenance={(vehicle) => {
-                const apiVehicle = apiVehicles.find(v => v._id === vehicle.id);
+                const apiVehicle = apiVehicles.find(v => (v.id || v._id) === vehicle.id);
                 if (apiVehicle) handleReportMaintenance(apiVehicle);
               }}
-            />
-          )}
-        </FadeIn>
+              onRowClick={(vehicle) => {
+                const apiVehicle = apiVehicles.find(v => (v.id || v._id) === vehicle.id);
+                if (apiVehicle) {
+                  setSelectedVehicle(apiVehicle);
+                  setIsDetailModalOpen(true);
+                }
+              }}
+              />
+            )}
+            </FadeIn>
+          </>
+        ) : (
+          <RequestsTab
+            maintenanceRequests={[]}
+            deletionRequests={[]}
+            transferLogs={[]}
+            isLoading={false}
+            onApproveMaintenance={async (id) => {
+              console.log("Approve maintenance:", id);
+            }}
+            onRejectMaintenance={async (id) => {
+              console.log("Reject maintenance:", id);
+            }}
+            onApproveDeletion={async (id) => {
+              console.log("Approve deletion:", id);
+            }}
+            onRejectDeletion={async (id) => {
+              console.log("Reject deletion:", id);
+            }}
+          />
+        )}
 
       {/* Modals */}
       <VehicleDetailModal
@@ -365,6 +437,7 @@ const VehiclesManagement: React.FC = () => {
         }}
         onUpdated={handleUpdateSuccess}
         vehicle={vehicleToUpdate}
+        stations={allStations}
       />
     </div>
   );

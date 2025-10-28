@@ -130,7 +130,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 bg-black/40 z-[9998]"
+            className="fixed inset-0 bg-black/40 z-[9999]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

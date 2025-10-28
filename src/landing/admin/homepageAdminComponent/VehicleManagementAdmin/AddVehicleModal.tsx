@@ -177,12 +177,13 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
 
     setSubmitting(true);
     try {
-      // TODO: Upload photos when backend endpoint is ready
-      const uploadedPhotos = { exterior: [] as string[], interior: [] as string[] };
+      // Send files directly with vehicle creation
+      const exteriorFiles = photos.exterior.map(p => p.file).filter(Boolean) as File[];
+      const interiorFiles = photos.interior.map(p => p.file).filter(Boolean) as File[];
       
-      console.log("Photos will be uploaded when backend endpoint is ready:", {
-        exterior: photos.exterior.length,
-        interior: photos.interior.length
+      console.log("📤 Creating vehicle with files:", {
+        exterior: exteriorFiles.length,
+        interior: interiorFiles.length
       });
 
       const vehicleData: CreateVehicleData = {
@@ -197,7 +198,8 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
         pricePerHour: form.pricePerHour,
         status: form.status,
         station: form.station,
-        defaultPhotos: uploadedPhotos,
+        exteriorFiles: exteriorFiles,
+        interiorFiles: interiorFiles,
       };
 
       console.log("Creating vehicle with data:", vehicleData);
@@ -222,7 +224,7 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 bg-black/40 z-[9998]"
+            className="fixed inset-0 bg-black/40 z-[9999]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -309,11 +311,19 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
                       type="number"
                       min="1900"
                       max={new Date().getFullYear() + 1}
-                      value={form.year}
-                      onChange={(e) => handleChange("year", Number(e.target.value))}
+                      value={form.year === 0 ? '' : form.year}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? 0 : Number(e.target.value) || new Date().getFullYear();
+                        handleChange("year", value);
+                      }}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                         errors.year ? "border-red-300" : "border-gray-300"
                       }`}
+                      placeholder="Select year"
+                      style={{ 
+                        appearance: 'none',
+                        MozAppearance: 'textfield'
+                      }}
                     />
                     {errors.year && (
                       <p className="text-xs text-red-500 mt-1">{errors.year}</p>

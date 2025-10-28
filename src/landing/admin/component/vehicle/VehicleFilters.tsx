@@ -6,6 +6,7 @@ interface VehicleFiltersProps {
   onSearchChange: (value: string) => void;
   selectedStatus: string;
   onStatusChange: (value: string) => void;
+  isLoading?: boolean;
 }
 
 const VehicleFilters: React.FC<VehicleFiltersProps> = ({
@@ -13,6 +14,7 @@ const VehicleFilters: React.FC<VehicleFiltersProps> = ({
   onSearchChange,
   selectedStatus,
   onStatusChange,
+  isLoading = false,
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -26,6 +28,11 @@ const VehicleFilters: React.FC<VehicleFiltersProps> = ({
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+          {isLoading && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            </div>
+          )}
         </div>
         <div className="flex items-center space-x-4">
           <div className="relative">

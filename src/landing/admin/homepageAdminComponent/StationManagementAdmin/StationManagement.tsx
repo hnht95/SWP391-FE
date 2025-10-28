@@ -12,7 +12,7 @@ import AddStationModal from "./AddStationModal";
 import EditStationModal from "./EditStationModal";
 import MeasurementIndex from "./MeasurementIndex";
 import type { Station, StationFilters as Filters, Pagination } from "./types";
-import SuccessModal from "../StaffManagementAdmin/SuccessModal";
+import SuccessModal from "../UserManagementAdmin/SuccessModal";
 import {
   deleteStation,
   getAllStations,
@@ -440,13 +440,13 @@ const StationManagement: React.FC = () => {
             <AnimatePresence>
               <>
                 <motion.div
-                  className="fixed inset-0 bg-black/50 z-[99998]"
+                  className="fixed inset-0 bg-black/50 z-[9999]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setConfirmDeleteOpen(false)}
                 />
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pointer-events-none">
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none">
                   <motion.div
                     className="pointer-events-auto bg-white rounded-2xl shadow-2xl w-full max-w-md"
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}

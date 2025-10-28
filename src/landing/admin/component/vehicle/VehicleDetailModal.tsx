@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MdClose, MdDirectionsCar } from "react-icons/md";
 import { type Vehicle } from "./VehicleRow";
 import StatusBadge from "./StatusBadge";
+import { getPhotoUrls } from "../../../service/apiAdmin/apiVehicles/API";
 
 interface VehicleDetailModalProps {
   vehicle: Vehicle | null;
@@ -45,7 +46,7 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
         <>
           {/* Backdrop - Full screen */}
           <motion.div
-            className="fixed inset-0 bg-black/40 z-[9998]"
+            className="fixed inset-0 bg-black/40 z-[9999]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -221,46 +222,52 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                   </h3>
                   
                   {/* Exterior Photos */}
-                  {vehicle.defaultPhotos?.exterior && vehicle.defaultPhotos.exterior.length > 0 && (
-                    <div className="mb-6">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                        Exterior Photos
-                      </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {vehicle.defaultPhotos.exterior.map((photoUrl, index) => (
-                          <div key={index} className="relative group">
-                            <img
-                              src={photoUrl}
-                              alt={`Exterior ${index + 1}`}
-                              className="w-full h-24 object-cover rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
-                            />
-                          </div>
-                        ))}
+                  {vehicle.defaultPhotos?.exterior && vehicle.defaultPhotos.exterior.length > 0 && (() => {
+                    const exteriorPhotoUrls = getPhotoUrls(vehicle.defaultPhotos.exterior);
+                    return (
+                      <div className="mb-6">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                          Exterior Photos ({exteriorPhotoUrls.length})
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {exteriorPhotoUrls.map((photoUrl, index) => (
+                            <div key={index} className="relative group">
+                              <img
+                                src={photoUrl}
+                                alt={`Exterior ${index + 1}`}
+                                className="w-full h-24 object-cover rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Interior Photos */}
-                  {vehicle.defaultPhotos?.interior && vehicle.defaultPhotos.interior.length > 0 && (
-                    <div className="mb-6">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        Interior Photos
-                      </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {vehicle.defaultPhotos.interior.map((photoUrl, index) => (
-                          <div key={index} className="relative group">
-                            <img
-                              src={photoUrl}
-                              alt={`Interior ${index + 1}`}
-                              className="w-full h-24 object-cover rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
-                            />
-                          </div>
-                        ))}
+                  {vehicle.defaultPhotos?.interior && vehicle.defaultPhotos.interior.length > 0 && (() => {
+                    const interiorPhotoUrls = getPhotoUrls(vehicle.defaultPhotos.interior);
+                    return (
+                      <div className="mb-6">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                          Interior Photos ({interiorPhotoUrls.length})
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {interiorPhotoUrls.map((photoUrl, index) => (
+                            <div key={index} className="relative group">
+                              <img
+                                src={photoUrl}
+                                alt={`Interior ${index + 1}`}
+                                className="w-full h-24 object-cover rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* No Photos Message */}
                   {(!vehicle.defaultPhotos?.exterior?.length && !vehicle.defaultPhotos?.interior?.length) && (

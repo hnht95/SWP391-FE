@@ -5,7 +5,6 @@ import {
   MdDirectionsCar,
   MdLocationOn,
   MdPeople,
-  MdWork,
   MdAssessment,
   MdChevronLeft,
   MdChevronRight,
@@ -54,23 +53,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
       path: "/admin/stations",
     },
     {
-      id: "customer-management",
-      label: "Customer Management",
+      id: "user-management",
+      label: "User Management",
       icon: <MdPeople className="w-5 h-5" />,
-      path: "/admin/customers",
+      path: "/admin/users",
     },
-    {
-      id: "staff-management",
-      label: "Staff Management",
-      icon: <MdWork className="w-5 h-5" />,
-      path: "/admin/staff",
-    },
-    {
-      id: "reports-ai",
-      label: "Reports & AI",
-      icon: <MdAssessment className="w-5 h-5" />,
-      path: "/admin/reports",
-    },
+    // Temporarily hide Reports & AI
+    // {
+    //   id: "reports-ai",
+    //   label: "Reports & AI",
+    //   icon: <MdAssessment className="w-5 h-5" />,
+    //   path: "/admin/reports",
+    // },
   ];
 
   const handleMenuClick = (item: MenuItem) => {

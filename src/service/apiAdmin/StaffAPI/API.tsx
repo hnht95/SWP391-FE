@@ -143,9 +143,71 @@ export const createStaff = async (
   }
 };
 
+/**
+ * PUT /admin/staffs/:id - Update staff (admin only)
+ * Request body: { name, email, phone, role, station, isActive }
+ * Backend returns: { success: true, data: Staff }
+ */
+export const updateStaff = async (
+  staffId: string,
+  staffData: Partial<Staff>
+): Promise<Staff> => {
+  try {
+    console.log("Updating staff with data:", staffData);
+
+    const response = await api.put<{ success: boolean; data: Staff }>(
+      `/admin/staffs/${staffId}`,
+      staffData
+    );
+
+    console.log("Update staff response:", response.data);
+
+    // ✅ Check for wrapped response first
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    // ✅ Fallback: if backend returns staff directly (no wrapper)
+    if (response.data._id && response.data.email) {
+      return response.data as Staff;
+    }
+
+    console.error("Unexpected response format:", response.data);
+    throw new Error("Failed to update staff - unexpected response format");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+/**
+ * DELETE /admin/staffs/:id - Delete staff (admin only)
+ * Backend returns: { success: true, message: string }
+ */
+export const deleteStaff = async (staffId: string): Promise<void> => {
+  try {
+    console.log("Deleting staff with id:", staffId);
+
+    const response = await api.delete<{ success: boolean; message: string }>(
+      `/admin/staffs/${staffId}`
+    );
+
+    console.log("Delete staff response:", response.data);
+
+    if (!response.data.success) {
+      throw new Error("Failed to delete staff");
+    }
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
 export const staffManagementAPI = {
   getAllStaffs,
   createStaff,
+  updateStaff,
+  deleteStaff,
 };
 
 export default staffManagementAPI;

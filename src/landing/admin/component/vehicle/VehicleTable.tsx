@@ -8,6 +8,7 @@ interface VehicleTableProps {
   onDelete?: (vehicleId: string) => void;
   onTransfer?: (vehicle: Vehicle) => void;
   onMarkMaintenance?: (vehicle: Vehicle) => void;
+  onRowClick?: (vehicle: Vehicle) => void;
 }
 
 const VehicleTable: React.FC<VehicleTableProps> = ({
@@ -16,6 +17,7 @@ const VehicleTable: React.FC<VehicleTableProps> = ({
   onDelete,
   onTransfer,
   onMarkMaintenance,
+  onRowClick,
 }) => {
   const headers = [
     "Vehicle Info",
@@ -64,10 +66,11 @@ const VehicleTable: React.FC<VehicleTableProps> = ({
               {vehicles.map((vehicle, index) => (
                 <motion.tr
                   key={vehicle.id}
-                  className="hover:bg-gray-50"
+                  className="hover:bg-gray-50 cursor-pointer"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 + index * 0.1 }}
+                  onClick={() => onRowClick?.(vehicle)}
                 >
                   <VehicleRow
                     vehicle={vehicle}
