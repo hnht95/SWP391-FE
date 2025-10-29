@@ -3,24 +3,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   MdSearch,
   MdAdd,
-  MdMoreVert,
   MdBusiness,
   MdDirectionsCar,
-  MdChat,
   MdWarning,
-  MdSchedule,
   MdClose,
   MdAssignment,
   MdPerson,
   MdSend,
   MdStar,
   MdStarBorder,
-  MdTrendingUp,
-  MdAccessTime,
   MdNotifications,
-  MdHelpOutline,
-  MdBook,
   MdSupport,
+  MdLocationOn,
+  MdFilterList,
+  MdViewModule,
+  MdViewList,
 } from "react-icons/md";
 
 interface Ticket {
@@ -80,15 +77,18 @@ type TicketType =
 type TicketStatus = "new" | "in_progress" | "resolved" | "closed";
 
 const StaffReport = () => {
-  const [activeTab, setActiveTab] = useState<
-    "dashboard" | "tickets" | "chat" | "faq"
-  >("dashboard");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<TicketStatus | "all">("all");
   const [filterType, setFilterType] = useState<TicketType | "all">("all");
   const [newMessage, setNewMessage] = useState("");
+
+  // New UI states for Station Requests layout
+  const [selectedStation, setSelectedStation] = useState("downtown");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "approved" | "pending" | "rejected"
+  >("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Mock data with English content
   const tickets: Ticket[] = [
@@ -188,15 +188,6 @@ const StaffReport = () => {
     },
   ];
 
-  const stats = {
-    total: tickets.length,
-    new: tickets.filter((t) => t.status === "new").length,
-    inProgress: tickets.filter((t) => t.status === "in_progress").length,
-    overdue: tickets.filter((t) => t.isOverdue).length,
-    avgResponseTime: "25 minutes",
-    satisfaction: 4.8,
-  };
-
   const ticketTypes = [
     {
       value: "vehicle_breakdown",
@@ -289,11 +280,17 @@ const StaffReport = () => {
     const matchesSearch =
       ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ticket.customer.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      filterStatus === "all" || ticket.status === filterStatus;
+    const toCategory = (t: Ticket): "approved" | "pending" | "rejected" =>
+      t.status === "resolved"
+        ? "approved"
+        : t.status === "closed"
+        ? "rejected"
+        : "pending";
+    const matchesStatusCategory =
+      statusFilter === "all" || toCategory(ticket) === statusFilter;
     const matchesType = filterType === "all" || ticket.type === filterType;
 
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesStatusCategory && matchesType;
   });
 
   const handleSendMessage = () => {
@@ -305,405 +302,430 @@ const StaffReport = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
       <motion.div
-        className="mb-8"
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.4 }}
       >
-        <div className="flex items-center justify-between">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-              <MdSupport className="w-8 h-8 mr-3 text-blue-600" />
-              Customer Support
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Manage support requests and customer care
+            <h2 className="text-2xl font-bold text-gray-900">
+              Station Requests
+            </h2>
+            <p className="text-gray-500 text-sm mt-1">
+              View and manage vehicle deletion and maintenance requests from
+              your station
             </p>
           </div>
+          <motion.button
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <MdAdd className="w-4 h-4" />
+            <span>New Request</span>
+          </motion.button>
+        </div>
 
-          <div className="flex items-center space-x-4">
-            <motion.button
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+        {/* Station Selector */}
+        <motion.div
+          className="mb-4 bg-white rounded-lg shadow-sm p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.05 }}
+        >
+          <div className="flex items-center gap-4">
+            <MdLocationOn className="w-5 h-5 text-gray-400" />
+            <label className="text-sm text-gray-600">Select Station:</label>
+            <select
+              value={selectedStation}
+              onChange={(e) => setSelectedStation(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <MdAdd className="w-4 h-4" />
-              <span>Create Ticket</span>
-            </motion.button>
+              <option value="downtown">Downtown Station</option>
+              <option value="suburb">Suburb Station</option>
+              <option value="airport">Airport Station</option>
+            </select>
+            <span className="text-sm text-gray-500">
+              Showing requests from{" "}
+              {selectedStation === "downtown"
+                ? "Downtown Station"
+                : selectedStation === "suburb"
+                ? "Suburb Station"
+                : "Airport Station"}
+            </span>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
 
-      {/* Tab Navigation */}
-      <motion.div
-        className="mb-6"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8">
-            {[
-              { id: "dashboard", label: "Dashboard", icon: MdTrendingUp },
-              { id: "tickets", label: "Tickets", icon: MdAssignment },
-              { id: "chat", label: "Live Chat", icon: MdChat },
-              { id: "faq", label: "FAQ", icon: MdHelpOutline },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() =>
-                  setActiveTab(
-                    tab.id as "dashboard" | "tickets" | "chat" | "faq"
-                  )
-                }
-                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-      </motion.div>
-
-      {/* Dashboard Tab */}
-      {activeTab === "dashboard" && (
+        {/* Status Tabs */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+          className="mb-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
         >
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-xl p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <MdAssignment className="w-6 h-6 text-blue-600" />
-                </div>
-                <span className="text-2xl font-bold text-gray-900">
-                  {stats.total}
-                </span>
-              </div>
-              <h3 className="text-gray-600 text-sm">Total Tickets</h3>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <MdSchedule className="w-6 h-6 text-yellow-600" />
-                </div>
-                <span className="text-2xl font-bold text-gray-900">
-                  {stats.inProgress}
-                </span>
-              </div>
-              <h3 className="text-gray-600 text-sm">In Progress</h3>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                  <MdWarning className="w-6 h-6 text-red-600" />
-                </div>
-                <span className="text-2xl font-bold text-gray-900">
-                  {stats.overdue}
-                </span>
-              </div>
-              <h3 className="text-gray-600 text-sm">Overdue</h3>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <MdStar className="w-6 h-6 text-green-600" />
-                </div>
-                <span className="text-2xl font-bold text-gray-900">
-                  {stats.satisfaction}
-                </span>
-              </div>
-              <h3 className="text-gray-600 text-sm">Avg Rating</h3>
-            </div>
-          </div>
-
-          {/* Recent Tickets Overview */}
-          <div className="bg-white rounded-xl border border-gray-100 mb-6">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Recent Tickets
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Customer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Issue
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Priority
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      SLA
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {tickets.slice(0, 5).map((ticket) => (
-                    <tr
-                      key={ticket.id}
-                      className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => {
-                        setSelectedTicket(ticket);
-                        setIsTicketModalOpen(true);
-                      }}
+          {(() => {
+            const toCategory = (
+              t: Ticket
+            ): "approved" | "pending" | "rejected" =>
+              t.status === "resolved"
+                ? "approved"
+                : t.status === "closed"
+                ? "rejected"
+                : "pending";
+            const counts = {
+              all: tickets.length,
+              approved: tickets.filter((t) => toCategory(t) === "approved")
+                .length,
+              pending: tickets.filter((t) => toCategory(t) === "pending")
+                .length,
+              rejected: tickets.filter((t) => toCategory(t) === "rejected")
+                .length,
+            };
+            return (
+              <div className="bg-white rounded-lg shadow-sm">
+                <div className="flex flex-wrap items-center gap-2 px-4 py-4 border-b">
+                  {(
+                    [
+                      { value: "all", label: "All", count: counts.all },
+                      {
+                        value: "approved",
+                        label: "Approved",
+                        count: counts.approved,
+                      },
+                      {
+                        value: "pending",
+                        label: "Pending",
+                        count: counts.pending,
+                      },
+                      {
+                        value: "rejected",
+                        label: "Rejected",
+                        count: counts.rejected,
+                      },
+                    ] as Array<{
+                      value: "all" | "approved" | "pending" | "rejected";
+                      label: string;
+                      count: number;
+                    }>
+                  ).map((tab, idx) => (
+                    <motion.button
+                      key={tab.value}
+                      onClick={() => setStatusFilter(tab.value)}
+                      className={`px-4 py-2 text-sm font-medium transition-all relative ${
+                        statusFilter === tab.value
+                          ? "text-gray-900"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 + idx * 0.05 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {ticket.id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {ticket.customer.name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {ticket.customer.company}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 truncate max-w-xs">
-                          {ticket.title}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            ticket.status
-                          )}`}
-                        >
-                          {getStatusLabel(ticket.status)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
-                            ticket.priority
-                          )}`}
-                        >
-                          {getPriorityLabel(ticket.priority)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ticket.isOverdue && (
-                          <span className="text-red-600 font-medium">
-                            Overdue
-                          </span>
-                        )}
-                        {!ticket.isOverdue && (
-                          <span className="text-green-600">On Time</span>
-                        )}
-                      </td>
-                    </tr>
+                      {tab.label} <span className="ml-1">{tab.count}</span>
+                      {statusFilter === tab.value && (
+                        <motion.div
+                          className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
+                          layoutId="activeTab"
+                        />
+                      )}
+                    </motion.button>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Tickets Tab */}
-      {activeTab === "tickets" && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          {/* Filters */}
-          <div className="bg-white rounded-xl p-6 border border-gray-100 mb-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-              <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
-                <div className="relative">
-                  <MdSearch className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search tickets..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
                 </div>
 
-                <select
-                  value={filterStatus}
-                  onChange={(e) =>
-                    setFilterStatus(e.target.value as TicketStatus | "all")
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All Status</option>
-                  <option value="new">New</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
-                </select>
+                {/* Search and Controls */}
+                <div className="p-4">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex-1 md:w-80">
+                        <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          type="text"
+                          placeholder="Search reports..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <select
+                        value={filterType}
+                        onChange={(e) =>
+                          setFilterType(e.target.value as TicketType | "all")
+                        }
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="all">All Types</option>
+                        {ticketTypes.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 flex items-center gap-2 text-sm">
+                        <MdFilterList className="w-4 h-4" /> Filters
+                      </button>
+                    </div>
 
-                <select
-                  value={filterType}
-                  onChange={(e) =>
-                    setFilterType(e.target.value as TicketType | "all")
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All Types</option>
-                  {ticketTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
+                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                      <motion.button
+                        onClick={() => setViewMode("grid")}
+                        className={`p-1.5 rounded ${
+                          viewMode === "grid"
+                            ? "bg-white text-gray-900 shadow"
+                            : "text-gray-500"
+                        }`}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <MdViewModule className="w-5 h-5" />
+                      </motion.button>
+                      <motion.button
+                        onClick={() => setViewMode("list")}
+                        className={`p-1.5 rounded ${
+                          viewMode === "list"
+                            ? "bg-white text-gray-900 shadow"
+                            : "text-gray-500"
+                        }`}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <MdViewList className="w-5 h-5" />
+                      </motion.button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
+        </motion.div>
 
-          {/* Tickets List */}
-          <div className="space-y-4">
-            {filteredTickets.map((ticket) => (
-              <motion.div
-                key={ticket.id}
-                className="bg-white rounded-xl p-6 border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all cursor-pointer"
-                onClick={() => {
-                  setSelectedTicket(ticket);
-                  setIsTicketModalOpen(true);
-                }}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <span className="text-lg font-semibold text-gray-900">
-                        #{ticket.id}
-                      </span>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                          ticket.status
-                        )}`}
-                      >
-                        {getStatusLabel(ticket.status)}
-                      </span>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
-                          ticket.priority
-                        )}`}
-                      >
-                        {getPriorityLabel(ticket.priority)}
-                      </span>
-                      {ticket.isOverdue && (
-                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
-                          Overdue
-                        </span>
-                      )}
-                    </div>
+        {/* Requests Display */}
+        <motion.div
+          className="bg-white rounded-lg shadow-sm p-4"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          {(() => {
+            const toCategory = (
+              t: Ticket
+            ): "approved" | "pending" | "rejected" =>
+              t.status === "resolved"
+                ? "approved"
+                : t.status === "closed"
+                ? "rejected"
+                : "pending";
+            const items = filteredTickets.filter((t) =>
+              statusFilter === "all" ? true : toCategory(t) === statusFilter
+            );
 
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      {ticket.title}
-                    </h3>
-                    <p className="text-gray-600 mb-4 line-clamp-2">
-                      {ticket.description}
-                    </p>
+            if (items.length === 0) {
+              return (
+                <div className="text-center py-12 text-gray-600">
+                  No requests found
+                </div>
+              );
+            }
 
-                    <div className="flex items-center space-x-6 text-sm text-gray-500">
-                      <div className="flex items-center space-x-2">
-                        <MdPerson className="w-4 h-4" />
-                        <span>{ticket.customer.name}</span>
-                        {ticket.customer.company && (
-                          <span className="text-gray-400">
-                            • {ticket.customer.company}
-                          </span>
-                        )}
+            const StatusPill = ({
+              cat,
+            }: {
+              cat: "approved" | "pending" | "rejected";
+            }) => {
+              const map = {
+                approved: {
+                  color: "bg-green-100 text-green-800",
+                  label: "Approved",
+                },
+                pending: {
+                  color: "bg-yellow-100 text-yellow-800",
+                  label: "Pending Review",
+                },
+                rejected: {
+                  color: "bg-red-100 text-red-800",
+                  label: "Rejected",
+                },
+              } as const;
+              return (
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${map[cat].color}`}
+                >
+                  {map[cat].label}
+                </span>
+              );
+            };
+
+            if (viewMode === "list") {
+              // Simple table view fallback
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        {[
+                          "Report ID",
+                          "Type",
+                          "Vehicle",
+                          "Requested By",
+                          "Request Date",
+                          "Review Date",
+                          "Status",
+                          "Actions",
+                        ].map((h) => (
+                          <th
+                            key={h}
+                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {items.map((t) => {
+                        const cat = toCategory(t);
+                        const typeLabel =
+                          ticketTypes.find((x) => x.value === t.type)?.label ||
+                          "Request";
+                        return (
+                          <tr key={t.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              RPT-{t.id}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {typeLabel}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {t.vehicle
+                                ? `${t.vehicle.model} - ${t.vehicle.licensePlate}`
+                                : "N/A"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {t.customer.name}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {t.createdAt}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {t.updatedAt}
+                            </td>
+                            <td className="px-4 py-3">
+                              <StatusPill cat={cat} />
+                            </td>
+                            <td className="px-4 py-3">
+                              <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                View details
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            }
+
+            // Grid view
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {items.map((t, idx) => {
+                  const cat = toCategory(t);
+                  const typeMeta = ticketTypes.find((x) => x.value === t.type);
+                  const typeLabel = typeMeta?.label || "Request";
+                  return (
+                    <motion.div
+                      key={t.id}
+                      className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow bg-white"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.03 * idx }}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">
+                            Report ID
+                          </p>
+                          <h3 className="font-semibold text-gray-900">
+                            RPT-{t.id}
+                          </h3>
+                        </div>
+                        <StatusPill cat={cat} />
                       </div>
 
-                      {ticket.vehicle && (
-                        <div className="flex items-center space-x-2">
-                          <MdDirectionsCar className="w-4 h-4" />
-                          <span>
-                            {ticket.vehicle.model} -{" "}
-                            {ticket.vehicle.licensePlate}
+                      <div className="mb-3">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          {typeLabel}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                        <div className="col-span-2 flex items-center text-gray-700">
+                          <MdDirectionsCar className="w-4 h-4 mr-2 text-gray-400" />
+                          <span className="text-xs text-gray-500 mr-1">
+                            Vehicle:
+                          </span>
+                          <span className="font-medium text-gray-900">
+                            {t.vehicle ? `${t.vehicle.model}` : "N/A"}
                           </span>
                         </div>
-                      )}
-
-                      <div className="flex items-center space-x-2">
-                        <MdAccessTime className="w-4 h-4" />
-                        <span>{ticket.createdAt}</span>
+                        <div className="col-span-2 flex items-center text-gray-700">
+                          <MdPerson className="w-4 h-4 mr-2 text-gray-400" />
+                          <span className="text-xs text-gray-500 mr-1">
+                            Requested by:
+                          </span>
+                          <span className="font-medium text-gray-900">
+                            {t.customer.name}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-xs text-gray-500">
+                            Request Date
+                          </span>
+                          <div className="mt-1 px-3 py-2 border rounded bg-gray-50 text-gray-900 text-xs">
+                            {t.createdAt}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-xs text-gray-500">
+                            Review Date
+                          </span>
+                          <div className="mt-1 px-3 py-2 border rounded bg-gray-50 text-gray-900 text-xs">
+                            {t.updatedAt}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="ml-4">
-                    <button className="text-gray-400 hover:text-gray-600">
-                      <MdMoreVert className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      )}
+                      <div className="mb-3">
+                        <span className="text-xs text-gray-500 block mb-1">
+                          Reason
+                        </span>
+                        <div className="px-3 py-2 border rounded bg-gray-50 text-sm text-gray-700 line-clamp-3">
+                          {t.description}
+                        </div>
+                      </div>
 
-      {/* Chat Tab */}
-      {activeTab === "chat" && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="bg-white rounded-xl border border-gray-100 h-96"
-        >
-          <div className="p-6 text-center">
-            <MdChat className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Live Chat
-            </h3>
-            <p className="text-gray-600">
-              Live chat feature is under development
-            </p>
-          </div>
+                      <div className="pt-2">
+                        <button
+                          onClick={() => {
+                            setSelectedTicket(t);
+                            setIsTicketModalOpen(true);
+                          }}
+                          className="w-full py-2 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors font-medium"
+                        >
+                          View details
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </motion.div>
-      )}
-
-      {/* FAQ Tab */}
-      {activeTab === "faq" && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="bg-white rounded-xl border border-gray-100 p-6"
-        >
-          <div className="text-center">
-            <MdBook className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Knowledge Base
-            </h3>
-            <p className="text-gray-600">FAQ system is under development</p>
-          </div>
-        </motion.div>
-      )}
+      </motion.div>
 
       {/* Ticket Detail Modal */}
       <AnimatePresence>
