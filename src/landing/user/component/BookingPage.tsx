@@ -1,3 +1,4 @@
+// pages/BookingPage.tsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
@@ -7,9 +8,13 @@ import {
 } from "../../../service/apiAdmin/apiVehicles/API";
 import type { Station } from "../../../service/apiAdmin/apiStation/API";
 import { createBooking } from "../../../service/apiBooking/API";
-import { FaArrowLeft, FaBatteryFull, FaCheckCircle } from "react-icons/fa";
-
-// pages/BookingPage.tsx
+import {
+  FaArrowLeft,
+  FaBatteryFull,
+  FaCheckCircle,
+  FaExclamationTriangle,
+} from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
 
 const BookingPage: React.FC = () => {
   const { vehicleId } = useParams<{ vehicleId: string }>();
@@ -20,6 +25,7 @@ const BookingPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string>(""); // ✅ Form error state
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [bookingData, setBookingData] = useState<any>(null);
@@ -63,16 +69,22 @@ const BookingPage: React.FC = () => {
     return diffDays;
   };
 
+  const calculateDeposit = () => {
+    if (!vehicle?.valuation?.valueVND) return 0;
+    return Math.round(vehicle.valuation.valueVND * 0.015);
+  };
+
   const duration = calculateDuration();
-  const depositAmount = 500000;
+  const depositAmount = calculateDeposit();
   const totalPrice = vehicle ? duration * vehicle.pricePerDay : 0;
   const grandTotal = totalPrice + depositAmount;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(""); // ✅ Clear previous errors
 
     if (!pickupDate || !returnDate) {
-      alert("Please select pickup and return dates");
+      setFormError("Please select pickup and return dates");
       return;
     }
 
@@ -80,12 +92,12 @@ const BookingPage: React.FC = () => {
     const endDateTime = new Date(`${returnDate}T${returnTime}`);
 
     if (endDateTime <= startDateTime) {
-      alert("Return date/time must be after pickup date/time");
+      setFormError("Return date/time must be after pickup date/time");
       return;
     }
 
     if (!vehicleId) {
-      alert("Vehicle ID is missing");
+      setFormError("Vehicle ID is missing");
       return;
     }
 
@@ -107,28 +119,26 @@ const BookingPage: React.FC = () => {
       setShowSuccessModal(true);
     } catch (err: any) {
       console.error("❌ Failed to create booking:", err);
-      alert(err.message || "Failed to create booking. Please try again.");
+      setFormError(
+        err.message || "Failed to create booking. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ✅ FIXED: Use _id instead of bookingId
   const handleProceedToPayment = () => {
     console.log("🔄 Proceeding to payment with data:", bookingData);
 
     if (!bookingData) {
       console.error("❌ No booking data available");
-      alert("Booking data is missing. Please try again.");
       return;
     }
 
-    // ✅ Use _id (normalized in API.tsx)
     const bookingIdToUse = bookingData._id;
 
     if (!bookingIdToUse) {
       console.error("❌ No booking ID found:", bookingData);
-      alert("Booking ID is missing. Please try again.");
       return;
     }
 
@@ -138,6 +148,13 @@ const BookingPage: React.FC = () => {
       state: {
         booking: bookingData,
         vehicle: vehicle,
+        calculatedTotals: {
+          dailyRate: vehicle?.pricePerDay || 0,
+          duration: duration,
+          rentalCost: totalPrice,
+          deposit: depositAmount,
+          total: grandTotal,
+        },
       },
     });
   };
@@ -234,6 +251,20 @@ const BookingPage: React.FC = () => {
                     </span>
                   </p>
 
+                  {vehicle.valuation?.valueVND && (
+                    <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                      <p className="text-xs text-orange-600 font-medium mb-1">
+                        Vehicle Value
+                      </p>
+                      {/* <p className="text-orange-900 font-semibold">
+                        {vehicle.valuation.valueVND.toLocaleString()}đ
+                      </p> */}
+                      <p className="text-xs text-orange-700 mt-1">
+                        Deposit: 1.5% of vehicle value
+                      </p>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
                     <div>
                       <span className="font-medium text-gray-600">
@@ -294,7 +325,10 @@ const BookingPage: React.FC = () => {
                         type="date"
                         className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={pickupDate}
-                        onChange={(e) => setPickupDate(e.target.value)}
+                        onChange={(e) => {
+                          setPickupDate(e.target.value);
+                          setFormError(""); // Clear error on change
+                        }}
                         min={new Date().toISOString().split("T")[0]}
                         required
                       />
@@ -302,7 +336,10 @@ const BookingPage: React.FC = () => {
                         type="time"
                         className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={pickupTime}
-                        onChange={(e) => setPickupTime(e.target.value)}
+                        onChange={(e) => {
+                          setPickupTime(e.target.value);
+                          setFormError("");
+                        }}
                         required
                       />
                     </div>
@@ -317,7 +354,10 @@ const BookingPage: React.FC = () => {
                         type="date"
                         className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={returnDate}
-                        onChange={(e) => setReturnDate(e.target.value)}
+                        onChange={(e) => {
+                          setReturnDate(e.target.value);
+                          setFormError("");
+                        }}
                         min={
                           pickupDate || new Date().toISOString().split("T")[0]
                         }
@@ -327,7 +367,10 @@ const BookingPage: React.FC = () => {
                         type="time"
                         className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={returnTime}
-                        onChange={(e) => setReturnTime(e.target.value)}
+                        onChange={(e) => {
+                          setReturnTime(e.target.value);
+                          setFormError("");
+                        }}
                         required
                       />
                     </div>
@@ -351,13 +394,13 @@ const BookingPage: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Subtotal:</span>
+                        <span className="text-gray-600">Rental Cost:</span>
                         <span className="font-medium">
                           {totalPrice.toLocaleString()}đ
                         </span>
                       </div>
-                      <div className="flex justify-between items-center text-blue-600">
-                        <span>Deposit (5%):</span>
+                      <div className="flex justify-between items-center text-orange-600">
+                        <span>Deposit (1.5%):</span>
                         <span className="font-medium">
                           {depositAmount.toLocaleString()}đ
                         </span>
@@ -371,6 +414,25 @@ const BookingPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* ✅ Error Message */}
+                  <AnimatePresence>
+                    {formError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3"
+                      >
+                        <FaExclamationTriangle className="text-red-600 text-lg mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm text-red-800 font-medium">
+                            {formError}
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <div className="flex space-x-4 pt-4">
                     <button
@@ -410,54 +472,73 @@ const BookingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Success Modal */}
-      {showSuccessModal && bookingData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fade-in">
-            <div className="text-center">
-              <FaCheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Booking Created Successfully!
-              </h2>
-              <p className="text-gray-600 mb-6">
-                Your booking has been created. Please proceed to payment to
-                confirm your reservation.
-              </p>
+      {/* ✅ Success Modal with Blur Background */}
+      <AnimatePresence>
+        {showSuccessModal && bookingData && (
+          <motion.div
+            initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+            animate={{ opacity: 1, backdropFilter: "blur(8px)" }}
+            exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            >
+              <div className="text-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+                >
+                  <FaCheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                </motion.div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Booking Created Successfully!
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Your booking has been created. Please proceed to payment to
+                  confirm your reservation.
+                </p>
 
-              <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  Booking Details:
-                </h3>
-                <div className="space-y-1 text-sm">
-                  <p>
-                    <span className="text-gray-600">Booking ID:</span>{" "}
-                    <span className="font-mono">{bookingData._id}</span>
-                  </p>
-                  <p>
-                    <span className="text-gray-600">Status:</span>{" "}
-                    <span className="capitalize">{bookingData.status}</span>
-                  </p>
-                  <p>
-                    <span className="text-gray-600">Vehicle:</span>{" "}
-                    {vehicle?.brand} {vehicle?.model}
-                  </p>
-                  <p>
-                    <span className="text-gray-600">Total:</span>{" "}
-                    {grandTotal.toLocaleString()}đ
-                  </p>
+                <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    Booking Details:
+                  </h3>
+                  <div className="space-y-1 text-sm">
+                    <p>
+                      <span className="text-gray-600">Booking ID:</span>{" "}
+                      <span className="font-mono">{bookingData._id}</span>
+                    </p>
+                    <p>
+                      <span className="text-gray-600">Status:</span>{" "}
+                      <span className="capitalize">{bookingData.status}</span>
+                    </p>
+                    <p>
+                      <span className="text-gray-600">Vehicle:</span>{" "}
+                      {vehicle?.brand} {vehicle?.model}
+                    </p>
+                    <p>
+                      <span className="text-gray-600">Total:</span>{" "}
+                      {grandTotal.toLocaleString()}đ
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <button
-                onClick={handleProceedToPayment}
-                className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors"
-              >
-                Proceed to Payment
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                <button
+                  onClick={handleProceedToPayment}
+                  className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors"
+                >
+                  Proceed to Payment
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

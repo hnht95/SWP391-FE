@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   X,
   User,
@@ -8,11 +8,12 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  Camera,
+  Upload,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import type { UserProfile } from "../../../../../../../../service/apiUser/profile/API";
 import profileApi from "../../../../../../../../service/apiUser/profile/API";
-// import profileApi, { UserProfile } from "../../../../../../../service/apiUser/profile/API";
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -37,6 +38,12 @@ const EditProfileModal = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // ✅ Avatar upload states
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Reset form when user data changes
   useEffect(() => {
     if (user) {
@@ -45,6 +52,14 @@ const EditProfileModal = ({
         phone: user.phone || "",
         gender: user.gender || "male",
       });
+      // Set current avatar as preview
+      const currentAvatar =
+        typeof user.avatarUrl === "object" && user.avatarUrl?.url
+          ? user.avatarUrl.url
+          : typeof user.avatarUrl === "string"
+          ? user.avatarUrl
+          : user.avatar;
+      setAvatarPreview(currentAvatar || null);
     }
   }, [user]);
 
@@ -57,6 +72,62 @@ const EditProfileModal = ({
       [name]: value,
     }));
     setError(null);
+  };
+
+  // ✅ Handle avatar file selection
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size must be less than 5MB");
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    setError(null);
+  };
+
+  // ✅ Remove selected avatar
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // ✅ Upload avatar separately
+  const handleUploadAvatar = async () => {
+    if (!avatarFile) return;
+
+    setIsUploadingAvatar(true);
+    setError(null);
+
+    try {
+      await profileApi.uploadAvatar(avatarFile);
+      setSuccess(true);
+      setAvatarFile(null);
+
+      setTimeout(() => {
+        if (onSuccess) {
+          onSuccess();
+        }
+      }, 1000);
+    } catch (err: any) {
+      console.error("Avatar upload failed:", err);
+      setError(err.message || "Failed to upload avatar");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,7 +149,7 @@ const EditProfileModal = ({
       await profileApi.updateUserProfile({
         name: formData.name.trim(),
         phone: formData.phone.trim(),
-        gender: formData.gender as "male" | "female" | "other",
+        gender: formData.gender as "male" | "female",
       });
 
       setSuccess(true);
@@ -116,10 +187,10 @@ const EditProfileModal = ({
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden max-h-[90vh] overflow-y-auto"
             >
               {/* Header */}
-              <div className="relative bg-gradient-to-br from-gray-800 via-gray-700 to-black px-8 py-6 flex items-center justify-between">
+              <div className="relative bg-gradient-to-br from-gray-800 via-gray-700 to-black px-8 py-6 flex items-center justify-between sticky top-0 z-10">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
 
                 <div className="relative flex items-center space-x-3">
@@ -183,6 +254,96 @@ const EditProfileModal = ({
                     </div>
                   </motion.div>
                 )}
+
+                {/* ✅ Avatar Upload Section - Fixed Layout */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Profile Picture
+                  </label>
+                  <div className="flex items-start space-x-4">
+                    {/* Avatar Preview */}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-gray-200 to-gray-400 shadow-lg">
+                        {avatarPreview ? (
+                          <img
+                            src={avatarPreview}
+                            alt="Avatar preview"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <User className="w-12 h-12 text-gray-500" />
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute bottom-0 right-0 w-8 h-8 bg-black text-white rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors shadow-lg"
+                      >
+                        <Camera className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Upload/Remove Buttons Container */}
+                    <div className="flex-1 min-w-0">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarChange}
+                        className="hidden"
+                      />
+                      {avatarFile ? (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-600 truncate">
+                            {avatarFile.name}
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={handleUploadAvatar}
+                              disabled={isUploadingAvatar}
+                              className="px-4 py-2 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center space-x-1"
+                            >
+                              {isUploadingAvatar ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <span>Uploading...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-3 h-3" />
+                                  <span>Upload</span>
+                                </>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleRemoveAvatar}
+                              disabled={isUploadingAvatar}
+                              className="px-4 py-2 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>Change Photo</span>
+                        </button>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2">
+                        JPG, PNG (Max 5MB)
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Email (Read-only) */}
                 <div className="mb-6">
@@ -255,7 +416,6 @@ const EditProfileModal = ({
                   >
                     <option value="male">Male</option>
                     <option value="female">Female</option>
-                    <option value="other">Other</option>
                   </select>
                 </div>
 

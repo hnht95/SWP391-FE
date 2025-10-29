@@ -10,7 +10,7 @@ export { default as AddStationModal } from "./AddStationModal";
 export { default as StationPopup } from "./StationPopup";
 
 // API
-export * from "./stationApi";
+export * from "../../../../service/apiAdmin/apiStation/API";
 
 // Types
-export type * from "./types";
+export type * from "../../../../service/apiAdmin/apiStation/API";

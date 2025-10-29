@@ -9,6 +9,8 @@ import {
   type VehiclePhoto,
 } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { Station } from "../../../../../service/apiAdmin/apiStation/API";
+import profileApi from "../../../../../service/apiUser/profile/API";
+// import KYCRequiredModal from "./KYCRequiredModal";
 import {
   FaCar,
   FaArrowLeft,
@@ -18,6 +20,7 @@ import {
   FaChevronRight,
 } from "react-icons/fa";
 import StarRating from "./StarRating";
+import KYCRequiredModal from "./vehiclesDetailComponent/KYCRequiredModal";
 
 // ✅ Carousel Component
 interface ImageCarouselProps {
@@ -41,7 +44,6 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({
     setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   };
 
-  // ✅ Reset index when images change
   useEffect(() => {
     setCurrentIndex(0);
   }, [images]);
@@ -163,6 +165,27 @@ const VehiclesDetail: React.FC = () => {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
+  const [showKYCModal, setShowKYCModal] = useState(false);
+  const [isKYCVerified, setIsKYCVerified] = useState<boolean>(false);
+
+  // ✅ Check KYC status when authenticated
+  useEffect(() => {
+    const checkKYCStatus = async () => {
+      if (isAuthenticated) {
+        try {
+          const response = await profileApi.getCurrentUser();
+          if (response.success && response.data) {
+            setIsKYCVerified(response.data.kyc?.verified || false);
+          }
+        } catch (err) {
+          console.error("Failed to check KYC status:", err);
+          setIsKYCVerified(false);
+        }
+      }
+    };
+
+    checkKYCStatus();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const fetchVehicle = async () => {
@@ -188,6 +211,29 @@ const VehiclesDetail: React.FC = () => {
 
     fetchVehicle();
   }, [id]);
+
+  // ✅ Handle booking with KYC check
+  const handleBooking = () => {
+    if (!vehicle) return;
+
+    requireAuth(
+      () => {
+        // Check KYC verification
+        if (!isKYCVerified) {
+          setShowKYCModal(true);
+          return;
+        }
+
+        // Proceed to booking if KYC verified
+        if (navigationPaths.booking) {
+          navigate(navigationPaths.booking(vehicle._id));
+        }
+      },
+      {
+        message: `Please login to book ${vehicle.brand} ${vehicle.model}`,
+      }
+    );
+  };
 
   if (loading) {
     return (
@@ -392,18 +438,7 @@ const VehiclesDetail: React.FC = () => {
             {/* Action Buttons */}
             <div className="flex space-x-4">
               <button
-                onClick={() =>
-                  requireAuth(
-                    () => {
-                      if (navigationPaths.booking) {
-                        navigate(navigationPaths.booking(vehicle._id));
-                      }
-                    },
-                    {
-                      message: `Please login to book ${vehicle.brand} ${vehicle.model}`,
-                    }
-                  )
-                }
+                onClick={handleBooking}
                 disabled={vehicle.status !== "available"}
                 className={`flex-1 font-bold py-3.5 rounded-lg transition-all shadow-md ${
                   vehicle.status === "available"
@@ -428,6 +463,13 @@ const VehiclesDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ✅ KYC Required Modal */}
+      <KYCRequiredModal
+        isOpen={showKYCModal}
+        onClose={() => setShowKYCModal(false)}
+        vehicleName={`${vehicle.brand} ${vehicle.model}`}
+      />
     </div>
   );
 };
