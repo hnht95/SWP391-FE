@@ -83,7 +83,7 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
     },
     {
       id: "reports",
-      label: "Customer Support",
+      label: "Station Requests",
       icon: <MdSupport className="w-5 h-5" />,
       path: "/staff/reports",
     },

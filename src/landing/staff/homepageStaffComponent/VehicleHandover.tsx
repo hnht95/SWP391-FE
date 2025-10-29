@@ -1,17 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MdAdd,
-  MdDirectionsCar,
-  MdAssignment,
-  MdVisibility,
-  MdClose,
   MdCalendarToday,
+  MdDirectionsCar,
   MdPerson,
+  MdClose,
   MdLocationOn,
   MdSearch,
   MdFilterList,
-  MdSort,
+  MdViewModule,
+  MdViewList,
 } from "react-icons/md";
 import CustomSelect from "../../../components/CustomSelect";
 import staffAPI from "../../../service/apiStaff/API";
@@ -37,9 +35,9 @@ const VehicleHandover = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 500);
-  // Payment status filter (for PayOS transactions)
-  const [paymentStatus, setPaymentStatus] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("-createdAt");
+  // Payment status filter - changed to match booking statuses
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Detail modal
   const [selected, setSelected] = useState<BookingTransactionItem | null>(null);
@@ -89,7 +87,7 @@ const VehicleHandover = () => {
             q: debouncedSearch,
             page,
             limit,
-            sort: sortBy,
+            sort: "-createdAt",
           });
         } else {
           const paramsTx: Record<string, string | number> = {
@@ -97,10 +95,10 @@ const VehicleHandover = () => {
             limit,
             provider: "payos",
           };
-          if (paymentStatus && paymentStatus !== "all") {
-            paramsTx.status = paymentStatus;
+          if (statusFilter && statusFilter !== "all") {
+            paramsTx.status = statusFilter;
           }
-          if (sortBy) paramsTx.sort = sortBy;
+          paramsTx.sort = "-createdAt";
           res = await staffAPI.getAdminBookingTransactions(paramsTx);
         }
         if (!active) return;
@@ -118,12 +116,12 @@ const VehicleHandover = () => {
     return () => {
       active = false;
     };
-  }, [page, limit, debouncedSearch, paymentStatus, sortBy]);
+  }, [page, limit, debouncedSearch, statusFilter]);
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, paymentStatus, sortBy]);
+  }, [debouncedSearch, statusFilter]);
 
   // Prefetch vehicles + stations for create modal
   useEffect(() => {
@@ -154,18 +152,20 @@ const VehicleHandover = () => {
   }, []);
 
   const stats = useMemo(() => {
-    const byDeposit = items.reduce((acc, it) => {
-      const key = it?.deposit?.status || "none";
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
     return {
-      total,
-      pending: byDeposit["pending"] || 0,
-      captured: byDeposit["captured"] || 0,
-      refunded: byDeposit["refunded"] || 0,
+      all: items.length,
+      successful: items.filter((it) => it.status === "completed").length,
+      failed: items.filter((it) => it.status === "cancelled").length,
+      pending: items.filter(
+        (it) =>
+          it.deposit?.status === "pending" ||
+          it.status === "pending" ||
+          it.status === "confirmed"
+      ).length,
+      expired: items.filter((it) => it.status === "expired").length,
+      cancelled: items.filter((it) => it.status === "cancelled").length,
     };
-  }, [items, total]);
+  }, [items]);
 
   // Try to find a PayOS checkout URL in any nested response shape
   const extractCheckoutUrl = (data: unknown): string | null => {
@@ -257,29 +257,28 @@ const VehicleHandover = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
       <motion.div
-        className="mb-8"
+        className="mb-6"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
-              <MdDirectionsCar className="w-8 h-8 mr-3 text-blue-600" />
-              Vehicle Handover
+            <h1 className="text-2xl font-bold text-gray-900">
+              Booking Management
             </h1>
-            <p className="text-gray-600">
-              Manage vehicle handovers and track rental status
+            <p className="text-gray-500 text-sm mt-1">
+              Manage all vehicle bookings and reservations.
             </p>
           </div>
           <motion.button
             onClick={openCreateModal}
-            className="bg-gray-900 cursor-pointer text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
+            className="bg-gray-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <MdAdd className="w-5 h-5" />
-            <span>Create Vehicle Handover</span>
+            <MdCalendarToday className="w-5 h-5" />
+            <span>New Booking</span>
           </motion.button>
         </div>
       </motion.div>
@@ -290,279 +289,431 @@ const VehicleHandover = () => {
         </div>
       )}
 
-      {/* Stats Cards - Payment statuses */}
+      {/* Status Tabs */}
       <motion.div
-        className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+        className="mb-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+      >
+        <div className="bg-white rounded-lg shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 px-6 py-4 border-b">
+            {[
+              { value: "all", label: "All", count: stats.all },
+              {
+                value: "successful",
+                label: "Successful",
+                count: stats.successful,
+              },
+              { value: "failed", label: "Failed", count: stats.failed },
+              {
+                value: "pending",
+                label: "Pending Payment",
+                count: stats.pending,
+              },
+              {
+                value: "expired",
+                label: "Payment Expired",
+                count: stats.expired,
+              },
+              {
+                value: "cancelled",
+                label: "Cancelled",
+                count: stats.cancelled,
+              },
+            ].map((tab, idx) => (
+              <motion.button
+                key={tab.value}
+                onClick={() => setStatusFilter(tab.value)}
+                className={`px-4 py-2 text-sm font-medium transition-all relative ${
+                  statusFilter === tab.value
+                    ? "text-gray-900"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + idx * 0.05 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {tab.label} <span className="ml-1">{tab.count}</span>
+                {statusFilter === tab.value && (
+                  <motion.div
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
+                    layoutId="activeTab"
+                  />
+                )}
+              </motion.button>
+            ))}
+          </div>
+
+          {/* Search and View Toggle */}
+          <div className="p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-700">
+                  All bookings {stats.all}
+                </span>
+                <div className="relative flex-1 md:w-80">
+                  <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search booking ID, customer, vehicle..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                  <MdFilterList className="w-5 h-5 text-gray-600" />
+                </button>
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <motion.button
+                    onClick={() => setViewMode("grid")}
+                    className={`p-1.5 rounded ${
+                      viewMode === "grid"
+                        ? "bg-white text-gray-900 shadow"
+                        : "text-gray-500"
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <MdViewModule className="w-5 h-5" />
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setViewMode("list")}
+                    className={`p-1.5 rounded ${
+                      viewMode === "list"
+                        ? "bg-white text-gray-900 shadow"
+                        : "text-gray-500"
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <MdViewList className="w-5 h-5" />
+                  </motion.button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Bookings Display */}
+      <motion.div
+        className="bg-white rounded-lg shadow-sm p-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        {[
-          {
-            title: "Total",
-            value: stats.total,
-            icon: MdAssignment,
-            bg: "bg-blue-100",
-            fg: "text-blue-600",
-            filterValue: "all",
-          },
-          {
-            title: "Pending",
-            value: stats.pending,
-            icon: MdAssignment,
-            bg: "bg-amber-100",
-            fg: "text-amber-600",
-            filterValue: "pending",
-          },
-          {
-            title: "Captured",
-            value: stats.captured,
-            icon: MdAssignment,
-            bg: "bg-green-100",
-            fg: "text-green-600",
-            filterValue: "captured",
-          },
-          {
-            title: "Refunded",
-            value: stats.refunded,
-            icon: MdDirectionsCar,
-            bg: "bg-red-100",
-            fg: "text-red-600",
-            filterValue: "refunded",
-          },
-        ].map((s, i) => (
-          <motion.div
-            key={s.title}
-            className={`bg-white rounded-xl p-6 border cursor-pointer transition-all ${
-              paymentStatus === s.filterValue
-                ? "border-blue-500 shadow-lg"
-                : "border-gray-100 hover:border-gray-200"
-            }`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 + i * 0.1 }}
-            whileHover={{ y: -4 }}
-            onClick={() => setPaymentStatus(s.filterValue)}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div
-                className={`w-12 h-12 ${s.bg} rounded-lg flex items-center justify-center`}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-600">Loading bookings...</p>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-12">
+            <MdDirectionsCar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600">No bookings found</p>
+          </div>
+        ) : viewMode === "grid" ? (
+          /* Grid View */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {items.map((booking, index) => {
+              // Get status badge info
+              const getStatusBadge = () => {
+                switch (booking.status) {
+                  case "completed":
+                    return {
+                      color: "bg-green-100 text-green-800",
+                      label: "Successful",
+                    };
+                  case "cancelled":
+                    return {
+                      color: "bg-red-100 text-red-800",
+                      label: "Failed",
+                    };
+                  case "expired":
+                    return {
+                      color: "bg-yellow-100 text-yellow-800",
+                      label: "Payment Expired",
+                    };
+                  case "pending":
+                  case "confirmed":
+                    return {
+                      color: "bg-yellow-100 text-yellow-800",
+                      label: "Pending Payment",
+                    };
+                  default:
+                    return {
+                      color: "bg-gray-100 text-gray-800",
+                      label: booking.status,
+                    };
+                }
+              };
+
+              const statusBadge = getStatusBadge();
+
+              return (
+                <motion.div
+                  key={booking._id}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer bg-white"
+                  onClick={() => openDetail(booking)}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ y: -5 }}
+                >
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Booking ID</p>
+                      <h3 className="font-semibold text-gray-900">
+                        BK-{booking._id.substring(0, 8).toUpperCase()}
+                      </h3>
+                    </div>
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${statusBadge.color}`}
+                    >
+                      {statusBadge.label}
+                    </span>
+                  </div>
+
+                  {/* Customer */}
+                  <div className="flex items-center text-sm text-gray-600 mb-2">
+                    <MdPerson className="w-4 h-4 mr-1 text-gray-400" />
+                    <span className="text-xs text-gray-500">Customer:</span>
+                    <span className="ml-2 font-medium text-gray-900">
+                      {booking.renterInfo?.name || "N/A"}
+                    </span>
+                  </div>
+
+                  {/* Vehicle */}
+                  <div className="flex items-center text-sm text-gray-600 mb-3">
+                    <MdDirectionsCar className="w-4 h-4 mr-1 text-gray-400" />
+                    <span className="text-xs text-gray-500">Vehicle:</span>
+                    <span className="ml-2 font-medium text-gray-900">
+                      {booking.vehicleInfo?.brand} {booking.vehicleInfo?.model}
+                    </span>
+                  </div>
+
+                  {/* Dates */}
+                  <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                    <div>
+                      <span className="text-gray-500">Start Date</span>
+                      <div className="flex items-center mt-1">
+                        <MdCalendarToday className="w-3 h-3 mr-1 text-gray-400" />
+                        <span className="font-medium text-gray-900">
+                          {new Date(booking.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">End Date</span>
+                      <div className="flex items-center mt-1">
+                        <MdCalendarToday className="w-3 h-3 mr-1 text-gray-400" />
+                        <span className="font-medium text-gray-900">
+                          {new Date(booking.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Amount and Payment Method */}
+                  <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                    <div>
+                      <span className="text-gray-500">Total Amount</span>
+                      <p className="font-semibold text-gray-900 mt-1">
+                        ${booking.amounts?.totalPaid?.toLocaleString() || "0"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Payment Method</span>
+                      <p className="font-medium text-gray-900 mt-1">
+                        {booking.deposit?.status === "captured"
+                          ? "Credit Card"
+                          : booking.deposit?.status === "pending"
+                          ? "Pending"
+                          : booking.status === "cancelled"
+                          ? "Failed"
+                          : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* View Details Button */}
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDetail(booking);
+                    }}
+                    className="w-full py-2 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors font-medium"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    View details
+                  </motion.button>
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
+          /* List View */
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  {[
+                    "Booking ID",
+                    "Customer",
+                    "Vehicle",
+                    "Start Date",
+                    "End Date",
+                    "Amount",
+                    "Status",
+                    "Actions",
+                  ].map((header) => (
+                    <th
+                      key={header}
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {items.map((booking) => {
+                  const getStatusBadge = () => {
+                    switch (booking.status) {
+                      case "completed":
+                        return {
+                          color: "bg-green-100 text-green-800",
+                          label: "Successful",
+                        };
+                      case "cancelled":
+                        return {
+                          color: "bg-red-100 text-red-800",
+                          label: "Failed",
+                        };
+                      case "expired":
+                        return {
+                          color: "bg-yellow-100 text-yellow-800",
+                          label: "Payment Expired",
+                        };
+                      case "pending":
+                      case "confirmed":
+                        return {
+                          color: "bg-yellow-100 text-yellow-800",
+                          label: "Pending Payment",
+                        };
+                      default:
+                        return {
+                          color: "bg-gray-100 text-gray-800",
+                          label: booking.status,
+                        };
+                    }
+                  };
+
+                  const statusBadge = getStatusBadge();
+
+                  return (
+                    <tr
+                      key={booking._id}
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => openDetail(booking)}
+                    >
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        BK-{booking._id.substring(0, 8).toUpperCase()}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        {booking.renterInfo?.name || "N/A"}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        {booking.vehicleInfo?.brand}{" "}
+                        {booking.vehicleInfo?.model}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        {new Date(booking.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        {new Date(booking.updatedAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        ${booking.amounts?.totalPaid?.toLocaleString() || "0"}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${statusBadge.color}`}
+                        >
+                          {statusBadge.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDetail(booking);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          View details
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && items.length > 0 && (
+          <div className="mt-6 flex items-center justify-between border-t pt-4">
+            <div className="text-sm text-gray-600">
+              Showing {total === 0 ? 0 : (page - 1) * limit + 1}-
+              {Math.min(page * limit, total)} of {total}
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
               >
-                <s.icon className={`w-6 h-6 ${s.fg}`} />
-              </div>
-              <span className="text-2xl font-bold text-gray-900">
-                {s.value}
+                Prev
+              </button>
+              <span className="text-sm text-gray-700">
+                Page {page} / {totalPages}
               </span>
-            </div>
-            <h3 className="text-gray-600 text-sm">{s.title}</h3>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* Filters & Search Bar */}
-      <motion.div
-        className="bg-white rounded-xl border border-gray-100 p-4 mb-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-      >
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search by renter, vehicle, or station..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex gap-3">
-            <div className="relative">
-              <MdFilterList className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-              <select
-                value={paymentStatus}
-                onChange={(e) => setPaymentStatus(e.target.value)}
-                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white cursor-pointer"
+              <button
+                className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
               >
-                <option value="all">All Payments</option>
-                <option value="pending">Pending</option>
-                <option value="captured">Captured</option>
-                <option value="refunded">Refunded</option>
-              </select>
+                Next
+              </button>
+              <CustomSelect
+                className="ml-2"
+                value={limit}
+                options={[
+                  { value: 5, label: "5 / page" },
+                  { value: 10, label: "10 / page" },
+                  { value: 20, label: "20 / page" },
+                  { value: 50, label: "50 / page" },
+                ]}
+                onChange={(v: string | number) => {
+                  setLimit(Number(v));
+                  setPage(1);
+                }}
+                menuPlacement="top"
+              />
             </div>
-            <div className="relative">
-              <MdSort className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white cursor-pointer"
-              >
-                <option value="-createdAt">Newest First</option>
-                <option value="createdAt">Oldest First</option>
-                <option value="-amounts.totalPaid">Highest Amount</option>
-                <option value="amounts.totalPaid">Lowest Amount</option>
-              </select>
-            </div>
           </div>
-        </div>
-      </motion.div>
-
-      {/* Recent Handovers Table */}
-      <motion.div
-        className="bg-white rounded-xl border border-gray-100"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-      >
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <motion.h3
-            className="text-lg font-semibold text-gray-900"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-          >
-            Booking Transactions
-          </motion.h3>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                {[
-                  "Renter",
-                  "Vehicle",
-                  "Station",
-                  "Status",
-                  "Created",
-                  "Action",
-                ].map((header, index) => (
-                  <motion.th
-                    key={header}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 + index * 0.05 }}
-                  >
-                    {header}
-                  </motion.th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading && (
-                <tr>
-                  <td className="px-6 py-6 text-sm text-gray-500" colSpan={6}>
-                    Loading bookings...
-                  </td>
-                </tr>
-              )}
-              {!loading && items.length === 0 && (
-                <tr>
-                  <td className="px-6 py-6 text-sm text-gray-500" colSpan={6}>
-                    No bookings found.
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                items.map((b, index) => (
-                  <motion.tr
-                    key={b._id}
-                    className="hover:bg-gray-50 transition-colors cursor-pointer"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.9 + index * 0.05 }}
-                    whileHover={{ x: 4 }}
-                    onClick={() => openDetail(b)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {b.renterInfo?.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {b.vehicleInfo?.brand} {b.vehicleInfo?.model} -{" "}
-                      {b.vehicleInfo?.plateNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {b.stationInfo?.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                          b.status === "cancelled"
-                            ? "bg-red-100 text-red-700"
-                            : b.status === "expired"
-                            ? "bg-amber-100 text-amber-700"
-                            : b.status === "completed"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
-                      >
-                        {b.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {formatDateTime(b.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDetail(b);
-                        }}
-                        className="text-gray-600 hover:text-gray-900"
-                        title="View details"
-                      >
-                        <MdVisibility className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </motion.tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination - moved to bottom, page-size opens upward */}
-        <div className="p-4 border-t border-gray-100 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            Showing {total === 0 ? 0 : (page - 1) * limit + 1}-
-            {Math.min(page * limit, total)} of {total}
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || loading}
-            >
-              Prev
-            </button>
-            <span className="text-sm text-gray-700">
-              Page {page} / {totalPages}
-            </span>
-            <button
-              className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages || loading}
-            >
-              Next
-            </button>
-            <CustomSelect
-              className="ml-2"
-              value={limit}
-              options={[
-                { value: 5, label: "5 / page" },
-                { value: 10, label: "10 / page" },
-                { value: 20, label: "20 / page" },
-                { value: 50, label: "50 / page" },
-              ]}
-              onChange={(v: string | number) => {
-                setLimit(Number(v));
-                setPage(1);
-              }}
-              menuPlacement="top"
-            />
-          </div>
-        </div>
+        )}
       </motion.div>
 
       {/* Create Booking Modal */}
