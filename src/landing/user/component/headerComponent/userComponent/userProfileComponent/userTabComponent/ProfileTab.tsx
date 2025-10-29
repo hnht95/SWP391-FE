@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   User,
   Mail,
@@ -12,9 +12,16 @@ import {
   CheckCircle,
   Eye,
   X,
+  Camera,
+  Loader2,
+  MapPin,
+  CreditCard,
+  Building2,
 } from "lucide-react";
 import KYCUploadModal from "./profileComponent/KYCUploadModal";
+import BankAccountModal from "./profileComponent/BankAccountModal";
 import type { UserProfile } from "../../../../../../../service/apiUser/profile/API";
+import profileApi from "../../../../../../../service/apiUser/profile/API";
 
 interface ProfileTabProps {
   user: UserProfile;
@@ -23,7 +30,13 @@ interface ProfileTabProps {
 
 const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
   const [showKYCModal, setShowKYCModal] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // ✅ Avatar upload states
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formatDate = (dateString?: string): string => {
     if (!dateString) return "N/A";
@@ -39,14 +52,63 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
     }
   };
 
-  const formatGender = (gender?: "male" | "female"): string => {
+  const formatGender = (gender?: "male" | "female" | "other"): string => {
     if (!gender) return "Not specified";
-    return gender === "male" ? "Male" : "Female";
+    if (gender === "male") return "Male";
+    if (gender === "female") return "Female";
+    return "Other";
   };
 
   const handleKYCSuccess = () => {
     if (onRefresh) {
       onRefresh();
+    }
+  };
+
+  // ✅ Handle avatar file selection and upload
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    console.log("📸 Avatar file selected:", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError("Image size must be less than 5MB");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+
+    try {
+      console.log("📤 Uploading avatar...");
+      await profileApi.uploadAvatar(file);
+      console.log("✅ Avatar uploaded successfully");
+
+      // Trigger refresh to fetch updated user data
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (err: any) {
+      console.error("❌ Avatar upload failed:", err);
+      setAvatarError(err.message || "Failed to upload avatar");
+    } finally {
+      setIsUploadingAvatar(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -87,6 +149,7 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
 
   const kycStatus = getKYCStatus();
 
+  // ✅ Updated profile fields with date of birth and address
   const profileFields = [
     {
       label: "Full Name",
@@ -100,7 +163,7 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
     },
     {
       label: "Phone Number",
-      value: user.phone,
+      value: user.phone || "Not provided",
       icon: <Phone className="w-5 h-5" />,
     },
     {
@@ -108,16 +171,23 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
       value: formatGender(user.gender),
       icon: <User className="w-5 h-5" />,
     },
+    {
+      label: "Date of Birth",
+      value: formatDate(user.dateOfBirth),
+      icon: <Calendar className="w-5 h-5" />,
+    },
   ];
 
   const additionalInfo = [
     {
       label: "Member Since",
       value: formatDate(user.createdAt),
+      icon: <Calendar className="w-5 h-5 text-black" />,
     },
     {
       label: "Account Status",
-      value: "Active",
+      value: user.isActive ? "Active" : "Inactive",
+      icon: <CheckCircle className="w-5 h-5 text-black" />,
     },
   ];
 
@@ -133,10 +203,14 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
 
   const avatarUrl = getAvatarUrl();
 
+  // ✅ Check if bank info is complete
+  const hasBankInfo =
+    user.bankInfo && user.bankInfo.accountNumber && user.bankInfo.accountName;
+
   return (
     <>
       <div className="space-y-8">
-        {/* Avatar Section */}
+        {/* ✅ Avatar Section with Upload on Hover */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -144,6 +218,7 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
           className="flex items-center space-x-6 p-6 bg-white rounded-2xl border border-gray-200 shadow-lg"
         >
           <div className="relative group">
+            {/* Avatar Image */}
             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-200 to-gray-400 shadow-lg">
               {avatarUrl ? (
                 <img
@@ -157,7 +232,32 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
                 </div>
               )}
             </div>
+
+            {/* ✅ Hover Overlay with Edit Icon */}
+            <div
+              className="absolute inset-0 bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer"
+              onClick={() =>
+                !isUploadingAvatar && fileInputRef.current?.click()
+              }
+            >
+              {isUploadingAvatar ? (
+                <Loader2 className="w-6 h-6 text-white animate-spin" />
+              ) : (
+                <Camera className="w-6 h-6 text-white" />
+              )}
+            </div>
+
+            {/* Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="hidden"
+              disabled={isUploadingAvatar}
+            />
           </div>
+
           <div className="flex-1">
             <h4 className="text-xl font-bold text-black">{user.name}</h4>
             <p className="text-gray-600 text-sm">{user.email}</p>
@@ -172,6 +272,26 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
                 </span>
               )}
             </div>
+            {avatarError && (
+              <motion.p
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-xs text-red-600 mt-2 flex items-center"
+              >
+                <AlertCircle className="w-3 h-3 mr-1" />
+                {avatarError}
+              </motion.p>
+            )}
+            {isUploadingAvatar && (
+              <motion.p
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-xs text-blue-600 mt-2 flex items-center"
+              >
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Uploading avatar...
+              </motion.p>
+            )}
           </div>
         </motion.div>
 
@@ -204,11 +324,109 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
             </motion.div>
           ))}
 
-          {/* KYC Status Section */}
+          {/* ✅ Bank Account Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.4, ease: "easeOut" }}
+            transition={{ delay: 0.6, duration: 0.4, ease: "easeOut" }}
+            whileHover={{ y: -2 }}
+            className={`flex items-start space-x-4 p-6 rounded-2xl transition-all duration-300 ease-in-out border shadow-lg ${
+              hasBankInfo
+                ? "bg-blue-50 border-blue-200 hover:bg-blue-100"
+                : "bg-gray-50 border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            <div
+              className={`transition-transform duration-300 ${
+                hasBankInfo ? "text-blue-600" : "text-gray-400"
+              }`}
+            >
+              <CreditCard className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-gray-600 font-medium mb-2">
+                Bank Account Information
+              </p>
+
+              {hasBankInfo ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white border border-blue-300 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 font-medium mb-1">
+                        Account Number
+                      </p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {user.bankInfo.accountNumber}
+                      </p>
+                    </div>
+                    <div className="bg-white border border-blue-300 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 font-medium mb-1">
+                        Account Name
+                      </p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {user.bankInfo.accountName}
+                      </p>
+                    </div>
+                  </div>
+
+                  {user.bankInfo.bankCode && (
+                    <div className="bg-white border border-blue-300 rounded-lg p-3">
+                      <div className="flex items-center space-x-2">
+                        <Building2 className="w-4 h-4 text-blue-600" />
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500 font-medium">
+                            Bank
+                          </p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {user.bankInfo.bankName || user.bankInfo.bankCode}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {user.bankInfo.updatedAt && (
+                    <p className="text-xs text-gray-500 flex items-center">
+                      <Clock className="w-3 h-3 mr-1" />
+                      Last updated: {formatDate(user.bankInfo.updatedAt)}
+                    </p>
+                  )}
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowBankModal(true)}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Update Bank Info</span>
+                  </motion.button>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                    Add your bank account information for refunds and
+                    withdrawals
+                  </p>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowBankModal(true)}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gray-500 text-white rounded-lg text-xs font-medium hover:bg-gray-600 transition-colors"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Add Bank Account</span>
+                  </motion.button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* KYC Status Section - Keep all existing KYC code */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.4, ease: "easeOut" }}
             whileHover={{ y: -2 }}
             className={`flex items-start space-x-4 p-6 rounded-2xl transition-all duration-300 ease-in-out border shadow-lg ${
               kycStatus === "verified"
@@ -422,7 +640,7 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
-                  delay: (index + 5) * 0.1,
+                  delay: (index + 8) * 0.1,
                   duration: 0.4,
                   ease: "easeOut",
                 }}
@@ -430,7 +648,7 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
                 className="p-6 bg-white rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 ease-out cursor-pointer"
               >
                 <div className="flex items-center space-x-3">
-                  <Calendar className="w-5 h-5 text-black" />
+                  {info.icon}
                   <div>
                     <p className="text-sm text-gray-600 font-medium">
                       {info.label}
@@ -449,7 +667,7 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.4, ease: "easeOut" }}
+          transition={{ delay: 1.0, duration: 0.4, ease: "easeOut" }}
           className="flex flex-col sm:flex-row gap-4"
         >
           <motion.button
@@ -466,6 +684,14 @@ const ProfileTab = ({ user, onRefresh }: ProfileTabProps) => {
       <KYCUploadModal
         isOpen={showKYCModal}
         onClose={() => setShowKYCModal(false)}
+        onSuccess={handleKYCSuccess}
+      />
+
+      {/* Bank Account Modal */}
+      <BankAccountModal
+        isOpen={showBankModal}
+        onClose={() => setShowBankModal(false)}
+        currentBankInfo={user.bankInfo}
         onSuccess={handleKYCSuccess}
       />
 

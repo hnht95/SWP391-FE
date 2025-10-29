@@ -33,7 +33,7 @@ const StationDetailModal: React.FC<StationDetailModalProps> = ({
     const date = new Date(dateString);
     const isValid = !isNaN(date.getTime());
     if (!isValid) return "-";
-    return date.toLocaleString("vi-VN", {
+    return date.toLocaleString("en-US", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -61,14 +61,14 @@ const StationDetailModal: React.FC<StationDetailModalProps> = ({
           {/* Modal Container */}
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
             <motion.div
-              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto pointer-events-auto"
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col pointer-events-auto"
               initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 30 }}
               transition={{ type: "spring", damping: 30, stiffness: 200 }}
             >
-              {/* Header - Black */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gradient-to-r from-black via-gray-900 to-gray-800">
+              {/* ✅ Sticky Header */}
+              <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-gray-800 bg-gradient-to-r from-black via-gray-900 to-gray-800 rounded-t-3xl">
                 <div className="flex items-center space-x-2.5">
                   <div className="w-11 h-11 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-md">
                     <MdLocationOn className="w-5 h-5 text-white" />
@@ -90,8 +90,8 @@ const StationDetailModal: React.FC<StationDetailModalProps> = ({
                 </button>
               </div>
 
-              {/* Content - White Background */}
-              <div className="p-6 space-y-6">
+              {/* ✅ Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {/* Cover Image */}
                 {imageUrl ? (
                   <div className="relative rounded-xl overflow-hidden border-2 border-gray-200 shadow-lg">
@@ -213,32 +213,6 @@ const StationDetailModal: React.FC<StationDetailModalProps> = ({
                   </div>
                 )}
 
-                {/* Image Info (if exists) */}
-                {station.imgStation && (
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <MdImage className="w-5 h-5 text-indigo-500" />
-                      <span className="text-xs font-medium text-gray-500 uppercase">
-                        Image Information
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <span className="text-gray-500">Provider:</span>
-                        <span className="ml-2 font-medium text-gray-900">
-                          {station.imgStation.provider}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Type:</span>
-                        <span className="ml-2 font-medium text-gray-900">
-                          {station.imgStation.type}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Status and Dates */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Status */}
@@ -285,8 +259,8 @@ const StationDetailModal: React.FC<StationDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="flex items-center justify-end p-4 border-t border-gray-100 bg-gray-50">
+              {/* ✅ Sticky Footer */}
+              <div className="sticky bottom-0 z-10 flex items-center justify-end p-4 border-t border-gray-100 bg-gray-50 rounded-b-3xl">
                 <button
                   onClick={onClose}
                   className="px-6 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all duration-200 font-medium text-sm"
