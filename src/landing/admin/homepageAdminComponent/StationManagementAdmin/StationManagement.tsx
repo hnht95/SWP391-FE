@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MdLocationOn, MdAdd, MdMap, MdViewList } from "react-icons/md";
 import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
-import { useSidebar } from "../../context/SidebarContext";
 import StationTable from "./StationTable";
 import StationFilters from "./StationFilters";
 import MapView from "./MapView";
@@ -12,7 +11,7 @@ import AddStationModal from "./AddStationModal";
 import EditStationModal from "./EditStationModal";
 import MeasurementIndex from "./MeasurementIndex";
 import type { Station, StationFilters as Filters, Pagination } from "./types";
-import SuccessModal from "../UserManagementAdmin/SuccessModal";
+import SuccessModal from "../UserManagerComponent/SuccessModal";
 import {
   deleteStation,
   getAllStations,
@@ -35,7 +34,6 @@ const StationManagement: React.FC = () => {
     useState<Station | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  const { setSidebarCollapsed } = useSidebar();
   const [transferToStationId, setTransferToStationId] = useState<string>("");
   const [deleteInlineError, setDeleteInlineError] = useState<string>("");
 
@@ -179,14 +177,6 @@ const StationManagement: React.FC = () => {
     applyFilters,
   ]);
 
-  // Auto control sidebar when map is visible
-  useEffect(() => {
-    if (isMapVisible) {
-      setSidebarCollapsed(true);
-    } else {
-      setSidebarCollapsed(false);
-    }
-  }, [isMapVisible, setSidebarCollapsed]);
 
   const handleToggleMap = () => {
     setIsMapVisible(!isMapVisible);

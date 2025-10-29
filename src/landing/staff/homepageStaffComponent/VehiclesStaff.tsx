@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVehicles, useVehicleOperations } from "../../../hooks/useVehicles";
+import { GrHostMaintenance } from "react-icons/gr";
 
 import {
   MdDirectionsCar,
@@ -19,7 +20,6 @@ import {
   MdClose,
   MdLocationOn,
   MdCalendarToday,
-  MdBuild,
   MdAssignment,
   MdPriorityHigh,
   MdEdit,
@@ -369,7 +369,7 @@ const VehiclesStaff = () => {
           {
             title: "Maintenance",
             value: stats.maintenance,
-            icon: MdBuild,
+            icon: GrHostMaintenance,
             color: "red",
             subtitle: "Under maintenance",
             bgColor: "bg-red-100",
@@ -967,7 +967,7 @@ const VehiclesStaff = () => {
                   },
                   {
                     title: "Technical Specifications",
-                    icon: MdBuild,
+                    icon: GrHostMaintenance,
                     content: (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -1280,7 +1280,7 @@ const VehiclesStaff = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <MdBuild className="w-4 h-4" />
+                    <GrHostMaintenance className="w-4 h-4" />
                     <span>Send to Maintenance</span>
                   </motion.button>
                   <motion.button

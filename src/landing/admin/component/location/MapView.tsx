@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useSidebar } from "../../context/SidebarContext";
 
 // Import marker icons
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -29,7 +28,6 @@ interface StationData {
 const MapView: React.FC = () => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const { isSidebarCollapsed } = useSidebar();
 
   // Mock data - Các trạm trên toàn quốc
   const stations: StationData[] = [

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
-import { MdPeople, MdSearch, MdEmail, MdPhone, MdVisibility, MdCheckCircle, MdCancel, MdAdd, MdWork } from "react-icons/md";
+import { motion, AnimatePresence } from "framer-motion";
+import { MdSearch, MdEmail, MdPhone, MdVisibility, MdCheckCircle, MdCancel, MdAdd } from "react-icons/md";
+import { FaUsers } from "react-icons/fa";
+import { FaUserTie } from "react-icons/fa6";
 import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
 import { getAllUsers, type UserListFilters, type UserStats as UserStatsType } from "../../../../service/apiAdmin/apiListUser/API";
@@ -40,6 +42,8 @@ const ListUserManagement: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all"); // all, user, staff
+  const [openRole, setOpenRole] = useState(false);
+  const [openStatus, setOpenStatus] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [total, setTotal] = useState(0);
@@ -121,8 +125,15 @@ const ListUserManagement: React.FC = () => {
         gender: staff.gender
       }));
 
-      // Combine and filter by type
-      let combined = [...users, ...staffs];
+      // Combine and de-duplicate by id (users API may already include staff)
+      const byId = new Map<string, CombinedUser>();
+      [...users, ...staffs].forEach((item) => {
+        // If both exist, prefer the staff entry for richer staff fields
+        if (!byId.has(item.id) || item.type === "staff") {
+          byId.set(item.id, item);
+        }
+      });
+      let combined = Array.from(byId.values());
       
       if (selectedType !== "all") {
         combined = combined.filter(item => item.type === selectedType);
@@ -249,33 +260,24 @@ const ListUserManagement: React.FC = () => {
     }
   };
 
-  const getTypeBadgeColor = (type: string) => {
-    switch (type) {
-      case "user":
-        return "bg-blue-100 text-blue-800";
-      case "staff":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
+  // Type badge removed along with Type column
 
   const statsData = [
     {
       label: "Total Users",
       value: stats?.total || 0,
-      icon: <MdPeople className="w-6 h-6 text-purple-600" />,
-      bg: "bg-purple-100",
+      icon: <FaUsers className="w-6 h-6 text-white/90" />,
+      bg: "bg-gray-800",
     },
     {
       label: "Total Staff",
       value: stats?.byRole?.staff || 0,
-      icon: <MdWork className="w-6 h-6 text-blue-600" />,
-      bg: "bg-blue-100",
+      icon: <FaUserTie className="w-6 h-6 text-white/90" />,
+      bg: "bg-gray-800",
     },
   ];
 
-  const headers = ["User", "Contact", "Role", "Type", "Status", "Join Date", "Actions"];
+  const headers = ["User", "Contact", "Role", "Status", "Join Date", "Actions"];
 
   const totalPages = Math.ceil(total / limit);
 
@@ -287,7 +289,7 @@ const ListUserManagement: React.FC = () => {
           <PageTitle
             title="User Management"
             subtitle="Manage all users and staff including admins, staff, renters, and partners"
-            icon={<MdPeople className="w-7 h-7 text-gray-700" />}
+            icon={<FaUsers className="w-7 h-7 text-gray-700" />}
           />
           <div className="flex items-center space-x-3">
             <FadeIn delay={0.3}>
@@ -342,46 +344,74 @@ const ListUserManagement: React.FC = () => {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
-              <select
-                value={selectedType}
-                onChange={(e) => {
-                  setSelectedType(e.target.value);
-                  setPage(1);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-2 focus:border-black bg-white"
-              >
-                <option value="all">All Types</option>
-                <option value="user">Users</option>
-                <option value="staff">Staff</option>
-              </select>
-              <select
-                value={selectedRole}
-                onChange={(e) => {
-                  setSelectedRole(e.target.value);
-                  setPage(1);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-2 focus:border-black bg-white"
-              >
-                <option value="all">All Roles</option>
-                <option value="admin">Admin</option>
-                <option value="staff">Staff</option>
-                <option value="manager">Manager</option>
-                <option value="technician">Technician</option>
-                <option value="renter">Renter</option>
-                <option value="partner">Partner</option>
-              </select>
-              <select
-                value={selectedStatus}
-                onChange={(e) => {
-                  setSelectedStatus(e.target.value);
-                  setPage(1);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-2 focus:border-black bg-white"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+              {/* All Roles dropdown (staff, renter only) */}
+              <div className="relative min-w-[220px]">
+                <button
+                  type="button"
+                  onClick={() => { setOpenRole(v => !v); setOpenStatus(false); }}
+                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-xl bg-white text-gray-800 hover:border-gray-400 shadow-sm hover:shadow-md focus:outline-none focus:ring-4 focus:ring-gray-500/15 transition-all"
+                >
+                  {selectedRole === 'all' ? 'All Roles' : selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}
+                  <span className={`absolute right-3 top-1/2 -translate-y-1/2 transition-transform ${openRole ? 'rotate-180' : ''}`}>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m6 8 4 4 4-4" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {openRole && (
+                    <motion.ul
+                      initial={{ opacity: 0, y: -6, height: 0 }}
+                      animate={{ opacity: 1, y: 6, height: 'auto' }}
+                      exit={{ opacity: 0, y: -6, height: 0 }}
+                      transition={{ duration: 0.22, ease: 'easeOut' }}
+                      className="absolute left-0 right-0 z-30 mt-2 w-full max-h-64 overflow-auto rounded-xl border border-gray-200 bg-white shadow-xl"
+                    >
+                      {['all','staff','renter'].map((r) => (
+                        <li
+                          key={r}
+                          onClick={() => { setSelectedRole(r); setPage(1); setOpenRole(false); }}
+                          className={`px-4 py-2 cursor-pointer select-none transition-colors ${selectedRole === r ? 'bg-black text-white' : 'hover:bg-gray-50 text-gray-800'}`}
+                        >
+                          {r === 'all' ? 'All Roles' : r.charAt(0).toUpperCase() + r.slice(1)}
+                        </li>
+                      ))}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
+              </div>
+              {/* All Status dropdown */}
+              <div className="relative min-w-[220px]">
+                <button
+                  type="button"
+                  onClick={() => { setOpenStatus(v => !v); setOpenRole(false); }}
+                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-xl bg-white text-gray-800 hover:border-gray-400 shadow-sm hover:shadow-md focus:outline-none focus:ring-4 focus:ring-gray-500/15 transition-all"
+                >
+                  {selectedStatus === 'all' ? 'All Status' : selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)}
+                  <span className={`absolute right-3 top-1/2 -translate-y-1/2 transition-transform ${openStatus ? 'rotate-180' : ''}`}>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m6 8 4 4 4-4" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {openStatus && (
+                    <motion.ul
+                      initial={{ opacity: 0, y: -6, height: 0 }}
+                      animate={{ opacity: 1, y: 6, height: 'auto' }}
+                      exit={{ opacity: 0, y: -6, height: 0 }}
+                      transition={{ duration: 0.22, ease: 'easeOut' }}
+                      className="absolute left-0 right-0 z-30 mt-2 w-full max-h-64 overflow-auto rounded-xl border border-gray-200 bg-white shadow-xl"
+                    >
+                      {['all','active','inactive'].map((s) => (
+                        <li
+                          key={s}
+                          onClick={() => { setSelectedStatus(s); setPage(1); setOpenStatus(false); }}
+                          className={`px-4 py-2 cursor-pointer select-none transition-colors ${selectedStatus === s ? 'bg-black text-white' : 'hover:bg-gray-50 text-gray-800'}`}
+                        >
+                          {s === 'all' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}
+                        </li>
+                      ))}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </FadeIn>
@@ -433,7 +463,7 @@ const ListUserManagement: React.FC = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                           No users found
                         </td>
                       </tr>
@@ -491,15 +521,7 @@ const ListUserManagement: React.FC = () => {
                               {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeBadgeColor(
-                                user.type
-                              )}`}
-                            >
-                              {user.type.charAt(0).toUpperCase() + user.type.slice(1)}
-                            </span>
-                          </td>
+                          {/* Type column removed */}
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
                               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

@@ -13,8 +13,8 @@ import {
   MdPhone,
   MdVisibility,
   MdEdit,
-  MdBuild,
 } from "react-icons/md";
+import { GrHostMaintenance } from "react-icons/gr";
 
 const DashboardStaff = () => {
   const navigate = useNavigate();
@@ -93,7 +93,7 @@ const DashboardStaff = () => {
       description: "Honda Civic service finished",
       time: "1 hour ago",
       status: "success",
-      icon: MdBuild,
+      icon: GrHostMaintenance,
     },
     {
       id: "ACT004",

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MdEdit, MdSwapHoriz, MdBuild, MdWarning, MdMoreVert } from "react-icons/md";
+import { MdEdit, MdSwapHoriz, MdWarning, MdMoreVert } from "react-icons/md";
+import { GrHostMaintenance } from "react-icons/gr";
 import type { Vehicle, Station } from "../../../../../service/apiAdmin/apiVehicles/API";
 import { getStationId, getStationName as getStationNameHelper } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { StatusStyle } from "../../../../../types/vehicle";
@@ -238,7 +239,7 @@ const VehicleRow: React.FC<VehicleRowProps> = ({
                 }}
                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-2"
               >
-                <MdBuild className="w-4 h-4 text-orange-600" />
+                <GrHostMaintenance className="w-4 h-4 text-orange-600" />
                 <span>Report Maintenance</span>
               </button>
               

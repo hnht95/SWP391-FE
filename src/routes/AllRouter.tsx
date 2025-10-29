@@ -14,9 +14,10 @@ import VehiclesStaff from "../landing/staff/homepageStaffComponent/VehiclesStaff
 import StaffUser from "../landing/staff/homepageStaffComponent/StaffUser";
 import LayoutAdmin from "../landing/admin/LayoutAdmin";
 import DashboardAdmin from "../landing/admin/homepageAdminComponent/DashboardAdmin";
-import VehiclesManagement from "../landing/admin/homepageAdminComponent/VehicleManagementAdmin";
+import VehiclesManagement from "../landing/admin/homepageAdminComponent/VehicleManagementComponent";
 import StationManagementAdmin from "../landing/admin/homepageAdminComponent/StationManagementAdmin";
-import ListUserManagement from "../landing/admin/homepageAdminComponent/UserManagementAdmin/ListUserManagement";
+import ListUserManagement from "../landing/admin/homepageAdminComponent/UserManagerComponent/ListUserManagement";
+import UserVerification from "../landing/admin/homepageAdminComponent/UserManagerComponent/UserVerification";
 // import ReportsAndAI from "../landing/admin/homepageAdminComponent/ReportsAndAI";
 import AboutUs from "../landing/user/component/subnavComponent/AboutUs";
 import Vehicles from "../landing/user/component/subnavComponent/Vehicles";
@@ -110,6 +111,7 @@ const AllRouter = () => {
         <Route path="/admin/vehicles" element={<VehiclesManagement />} />
         <Route path="/admin/stations" element={<StationManagementAdmin />} />
         <Route path="/admin/users" element={<ListUserManagement />} />
+        <Route path="/admin/users/verification" element={<UserVerification />} />
         {/* <Route path="/admin/reports" element={<ReportsAndAI />} /> */}
       </Route>
     </Routes>

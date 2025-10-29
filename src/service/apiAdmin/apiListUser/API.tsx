@@ -120,6 +120,88 @@ export const getAllUsers = async (
   }
 };
 
+// ✅ Get renters (swagger: GET /api/users/renters)
+export interface GetRentersFilters {
+  page?: number;
+  limit?: number;
+  q?: string;
+  isActive?: boolean;
+}
+
+export interface GetRentersResponse {
+  success?: boolean;
+  ok?: boolean;
+  items: RawApiUser[];
+  total: number;
+  page: number;
+  limit: number;
+  pages?: number;
+}
+
+export const getRenters = async (
+  filters: GetRentersFilters = {}
+): Promise<GetRentersResponse> => {
+  try {
+    const params: Record<string, any> = {};
+    if (filters.page) params.page = filters.page;
+    if (filters.limit) params.limit = filters.limit;
+    if (filters.q) params.q = filters.q;
+    if (typeof filters.isActive === "boolean") params.isActive = filters.isActive;
+
+    const response = await api.get("/users/renters", { params });
+    const data = response.data;
+
+    if (data && typeof data === "object" && Array.isArray(data.items)) {
+      return {
+        success: Boolean(data.success ?? data.ok ?? true),
+        ok: Boolean(data.ok ?? data.success ?? true),
+        items: data.items as RawApiUser[],
+        total: Number(data.total ?? data.items.length ?? 0),
+        page: Number(data.page ?? 1),
+        limit: Number(data.limit ?? (data.items?.length ?? 20)),
+        pages: Number(data.pages ?? data.totalPages ?? 1),
+      };
+    }
+
+    if (Array.isArray(data)) {
+      return {
+        success: true,
+        ok: true,
+        items: data as RawApiUser[],
+        total: data.length,
+        page: 1,
+        limit: data.length,
+        pages: 1,
+      };
+    }
+
+    throw new Error("Invalid renters API response format");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// ✅ Verify user KYC (admin)
+export const verifyUserKyc = async (id: string): Promise<RawApiUser> => {
+  try {
+    // Using a generic admin update endpoint that accepts nested kyc fields
+    const response = await api.patch<{ success?: boolean; data?: RawApiUser; user?: RawApiUser }>(
+      `/admin/users/${id}`,
+      { kyc: { verified: true } }
+    );
+
+    const data = response.data;
+    if (data?.data) return data.data;
+    if (data?.user) return data.user;
+    if ((data as any)?._id) return data as unknown as RawApiUser;
+    throw new Error("Failed to verify user KYC");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
 // ✅ Get user by ID
 export const getUserById = async (id: string): Promise<RawApiUser> => {
   try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,7 +15,7 @@ import {
 } from "react-icons/md";
 import { updateVehicle, getPhotoUrls } from "../../../../service/apiAdmin/apiVehicles/API";
 import type { Vehicle, UpdateVehicleData } from "../../../../service/apiAdmin/apiVehicles/API";
-import UploadCarPhotos from "./UploadCarPhotos";
+import UploadCarPhotos, { type PhotoFile } from "./UploadCarPhotos";
 
 
 interface UpdateVehicleModalProps {
@@ -45,6 +45,9 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
     pricePerHour: 0,
     status: "available",
     station: "",
+    valuation: {
+      valueVND: 0,
+    },
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -55,10 +58,38 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
     exterior: [],
     interior: []
   });
-  const [newPhotos, setNewPhotos] = useState<{ exterior: any[]; interior: any[] }>({
+  const [newPhotos, setNewPhotos] = useState<{ exterior: PhotoFile[]; interior: PhotoFile[] }>({
     exterior: [],
     interior: []
   });
+  const [isStationOpen, setIsStationOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const stationListRef = useRef<HTMLUListElement | null>(null);
+  const stationTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const statusListRef = useRef<HTMLUListElement | null>(null);
+  const statusTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!isStationOpen && !isStatusOpen) return;
+      const target = e.target as Node;
+      const outsideStation =
+        stationListRef.current &&
+        stationTriggerRef.current &&
+        !stationListRef.current.contains(target) &&
+        !stationTriggerRef.current.contains(target);
+      const outsideStatus =
+        statusListRef.current &&
+        statusTriggerRef.current &&
+        !statusListRef.current.contains(target) &&
+        !statusTriggerRef.current.contains(target);
+      if (outsideStation) setIsStationOpen(false);
+      if (outsideStatus) setIsStatusOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [isStationOpen, isStatusOpen]);
 
   // Populate form when vehicle changes
   useEffect(() => {
@@ -85,6 +116,7 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         pricePerHour: vehicle.pricePerHour || 0,
         status: vehicle.status || "available",
         station: stationId,
+        valuation: vehicle.valuation ? { valueVND: vehicle.valuation.valueVND } : { valueVND: 0 },
       });
       
       // Pre-fill existing photos from vehicle data
@@ -185,21 +217,26 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
 
     setLoading(true);
     try {
-      // Keep existing photos (not deleted)
-      const updatedPhotos = {
-        exterior: [...existingPhotos.exterior],
-        interior: [...existingPhotos.interior]
-      };
-      
-      console.log("Updating vehicle - keeping existing photos:", {
+      console.log("📊 Existing photos:", {
         exterior: existingPhotos.exterior.length, 
         interior: existingPhotos.interior.length 
       });
       
-      // Note: Photo upload during update is not yet implemented
-      // New photos will need to be added separately after backend provides update endpoint
+      // Extract new file objects from newPhotos
+      const newExteriorFiles = newPhotos.exterior
+        .map(photo => photo.file)
+        .filter((file): file is File => file !== null);
+      
+      const newInteriorFiles = newPhotos.interior
+        .map(photo => photo.file)
+        .filter((file): file is File => file !== null);
+      
+      console.log("📤 New photos to upload:", {
+        exterior: newExteriorFiles.length,
+        interior: newInteriorFiles.length
+      });
 
-      // Build update data, only include VIN if it has a value (to avoid unique constraint error on empty string)
+      // Build update data - separate data from files
       const updateData: any = {
         plateNumber: formData.plateNumber?.trim() || "",
         brand: formData.brand?.trim() || "",
@@ -212,8 +249,18 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         pricePerHour: formData.pricePerHour || 0,
         status: formData.status || "available",
         station: formData.station?.trim() || "",
-        defaultPhotos: updatedPhotos,
+        valuation: formData.valuation ? { valueVND: formData.valuation.valueVND } : undefined,
+        // Don't send defaultPhotos here - backend doesn't accept it in update request
+        // Photos will be handled separately
       };
+      
+      // Add new files if any
+      if (newExteriorFiles.length > 0) {
+        updateData.exteriorFiles = newExteriorFiles;
+      }
+      if (newInteriorFiles.length > 0) {
+        updateData.interiorFiles = newInteriorFiles;
+      }
       
       await updateVehicle(vehicle._id || "", updateData);
 
@@ -250,6 +297,9 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         pricePerHour: 0,
         status: "available",
         station: "",
+        valuation: {
+          valueVND: 0,
+        },
       });
       setExistingPhotos({ exterior: [], interior: [] });
       setNewPhotos({ exterior: [], interior: [] });
@@ -553,6 +603,36 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Valuation (VND) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <MdAttachMoney className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="number"
+                        value={formData.valuation?.valueVND === 0 ? '' : formData.valuation?.valueVND || ''}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          setFormData({ 
+                            ...formData, 
+                            valuation: { valueVND: value } 
+                          });
+                        }}
+                        className={`w-full pl-10 pr-3 py-2 text-sm border ${
+                          errors.valuation
+                            ? "border-red-300 bg-red-50/30"
+                            : "border-gray-200 bg-gray-50/50"
+                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
+                        placeholder="Enter vehicle valuation"
+                        disabled={loading}
+                      />
+                    </div>
+                    {errors.valuation && (
+                      <p className="mt-1 text-xs text-red-500">{errors.valuation}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Price Per Day (VND) <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
@@ -578,7 +658,10 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                       <p className="mt-1 text-xs text-red-500">{errors.pricePerDay}</p>
                     )}
                   </div>
+                </div>
 
+                {/* Row 5.5: Price Per Hour */}
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Price Per Hour (VND) <span className="text-red-500">*</span>
@@ -615,35 +698,54 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                       Status <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <select
-                        value={formData.status}
-                        onChange={(e) => {
-                          setFormData({ ...formData, status: e.target.value as "available" | "reserved" | "rented" | "maintenance" });
-                          if (errors.status) setErrors({ ...errors, status: "" });
-                        }}
-                        className={`w-full px-4 py-3 text-sm border ${
+                      <button
+                        ref={statusTriggerRef}
+                        type="button"
+                        onClick={() => setIsStatusOpen((v) => !v)}
+                        disabled={loading}
+                        className={`w-full px-4 pr-10 py-2.5 text-sm text-left border ${
                           errors.status
                             ? "border-red-300 bg-red-50/30"
-                            : "border-gray-200 bg-white hover:border-blue-300 focus:border-blue-500"
-                        } rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition-all duration-300 ease-in-out shadow-sm hover:shadow-md focus:shadow-lg`}
-                        disabled={loading}
-                        style={{
-                          appearance: 'none',
-                          backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
-                          backgroundPosition: 'right 1rem center',
-                          backgroundRepeat: 'no-repeat',
-                          backgroundSize: '1.25em 1.25em',
-                          paddingRight: '3rem'
-                        }}
+                            : "border-gray-300 bg-white/90 hover:border-blue-300 focus:border-blue-500"
+                        } rounded-2xl shadow-sm hover:shadow-md focus:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-500/15 transition-all duration-300`}
                       >
-                        <option value="available" className="py-2">Available</option>
-                        <option value="reserved" className="py-2">Reserved</option>
-                        <option value="rented" className="py-2">Rented</option>
-                        <option value="maintenance" className="py-2">Maintenance</option>
-                      </select>
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full opacity-50"></div>
-                      </div>
+                        {formData.status.charAt(0).toUpperCase() + formData.status.slice(1)}
+                        <span
+                          className={`absolute right-4 top-1/2 -translate-y-1/2 transition-transform duration-300 ${
+                            isStatusOpen ? "rotate-180" : "rotate-0"
+                          }`}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="m6 8 4 4 4-4" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {isStatusOpen && (
+                          <motion.ul
+                            ref={statusListRef}
+                            key="status-list"
+                            initial={{ opacity: 0, y: -6, height: 0 }}
+                            animate={{ opacity: 1, y: 6, height: "auto" }}
+                            exit={{ opacity: 0, y: -6, height: 0 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl ring-1 ring-black/5"
+                          >
+                            {(["available","reserved","rented","maintenance"] as const).map(st => (
+                              <motion.li
+                                key={st}
+                                layout
+                                onClick={() => { setFormData({ ...formData, status: st }); setIsStatusOpen(false); if (errors.status) setErrors({ ...errors, status: "" }); }}
+                                className={`px-4 py-2 cursor-pointer select-none transition-colors ${
+                                  formData.status === st ? "bg-blue-600 text-white" : "hover:bg-gray-50 text-gray-800"
+                                }`}
+                              >
+                                {st.charAt(0).toUpperCase() + st.slice(1)}
+                              </motion.li>
+                            ))}
+                          </motion.ul>
+                        )}
+                      </AnimatePresence>
                     </div>
                     {errors.status && (
                       <p className="mt-1 text-xs text-red-500">{errors.status}</p>
@@ -656,26 +758,68 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                     </label>
                     <div className="relative">
                       <MdLocationOn className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
-                      <select
-                        value={formData.station || ""}
-                        onChange={(e) => {
-                          setFormData({ ...formData, station: e.target.value });
-                          if (errors.station) setErrors({ ...errors, station: "" });
-                        }}
-                        className={`w-full pl-10 pr-3 py-2 text-sm border ${
+                      <button
+                        ref={stationTriggerRef}
+                        type="button"
+                        onClick={() => setIsStationOpen((v) => !v)}
+                        disabled={loading}
+                        className={`w-full pl-10 pr-10 py-2.5 text-sm text-left border ${
                           errors.station
                             ? "border-red-300 bg-red-50/30"
-                            : "border-gray-200 bg-white hover:border-blue-300 focus:border-blue-500"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200`}
-                        disabled={loading}
+                            : "border-gray-300 bg-white/90 hover:border-blue-300 focus:border-blue-500"
+                        } rounded-2xl shadow-sm hover:shadow-md focus:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-500/15 transition-all duration-300`}
                       >
-                        <option value="">Select a station</option>
-                        {stations.map((station) => (
-                          <option key={station._id} value={station._id}>
-                            {station.name} ({station.code})
-                          </option>
-                        ))}
-                      </select>
+                        {stations.find((s) => s._id === formData.station)?.name
+                          ? `${stations.find((s) => s._id === formData.station)?.name} (${stations.find((s) => s._id === formData.station)?.code})`
+                          : "Select a station"}
+                        <span
+                          className={`absolute right-4 top-1/2 -translate-y-1/2 transition-transform duration-300 ${
+                            isStationOpen ? "rotate-180" : "rotate-0"
+                          }`}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="m6 8 4 4 4-4" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+
+                      {/* Animated options */}
+                      <AnimatePresence initial={false}>
+                        {isStationOpen && (
+                          <motion.ul
+                            ref={stationListRef}
+                            key="station-list"
+                            initial={{ opacity: 0, y: -6, height: 0 }}
+                            animate={{ opacity: 1, y: 6, height: "auto" }}
+                            exit={{ opacity: 0, y: -6, height: 0 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className="absolute z-20 mt-2 w-full max-h-64 overflow-auto rounded-2xl border border-gray-200 bg-white shadow-xl ring-1 ring-black/5"
+                          >
+                            <li className="px-3 py-2 text-xs text-gray-400 sticky top-0 bg-white/95 backdrop-blur-sm">Select a station</li>
+                            {stations.map((s) => {
+                              const selected = s._id === formData.station;
+                              return (
+                                <motion.li
+                                  key={s._id}
+                                  layout
+                                  onClick={() => {
+                                    setFormData({ ...formData, station: s._id });
+                                    if (errors.station) setErrors({ ...errors, station: "" });
+                                    setIsStationOpen(false);
+                                  }}
+                                  className={`px-4 py-2 cursor-pointer select-none transition-colors ${
+                                    selected
+                                      ? "bg-blue-600 text-white"
+                                      : "hover:bg-gray-50 text-gray-800"
+                                  }`}
+                                >
+                                  {s.name} ({s.code})
+                                </motion.li>
+                              );
+                            })}
+                          </motion.ul>
+                        )}
+                      </AnimatePresence>
                     </div>
                     {errors.station && (
                       <p className="mt-1 text-xs text-red-500">{errors.station}</p>

@@ -8,7 +8,7 @@ import {
   MdUpload,
 } from "react-icons/md";
 
-interface PhotoFile {
+export interface PhotoFile {
   id: string;
   file: File | null;
   preview: string;

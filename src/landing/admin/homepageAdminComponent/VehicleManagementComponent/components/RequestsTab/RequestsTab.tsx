@@ -1,19 +1,24 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { MdBuild, MdDelete, MdSwapHoriz } from "react-icons/md";
+import { MdDeleteSweep } from "react-icons/md";
+import { TbTransfer } from "react-icons/tb";
+import { GrHostMaintenance } from "react-icons/gr";
 import MaintenanceRequestRow from "./MaintenanceRequestRow";
 import DeletionRequestRow from "./DeletionRequestRow";
-import type { MaintenanceRequest, DeletionRequest, TransferLog } from "../../../../../../types/vehicle";
+import type { MaintenanceRequest, DeletionRequest } from "../../../../../../types/vehicle";
 
 interface RequestsTabProps {
   maintenanceRequests: MaintenanceRequest[];
   deletionRequests: DeletionRequest[];
-  transferLogs: TransferLog[];
+  transferLogs: any[];
   isLoading: boolean;
   onApproveMaintenance: (requestId: string) => Promise<void>;
   onRejectMaintenance: (requestId: string) => Promise<void>;
   onApproveDeletion: (requestId: string) => Promise<void>;
   onRejectDeletion: (requestId: string) => Promise<void>;
+  onViewDeletionRequest?: (request: any) => void;
+  pagination?: { page: number; totalPages: number };
+  onPageChange?: (page: number) => void;
 }
 
 const RequestsTab: React.FC<RequestsTabProps> = ({
@@ -25,28 +30,31 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
   onRejectMaintenance,
   onApproveDeletion,
   onRejectDeletion,
+  onViewDeletionRequest,
+  pagination,
+  onPageChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<"maintenance" | "deletion" | "transfers">("maintenance");
+  const [activeTab, setActiveTab] = useState<"maintenance" | "deletion" | "transfers">("deletion");
 
   const tabs = [
     {
       id: "maintenance" as const,
       label: "Maintenance Requests",
-      icon: MdBuild,
+      icon: GrHostMaintenance,
       count: maintenanceRequests.length,
       color: "orange",
     },
     {
       id: "deletion" as const,
       label: "Deletion Requests",
-      icon: MdDelete,
+      icon: MdDeleteSweep,
       count: deletionRequests.length,
       color: "red",
     },
     {
       id: "transfers" as const,
-      label: "Transfer Logs",
-      icon: MdSwapHoriz,
+      label: "Transfer History",
+      icon: TbTransfer,
       count: transferLogs.length,
       color: "green",
     },
@@ -93,7 +101,7 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
           <div className="space-y-4">
             {maintenanceRequests.length === 0 ? (
               <div className="text-center py-12">
-                <MdBuild className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <GrHostMaintenance className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-600">No maintenance requests found</p>
               </div>
             ) : (
@@ -136,6 +144,30 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
                 </div>
               </div>
             )}
+            {/* Pagination */}
+            <div className="flex items-center justify-end py-3">
+              {pagination && onPageChange && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    className="px-3 py-1.5 text-sm rounded-md border border-gray-200 bg-white disabled:opacity-50"
+                    disabled={pagination.page <= 1}
+                    onClick={() => onPageChange?.(pagination!.page - 1)}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {pagination.page} of {pagination.totalPages}
+                  </span>
+                  <button
+                    className="px-3 py-1.5 text-sm rounded-md border border-gray-200 bg-white disabled:opacity-50"
+                    disabled={pagination.page >= pagination.totalPages}
+                    onClick={() => onPageChange?.(pagination!.page + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         );
 
@@ -144,7 +176,7 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
           <div className="space-y-4">
             {deletionRequests.length === 0 ? (
               <div className="text-center py-12">
-                <MdDelete className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <MdDeleteSweep className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-600">No deletion requests found</p>
               </div>
             ) : (
@@ -180,6 +212,7 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
                           request={request}
                           onApprove={() => onApproveDeletion(request._id)}
                           onReject={() => onRejectDeletion(request._id)}
+                          onView={(r) => onViewDeletionRequest?.(r)}
                         />
                       ))}
                     </tbody>
@@ -195,7 +228,7 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
           <div className="space-y-4">
             {transferLogs.length === 0 ? (
               <div className="text-center py-12">
-                <MdSwapHoriz className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <TbTransfer className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-600">No transfer logs found</p>
               </div>
             ) : (

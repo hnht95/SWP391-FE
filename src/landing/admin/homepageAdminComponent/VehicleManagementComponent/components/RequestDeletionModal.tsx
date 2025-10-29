@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MdClose, MdWarning, MdDelete } from "react-icons/md";
+import { MdClose, MdWarning, MdDeleteSweep } from "react-icons/md";
 import type { Vehicle } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { CreateDeletionRequest } from "../../../../../types/vehicle";
 import { createDeletionRequest } from "../../../../../service/apiAdmin/apiVehicles/API";
@@ -125,7 +125,7 @@ const RequestDeletionModal: React.FC<RequestDeletionModalProps> = ({
                 {/* Vehicle Info */}
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center space-x-2 mb-2">
-                    <MdDelete className="w-4 h-4 text-gray-500" />
+                    <MdDeleteSweep className="w-4 h-4 text-gray-500" />
                     <span className="text-sm font-medium text-gray-700">Vehicle Information</span>
                   </div>
                   <div className="space-y-1">
@@ -190,7 +190,7 @@ const RequestDeletionModal: React.FC<RequestDeletionModalProps> = ({
                       </>
                     ) : (
                       <>
-                        <MdDelete className="w-4 h-4" />
+                        <MdDeleteSweep className="w-4 h-4" />
                         <span>Request Deletion</span>
                       </>
                     )}

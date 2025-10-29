@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MdClose, MdDirectionsCar } from "react-icons/md";
@@ -25,6 +25,7 @@ interface FormData {
   pricePerHour: number;
   status: "available" | "reserved" | "rented" | "maintenance";
   station: string;
+  valuation: number;
 }
 
 const defaultForm: FormData = {
@@ -39,6 +40,7 @@ const defaultForm: FormData = {
   pricePerHour: 0,
   status: "available",
   station: "",
+  valuation: 0,
 };
 
 const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSuccess }) => {
@@ -51,6 +53,12 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
     exterior: [],
     interior: []
   });
+  const [isStationOpen, setIsStationOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const stationListRef = useRef<HTMLUListElement | null>(null);
+  const stationTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const statusListRef = useRef<HTMLUListElement | null>(null);
+  const statusTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -164,6 +172,7 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
     if (form.mileage < 0) newErrors.mileage = "Invalid mileage";
     if (form.pricePerDay < 0) newErrors.pricePerDay = "Invalid daily rate";
     if (form.pricePerHour < 0) newErrors.pricePerHour = "Invalid hourly rate";
+    if (form.valuation < 0) newErrors.valuation = "Invalid valuation";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -198,6 +207,9 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
         pricePerHour: form.pricePerHour,
         status: form.status,
         station: form.station,
+        valuation: {
+          valueVND: form.valuation,
+        },
         exteriorFiles: exteriorFiles,
         interiorFiles: interiorFiles,
       };
@@ -219,6 +231,28 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
     }
   };
 
+  // close animated dropdowns on outside click
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!isStationOpen && !isStatusOpen) return;
+      const t = e.target as Node;
+      if (
+        stationListRef.current && stationTriggerRef.current &&
+        !stationListRef.current.contains(t) && !stationTriggerRef.current.contains(t)
+      ) {
+        setIsStationOpen(false);
+      }
+      if (
+        statusListRef.current && statusTriggerRef.current &&
+        !statusListRef.current.contains(t) && !statusTriggerRef.current.contains(t)
+      ) {
+        setIsStatusOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [isStationOpen, isStatusOpen]);
+
   return createPortal(
     <AnimatePresence>
       {isOpen && (
@@ -239,7 +273,7 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
               exit={{ opacity: 0, scale: 0.95, y: 30 }}
               transition={{ type: "spring", damping: 30, stiffness: 200 }}
             >
-              <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gradient-to-r from-black via-gray-900 to-gray-800">
+              <div className="sticky top-0 z-20 flex items-center justify-between p-4 border-b border-gray-800 bg-gradient-to-r from-black via-gray-900 to-gray-800/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/80">
                 <div className="flex items-center space-x-2.5">
                   <div className="w-11 h-11 bg-gradient-to-br from-black-700 to-black rounded-2xl flex items-center justify-center shadow-md">
                     <MdDirectionsCar className="w-7 h-7 text-white" />
@@ -447,36 +481,100 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
                     )}
                   </div>
                   <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Valuation (VND) *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.valuation === 0 ? '' : form.valuation}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? 0 : Number(e.target.value);
+                        handleChange("valuation", value);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        errors.valuation ? "border-red-300" : "border-gray-300"
+                      }`}
+                      placeholder="e.g., 500000000"
+                    />
+                    {errors.valuation && (
+                      <p className="text-xs text-red-500 mt-1">{errors.valuation}</p>
+                    )}
+                  </div>
+                  <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-                    <select
-                      value={form.status}
-                      onChange={(e) => handleChange("status", e.target.value as any)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                    >
-                      <option value="available">Available</option>
-                      <option value="reserved">Reserved</option>
-                      <option value="rented">Rented</option>
-                      <option value="maintenance">Maintenance</option>
-                    </select>
+                    <div className="relative">
+                      <button
+                        ref={statusTriggerRef}
+                        type="button"
+                        onClick={() => setIsStatusOpen((v) => !v)}
+                        className="w-full px-3 pr-9 py-2 text-left border border-gray-300 rounded-lg bg-white hover:border-blue-300 shadow-sm hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-500/15 transition-all"
+                      >
+                        {form.status.charAt(0).toUpperCase() + form.status.slice(1)}
+                        <span className={`absolute right-3 top-1/2 -translate-y-1/2 transition-transform ${isStatusOpen ? 'rotate-180' : ''}`}>
+                          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m6 8 4 4 4-4" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </span>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {isStatusOpen && (
+                          <motion.ul
+                            ref={statusListRef}
+                            initial={{ opacity: 0, y: -6, height: 0 }}
+                            animate={{ opacity: 1, y: 6, height: 'auto' }}
+                            exit={{ opacity: 0, y: -6, height: 0 }}
+                            transition={{ duration: 0.22, ease: 'easeOut' }}
+                            className="absolute z-20 mt-2 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl"
+                          >
+                            {(["available","reserved","rented","maintenance"] as const).map(st => (
+                              <li
+                                key={st}
+                                onClick={() => { handleChange('status', st); setIsStatusOpen(false); }}
+                                className={`px-4 py-2 cursor-pointer select-none transition-colors ${form.status === st ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-800'}`}
+                              >
+                                {st.charAt(0).toUpperCase() + st.slice(1)}
+                              </li>
+                            ))}
+                          </motion.ul>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Station *</label>
-                    <select
-                      value={form.station}
-                      onChange={(e) => handleChange("station", e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white ${
-                        errors.station ? "border-red-300" : "border-gray-300"
-                      }`}
-                    >
-                      <option value="" disabled>
-                        Select Station
-                      </option>
-                      {stations.map((station) => (
-                        <option key={station._id} value={station._id}>
-                          {station.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <button
+                        ref={stationTriggerRef}
+                        type="button"
+                        onClick={() => setIsStationOpen((v) => !v)}
+                        className={`w-full px-3 pr-9 py-2 text-left border ${errors.station ? 'border-red-300' : 'border-gray-300'} rounded-lg bg-white hover:border-blue-300 shadow-sm hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-500/15 transition-all`}
+                      >
+                        {stations.find(s => s._id === form.station)?.name || 'Select Station'}
+                        <span className={`absolute right-3 top-1/2 -translate-y-1/2 transition-transform ${isStationOpen ? 'rotate-180' : ''}`}>
+                          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m6 8 4 4 4-4" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </span>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {isStationOpen && (
+                          <motion.ul
+                            ref={stationListRef}
+                            initial={{ opacity: 0, y: -6, height: 0 }}
+                            animate={{ opacity: 1, y: 6, height: 'auto' }}
+                            exit={{ opacity: 0, y: -6, height: 0 }}
+                            transition={{ duration: 0.22, ease: 'easeOut' }}
+                            className="absolute z-20 mt-2 w-full max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white shadow-xl"
+                          >
+                            <li className="px-3 py-2 text-xs text-gray-400 sticky top-0 bg-white/95">Select a station</li>
+                            {stations.map(st => (
+                              <li
+                                key={st._id}
+                                onClick={() => { handleChange('station', st._id); setIsStationOpen(false); }}
+                                className={`px-4 py-2 cursor-pointer select-none transition-colors ${form.station === st._id ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-800'}`}
+                              >
+                                {st.name}
+                              </li>
+                            ))}
+                          </motion.ul>
+                        )}
+                      </AnimatePresence>
+                    </div>
                     {errors.station && (
                       <p className="text-xs text-red-500 mt-1">{errors.station}</p>
                     )}

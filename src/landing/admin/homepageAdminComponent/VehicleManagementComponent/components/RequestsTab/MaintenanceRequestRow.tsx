@@ -1,15 +1,16 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { MdCheck, MdClose, MdDelete } from "react-icons/md";
-import type { DeletionRequest } from "../../../../../../types/vehicle";
+import { MdCheck, MdClose } from "react-icons/md";
+import { GrHostMaintenance } from "react-icons/gr";
+import type { MaintenanceRequest } from "../../../../../../types/vehicle";
 
-interface DeletionRequestRowProps {
-  request: DeletionRequest;
+interface MaintenanceRequestRowProps {
+  request: MaintenanceRequest;
   onApprove: () => Promise<void>;
   onReject: () => Promise<void>;
 }
 
-const DeletionRequestRow: React.FC<DeletionRequestRowProps> = ({
+const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
   request,
   onApprove,
   onReject,
@@ -28,7 +29,7 @@ const DeletionRequestRow: React.FC<DeletionRequestRowProps> = ({
         await onReject();
       }
     } catch (error) {
-      console.error(`Failed to ${actionType} deletion request:`, error);
+      console.error(`Failed to ${actionType} maintenance request:`, error);
     } finally {
       setIsLoading(false);
       setAction(null);
@@ -71,8 +72,8 @@ const DeletionRequestRow: React.FC<DeletionRequestRowProps> = ({
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center">
           <div className="flex-shrink-0 h-10 w-10">
-            <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
-              <MdDelete className="w-5 h-5 text-red-600" />
+            <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center">
+              <GrHostMaintenance className="w-5 h-5 text-orange-600" />
             </div>
           </div>
           <div className="ml-4">
@@ -86,21 +87,21 @@ const DeletionRequestRow: React.FC<DeletionRequestRowProps> = ({
         </div>
       </td>
 
-      {/* Reason */}
+      {/* Description */}
       <td className="px-6 py-4">
-        <div className="text-sm text-gray-900 max-w-xs truncate" title={request.reason}>
-          {request.reason}
+        <div className="text-sm text-gray-900 max-w-xs truncate" title={request.description}>
+          {request.description}
         </div>
       </td>
 
-      {/* Requested By */}
+      {/* Reported By */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900">{request.requestedBy}</div>
+        <div className="text-sm text-gray-900">{request.reportedBy}</div>
       </td>
 
       {/* Date */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900">{formatDate(request.requestedAt)}</div>
+        <div className="text-sm text-gray-900">{formatDate(request.reportedAt)}</div>
       </td>
 
       {/* Status */}
@@ -156,4 +157,4 @@ const DeletionRequestRow: React.FC<DeletionRequestRowProps> = ({
   );
 };
 
-export default DeletionRequestRow;
+export default MaintenanceRequestRow;

@@ -1,9 +1,18 @@
-// Main Vehicle Management Component
-export { default as VehiclesManagement } from "./VehiclesManagement";
+/**
+ * VehicleManagementComponent Module
+ * Main barrel export for all vehicle management components
+ */
 
-// Components
-export { default as VehicleTable } from "./components/VehicleTable";
-export { default as VehicleRow } from "./components/VehicleRow";
+// Main component
+export { default as VehiclesManagement } from "./VehiclesManagement";
+export { default } from "./VehiclesManagement";
+
+// Modals
+export { default as AddVehicleModal } from "./AddVehicleModal";
+export { default as UpdateVehicleModal } from "./UpdateVehicleModal";
+export { default as UploadCarPhotos } from "./UploadCarPhotos";
+
+// Detail Components
 export { default as VehicleDetailModal } from "./components/VehicleDetailModal";
 export { default as TransferVehicleModal } from "./components/TransferVehicleModal";
 export { default as ReportMaintenanceModal } from "./components/ReportMaintenanceModal";
@@ -12,12 +21,7 @@ export { default as RequestsTab } from "./components/RequestsTab/RequestsTab";
 export { default as MaintenanceRequestRow } from "./components/RequestsTab/MaintenanceRequestRow";
 export { default as DeletionRequestRow } from "./components/RequestsTab/DeletionRequestRow";
 
-// Hooks
-export { useVehicles } from "./hooks/useVehicles";
-export { useVehicle } from "./hooks/useVehicle";
-export { useVehicleRequests } from "./hooks/useVehicleRequests";
-
-// Services - using existing API
+// API Services
 export {
   getAllVehicles,
   getVehicleById,
@@ -26,7 +30,6 @@ export {
   deleteVehicle,
   transferVehicleStation,
   getAllTransferLogs,
-  uploadVehiclePhotos,
   reportMaintenance,
   createDeletionRequest,
   getDeletionRequests,
@@ -37,7 +40,7 @@ export {
   rejectMaintenanceRequest,
 } from "../../../../service/apiAdmin/apiVehicles/API";
 
-// Types - using existing types
+// Types
 export type {
   Vehicle,
   TransferLog,
@@ -56,6 +59,4 @@ export type {
   StatusStyle,
 } from "../../../../types/vehicle";
 
-// Import existing modals from the same directory
-export { default as AddVehicleModal } from "./AddVehicleModal";
-export { default as UpdateVehicleModal } from "./UpdateVehicleModal";
+

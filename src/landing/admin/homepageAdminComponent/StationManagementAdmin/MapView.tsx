@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useSidebar } from "../../context/SidebarContext";
 import { createPopupContent } from "./StationPopup";
 import type { Station } from "./types";
 
@@ -20,7 +19,6 @@ interface MapViewProps {
 const MapView: React.FC<MapViewProps> = ({ stations }) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const { isSidebarCollapsed } = useSidebar();
 
   // Tạo custom icon theo trạng thái
   const createCustomIcon = (station: Station) => {
@@ -170,16 +168,16 @@ const MapView: React.FC<MapViewProps> = ({ stations }) => {
     };
   }, [stations]);
 
-  // Resize map when sidebar changes
+  // Resize map when stations change
   useEffect(() => {
     if (mapRef.current) {
       const timer = setTimeout(() => {
         mapRef.current?.invalidateSize();
-      }, 350); // Wait for sidebar animation
+      }, 100);
 
       return () => clearTimeout(timer);
     }
-  }, [isSidebarCollapsed]);
+  }, [stations]);
 
   return (
     <div className="map-wrapper w-full ml-0 mr-0 -mx-8">

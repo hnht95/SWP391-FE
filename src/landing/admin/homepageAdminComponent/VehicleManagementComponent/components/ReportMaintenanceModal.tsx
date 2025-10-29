@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MdClose, MdBuild, MdWarning } from "react-icons/md";
+import { MdClose, MdWarning } from "react-icons/md";
+import { GrHostMaintenance } from "react-icons/gr";
 import type { Vehicle } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { ReportMaintenanceRequest } from "../../../../../types/vehicle";
 import { reportMaintenance } from "../../../../../service/apiAdmin/apiVehicles/API";
@@ -87,7 +88,7 @@ const ReportMaintenanceModal: React.FC<ReportMaintenanceModalProps> = ({
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-orange-100 rounded-lg">
-                    <MdBuild className="w-6 h-6 text-orange-600" />
+                    <GrHostMaintenance className="w-6 h-6 text-orange-600" />
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900">
@@ -176,7 +177,7 @@ const ReportMaintenanceModal: React.FC<ReportMaintenanceModalProps> = ({
                       </>
                     ) : (
                       <>
-                        <MdBuild className="w-4 h-4" />
+                        <GrHostMaintenance className="w-4 h-4" />
                         <span>Report Maintenance</span>
                       </>
                     )}

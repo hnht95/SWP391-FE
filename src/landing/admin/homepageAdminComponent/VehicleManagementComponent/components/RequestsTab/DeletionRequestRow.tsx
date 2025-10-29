@@ -1,18 +1,20 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { MdCheck, MdClose, MdBuild } from "react-icons/md";
-import type { MaintenanceRequest } from "../../../../../../types/vehicle";
+import { MdCheck, MdClose, MdDeleteSweep } from "react-icons/md";
+import type { DeletionRequest } from "../../../../../../types/vehicle";
 
-interface MaintenanceRequestRowProps {
-  request: MaintenanceRequest;
+interface DeletionRequestRowProps {
+  request: DeletionRequest & { reportText?: string; evidencePhotos?: (string | { _id: string; url?: string })[]; station?: any; reportedBy?: any };
   onApprove: () => Promise<void>;
   onReject: () => Promise<void>;
+  onView?: (request: any) => void;
 }
 
-const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
+const DeletionRequestRow: React.FC<DeletionRequestRowProps> = ({
   request,
   onApprove,
   onReject,
+  onView,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [action, setAction] = useState<"approve" | "reject" | null>(null);
@@ -28,7 +30,7 @@ const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
         await onReject();
       }
     } catch (error) {
-      console.error(`Failed to ${actionType} maintenance request:`, error);
+      console.error(`Failed to ${actionType} deletion request:`, error);
     } finally {
       setIsLoading(false);
       setAction(null);
@@ -71,8 +73,8 @@ const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center">
           <div className="flex-shrink-0 h-10 w-10">
-            <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center">
-              <MdBuild className="w-5 h-5 text-orange-600" />
+            <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
+              <MdDeleteSweep className="w-5 h-5 text-red-600" />
             </div>
           </div>
           <div className="ml-4">
@@ -86,21 +88,21 @@ const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
         </div>
       </td>
 
-      {/* Description */}
+      {/* Reason */}
       <td className="px-6 py-4">
-        <div className="text-sm text-gray-900 max-w-xs truncate" title={request.description}>
-          {request.description}
+        <div className="text-sm text-gray-900 max-w-xs truncate" title={request.reason}>
+          {request.reason}
         </div>
       </td>
 
-      {/* Reported By */}
+      {/* Requested By */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900">{request.reportedBy}</div>
+        <div className="text-sm text-gray-900">{request.requestedBy}</div>
       </td>
 
       {/* Date */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900">{formatDate(request.reportedAt)}</div>
+        <div className="text-sm text-gray-900">{formatDate(request.requestedAt)}</div>
       </td>
 
       {/* Status */}
@@ -113,6 +115,14 @@ const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
       {/* Actions */}
       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
         <div className="flex items-center space-x-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onView?.(request)}
+            className="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors text-blue-700 bg-blue-100 hover:bg-blue-200"
+          >
+            <span>View</span>
+          </motion.button>
           <motion.button
             whileHover={{ scale: isActionDisabled ? 1 : 1.1 }}
             whileTap={{ scale: isActionDisabled ? 1 : 0.95 }}
@@ -156,4 +166,4 @@ const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
   );
 };
 
-export default MaintenanceRequestRow;
+export default DeletionRequestRow;

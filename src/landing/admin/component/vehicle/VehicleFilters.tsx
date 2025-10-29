@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { MdSearch, MdFilterList } from "react-icons/md";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface VehicleFiltersProps {
   searchTerm: string;
@@ -7,6 +8,9 @@ interface VehicleFiltersProps {
   selectedStatus: string;
   onStatusChange: (value: string) => void;
   isLoading?: boolean;
+  page?: number;
+  totalPages?: number;
+  total?: number;
 }
 
 const VehicleFilters: React.FC<VehicleFiltersProps> = ({
@@ -15,7 +19,24 @@ const VehicleFilters: React.FC<VehicleFiltersProps> = ({
   selectedStatus,
   onStatusChange,
   isLoading = false,
+  page = 1,
+  totalPages = 1,
+  total,
 }) => {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!open) return;
+      const t = e.target as Node;
+      if (listRef.current && triggerRef.current && !listRef.current.contains(t) && !triggerRef.current.contains(t)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
@@ -36,30 +57,48 @@ const VehicleFilters: React.FC<VehicleFiltersProps> = ({
         </div>
         <div className="flex items-center space-x-4">
           <div className="relative">
-            <select
-              value={selectedStatus}
-              onChange={(e) => onStatusChange(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-2 focus:border-blue-500 bg-white hover:border-blue-300 transition-all duration-300 ease-in-out shadow-sm hover:shadow-md focus:shadow-lg"
-              style={{
-                appearance: 'none',
-                backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
-                backgroundPosition: 'right 0.75rem center',
-                backgroundRepeat: 'no-repeat',
-                backgroundSize: '1.25em 1.25em',
-                paddingRight: '2.5rem'
-              }}
+            <button
+              ref={triggerRef}
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="px-4 py-2 pr-10 border border-gray-300 rounded-xl bg-white text-gray-700 hover:border-blue-300 shadow-sm hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-500/15 transition-all"
             >
-            <option value="all">All Status</option>
-            <option value="available">Available</option>
-            <option value="rented">Rented</option>
-            <option value="reserved">Reserved</option>
-            <option value="maintenance">Maintenance</option>
-            </select>
+              {selectedStatus === 'all'
+                ? 'All Status'
+                : selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)}
+              <span className={`absolute right-3 top-1/2 -translate-y-1/2 transition-transform ${open ? 'rotate-180' : ''}`}>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m6 8 4 4 4-4" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
+            </button>
+            <AnimatePresence initial={false}>
+              {open && (
+                <motion.ul
+                  ref={listRef}
+                  initial={{ opacity: 0, y: -6, height: 0 }}
+                  animate={{ opacity: 1, y: 6, height: 'auto' }}
+                  exit={{ opacity: 0, y: -6, height: 0 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  className="absolute z-20 mt-2 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+                >
+                  {['all','available','reserved','rented','maintenance'].map((st) => (
+                    <li
+                      key={st}
+                      onClick={() => { onStatusChange(st); setOpen(false); }}
+                      className={`px-4 py-2 cursor-pointer select-none transition-colors ${selectedStatus === st ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-800'}`}
+                    >
+                      {st === 'all' ? 'All Status' : st.charAt(0).toUpperCase() + st.slice(1)}
+                    </li>
+                  ))}
+                </motion.ul>
+              )}
+            </AnimatePresence>
           </div>
-          <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-            <MdFilterList className="w-5 h-5" />
-            <span>Filter</span>
-          </button>
+          <div className="px-4 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg border border-gray-200">
+            Page <span className="font-medium">{page}</span> / <span className="font-medium">{totalPages}</span>
+            {typeof total === 'number' && (
+              <> • Total <span className="font-medium">{total}</span></>
+            )}
+          </div>
         </div>
       </div>
     </div>
