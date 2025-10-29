@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MdEdit, MdDelete, MdMoreVert } from "react-icons/md";
+import { MdMoreVert } from "react-icons/md";
 import StatusBadge, { type VehicleStatus } from "./StatusBadge";
 export interface Vehicle {
   id: string;
@@ -13,6 +13,10 @@ export interface Vehicle {
   batteryCapacity?: number;
   createdAt?: string;
   updatedAt?: string;
+  defaultPhotos?: {
+    exterior: string[];
+    interior: string[];
+  };
 }
 
 interface VehicleRowProps {
@@ -84,56 +88,69 @@ const VehicleRow: React.FC<VehicleRowProps> = ({
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
         {new Date(vehicle.lastService).toLocaleDateString("vi-VN")}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-        <div className="flex items-center space-x-2">
+      <td className="px-6 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="relative inline-block">
           <button
-            onClick={handleEdit}
-            className="text-blue-600 hover:text-blue-900 p-1"
-            title="Edit"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDropdownOpen(!isDropdownOpen);
+            }}
+            className="text-gray-900 hover:text-black transition-colors"
+            title="Actions"
           >
-            <MdEdit className="w-4 h-4" />
+            <MdMoreVert className="w-5 h-5" />
           </button>
-          <button
-            onClick={handleDelete}
-            className="text-red-600 hover:text-red-900 p-1"
-            title="Delete"
-          >
-            <MdDelete className="w-4 h-4" />
-          </button>
-          <div className="relative">
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="text-gray-600 hover:text-gray-900 p-1"
-              title="More Actions"
-            >
-              <MdMoreVert className="w-4 h-4" />
-            </button>
 
-            {/* Dropdown menu */}
-            {isDropdownOpen && (
-              <>
-                {/* Backdrop to close dropdown when clicking outside */}
-                <div
-                  className="fixed inset-0 z-[9998]"
-                  onClick={() => setIsDropdownOpen(false)}
-                />
-                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl py-1 z-[9999] min-w-[160px]">
-                  <button
-                    onClick={handleTransfer}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Transfer Vehicle
-                  </button>
-                  <button
-                    onClick={handleMarkMaintenance}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Mark Maintenance
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          {/* Dropdown menu */}
+          {isDropdownOpen && (
+            <>
+              {/* Backdrop to close dropdown when clicking outside */}
+              <div
+                className="fixed inset-0 z-[9999]"
+                onClick={() => setIsDropdownOpen(false)}
+              />
+              <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl py-1 z-[9999] min-w-[160px]">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit();
+                    setIsDropdownOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete();
+                    setIsDropdownOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTransfer();
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Transfer Vehicle
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMarkMaintenance();
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Mark Maintenance
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </td>
     </>

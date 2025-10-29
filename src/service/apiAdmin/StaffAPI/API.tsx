@@ -34,12 +34,41 @@ const handleError = (error: unknown) => {
   });
 
   let errorMessage = err?.message || "Unknown error";
+  
+  // Handle different error response formats
   if (err?.response?.data) {
     const responseData: any = err.response.data;
+    console.log("Response data:", responseData);
+    
     if (responseData.error) {
       errorMessage = responseData.error;
     } else if (responseData.message) {
       errorMessage = responseData.message;
+    } else if (typeof responseData === "string") {
+      errorMessage = responseData;
+    } else if (responseData.errors && Array.isArray(responseData.errors)) {
+      errorMessage = responseData.errors.join(", ");
+    }
+  } else if (err?.response?.status) {
+    // Handle HTTP status codes
+    switch (err.response.status) {
+      case 400:
+        errorMessage = "Bad request - please check your input";
+        break;
+      case 401:
+        errorMessage = "Unauthorized - please login again";
+        break;
+      case 403:
+        errorMessage = "Forbidden - you don't have permission";
+        break;
+      case 409:
+        errorMessage = "Email already exists";
+        break;
+      case 500:
+        errorMessage = "Server error - please try again";
+        break;
+      default:
+        errorMessage = `Request failed with status ${err.response.status}`;
     }
   }
 
@@ -91,12 +120,83 @@ export const createStaff = async (
 
     console.log("Create staff response:", response.data);
 
-    // ✅ Create endpoint has wrapper format
+    // ✅ Check for wrapped response first
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
 
-    throw new Error("Failed to create staff");
+    // ✅ Fallback: if backend returns staff directly (no wrapper)
+    if (response.data._id && response.data.email) {
+      return response.data as Staff;
+    }
+
+    // ✅ Check if response is array (unlikely but possible)
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      return response.data[0];
+    }
+
+    console.error("Unexpected response format:", response.data);
+    throw new Error("Failed to create staff - unexpected response format");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+/**
+ * PUT /admin/staffs/:id - Update staff (admin only)
+ * Request body: { name, email, phone, role, station, isActive }
+ * Backend returns: { success: true, data: Staff }
+ */
+export const updateStaff = async (
+  staffId: string,
+  staffData: Partial<Staff>
+): Promise<Staff> => {
+  try {
+    console.log("Updating staff with data:", staffData);
+
+    const response = await api.put<{ success: boolean; data: Staff }>(
+      `/admin/staffs/${staffId}`,
+      staffData
+    );
+
+    console.log("Update staff response:", response.data);
+
+    // ✅ Check for wrapped response first
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    // ✅ Fallback: if backend returns staff directly (no wrapper)
+    if (response.data._id && response.data.email) {
+      return response.data as Staff;
+    }
+
+    console.error("Unexpected response format:", response.data);
+    throw new Error("Failed to update staff - unexpected response format");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+/**
+ * DELETE /admin/staffs/:id - Delete staff (admin only)
+ * Backend returns: { success: true, message: string }
+ */
+export const deleteStaff = async (staffId: string): Promise<void> => {
+  try {
+    console.log("Deleting staff with id:", staffId);
+
+    const response = await api.delete<{ success: boolean; message: string }>(
+      `/admin/staffs/${staffId}`
+    );
+
+    console.log("Delete staff response:", response.data);
+
+    if (!response.data.success) {
+      throw new Error("Failed to delete staff");
+    }
   } catch (error) {
     handleError(error);
     throw error;
@@ -106,6 +206,8 @@ export const createStaff = async (
 export const staffManagementAPI = {
   getAllStaffs,
   createStaff,
+  updateStaff,
+  deleteStaff,
 };
 
 export default staffManagementAPI;

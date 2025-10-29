@@ -313,7 +313,7 @@ export const createBooking = async (
  * GET /api/bookings/mine
  * Get user's bookings with pagination and filters
  */
-export const getMyBookings = async (
+export const getUserBookings = async (
   params: BookingQueryParams = {}
 ): Promise<PaginatedBookingsResponse> => {
   try {
@@ -329,26 +329,35 @@ export const getMyBookings = async (
 
     console.log("Fetching user bookings with params:", params);
 
-    const response = await api.get<PaginatedBookingsResponse>(
-      "/bookings/mine",
-      {
-        params: {
-          page,
-          limit,
-          ...(status && { status }),
-          ...(startDate && { startDate }),
-          ...(endDate && { endDate }),
-          ...(sortBy && { sortBy }),
-          ...(sortOrder && { sortOrder }),
-        },
-      }
-    );
+    const response = await api.get<any>("/bookings/mine", {
+      params: {
+        page,
+        limit,
+        ...(status && { status }),
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate }),
+        ...(sortBy && { sortBy }),
+        ...(sortOrder && { sortOrder }),
+      },
+    });
 
-    console.log("✅ Get bookings response:", response.data);
+    console.log("✅ Get bookings raw response:", response.data);
 
-    return response.data;
+    // ✅ Backend returns: { success, page, limit, total, totalPages, items }
+    if (response.data.success && response.data.items) {
+      return {
+        success: response.data.success,
+        page: response.data.page,
+        limit: response.data.limit,
+        total: response.data.total,
+        totalPages: response.data.totalPages,
+        items: response.data.items, // ✅ Use "items" not "data"
+      };
+    }
+
+    throw new Error("Invalid bookings response format");
   } catch (error) {
-    handleError(error, "getMyBookings");
+    handleError(error, "getUserBookings");
     throw error;
   }
 };
@@ -567,7 +576,7 @@ export const formatDate = (dateString: string): string => {
 
 const bookingApi = {
   createBooking,
-  getMyBookings,
+  getUserBookings,
   getBookingById,
   createPaymentLink,
   getPaymentStatus,

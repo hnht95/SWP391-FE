@@ -156,3 +156,75 @@ export interface StatusStyle {
   label: string;
   dotColor: string;
 }
+
+// Request types for Vehicle Management
+export interface MaintenanceRequest {
+  _id: string;
+  vehicleId: string;
+  vehicle: {
+    _id: string;
+    plateNumber: string;
+    brand: string;
+    model: string;
+  };
+  description: string;
+  reportedBy: string;
+  reportedAt: string;
+  status: "pending" | "approved" | "rejected";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeletionRequest {
+  _id: string;
+  vehicleId: string;
+  vehicle: {
+    _id: string;
+    plateNumber: string;
+    brand: string;
+    model: string;
+  };
+  reason: string;
+  requestedBy: string;
+  requestedAt: string;
+  status: "pending" | "approved" | "rejected";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TransferLog {
+  _id: string;
+  vehicleId: string;
+  fromStationId: string;
+  toStationId: string;
+  transferredBy: string;
+  transferDate: string;
+  reason?: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Request types for API calls
+export interface TransferVehicleRequest {
+  toStationId: string;
+  reason?: string;
+}
+
+export interface ReportMaintenanceRequest {
+  description: string;
+}
+
+export interface CreateDeletionRequest {
+  reason: string;
+}

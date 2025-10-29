@@ -2,8 +2,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
-// import { getPaymentStatus, type Booking } from "../service/apiBooking/API";
-// import type { Vehicle } from "../service/apiAdmin/apiVehicles/API";
 import {
   FaCheckCircle,
   FaClock,
@@ -21,9 +19,17 @@ const PaymentPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { booking, vehicle } = location.state as {
+  // ✅ Get passed data from BookingPage
+  const { booking, vehicle, calculatedTotals } = location.state as {
     booking: Booking;
     vehicle: Vehicle;
+    calculatedTotals?: {
+      dailyRate: number;
+      duration: number;
+      rentalCost: number;
+      deposit: number;
+      total: number;
+    };
   };
 
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
@@ -31,11 +37,33 @@ const PaymentPage: React.FC = () => {
     booking?.deposit?.status || "pending"
   );
   const [polling, setPolling] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(15 * 60);
   const [isExpired, setIsExpired] = useState(false);
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ✅ Use passed calculations or fallback to booking data
+  const calculateTotals = () => {
+    if (calculatedTotals) {
+      return calculatedTotals;
+    }
+
+    // Fallback calculation from booking
+    const deposit = booking.deposit?.amount || 0;
+    const total = booking.amountEstimated || 0;
+    const rentalCost = total - deposit;
+
+    return {
+      dailyRate: booking.pricingSnapshot?.basePrice || 0,
+      duration: booking.pricingSnapshot?.computedQty || 0,
+      rentalCost,
+      deposit,
+      total,
+    };
+  };
+
+  const totals = calculateTotals();
 
   // ✅ Generate QR Code
   useEffect(() => {
@@ -50,7 +78,7 @@ const PaymentPage: React.FC = () => {
     }
   }, [booking?.qrCode]);
 
-  // ✅ Countdown timer (15 minutes)
+  // ✅ Countdown timer
   useEffect(() => {
     if (isExpired || paymentStatus === "captured") return;
 
@@ -68,7 +96,6 @@ const PaymentPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [isExpired, paymentStatus]);
 
-  // ✅ Format time display
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -77,7 +104,7 @@ const PaymentPage: React.FC = () => {
       .padStart(2, "0")}`;
   };
 
-  // ✅ Poll payment status every 5 seconds
+  // ✅ Poll payment status
   useEffect(() => {
     if (!bookingId || !polling || isExpired) return;
 
@@ -86,8 +113,6 @@ const PaymentPage: React.FC = () => {
         const response = await getPaymentStatus(bookingId);
         console.log("Payment status check:", response);
 
-        // ✅ Backend response structure:
-        // { current: { depositStatus: 'captured' }, payOS: {...} }
         const status =
           response.current?.depositStatus ||
           response.deposit?.status ||
@@ -100,7 +125,6 @@ const PaymentPage: React.FC = () => {
           console.log("✅ Payment successful!");
           setPolling(false);
 
-          // Clear intervals
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
           }
@@ -108,7 +132,6 @@ const PaymentPage: React.FC = () => {
             clearTimeout(timeoutRef.current);
           }
 
-          // Redirect after 2 seconds
           setTimeout(() => {
             navigate(`/booking-success/${bookingId}`, {
               state: { booking, vehicle },
@@ -122,10 +145,7 @@ const PaymentPage: React.FC = () => {
       }
     };
 
-    // Initial check
     checkPayment();
-
-    // Poll every 5 seconds
     pollingIntervalRef.current = setInterval(checkPayment, 5000);
 
     return () => {
@@ -135,7 +155,7 @@ const PaymentPage: React.FC = () => {
     };
   }, [bookingId, polling, isExpired, navigate]);
 
-  // ✅ Cleanup on unmount
+  // ✅ Cleanup
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
@@ -147,14 +167,12 @@ const PaymentPage: React.FC = () => {
     };
   }, []);
 
-  // ✅ Handle payment redirect
   const handlePaymentRedirect = () => {
     if (booking?.checkoutUrl) {
       window.open(booking.checkoutUrl, "_blank");
     }
   };
 
-  // ✅ Handle expired payment
   const handleExpired = () => {
     navigate("/vehicles");
   };
@@ -246,20 +264,19 @@ const PaymentPage: React.FC = () => {
               </div>
             )}
 
-            {paymentStatus === "captured" ||
-              (paymentStatus === "PAID" && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-                  <FaCheckCircle className="text-green-600 text-2xl" />
-                  <div>
-                    <h3 className="font-semibold text-green-800">
-                      Payment Successful!
-                    </h3>
-                    <p className="text-sm text-green-700">
-                      Your booking has been confirmed. Redirecting...
-                    </p>
-                  </div>
+            {(paymentStatus === "captured" || paymentStatus === "PAID") && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+                <FaCheckCircle className="text-green-600 text-2xl" />
+                <div>
+                  <h3 className="font-semibold text-green-800">
+                    Payment Successful!
+                  </h3>
+                  <p className="text-sm text-green-700">
+                    Your booking has been confirmed. Redirecting...
+                  </p>
                 </div>
-              ))}
+              </div>
+            )}
 
             {(paymentStatus === "failed" || paymentStatus === "CANCELLED") && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
@@ -312,32 +329,48 @@ const PaymentPage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Plate Number</p>
-                  <p className="font-semibold">{vehicle.licensePlate}</p>
+                  <p className="font-semibold">{vehicle.plateNumber}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Duration</p>
-                  <p className="font-semibold">
-                    {booking.pricingSnapshot?.computedQty || 0} day(s)
-                  </p>
+
+                {/* ✅ Breakdown from BookingPage */}
+                <div className="pt-3 border-t">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm text-gray-600">Daily Rate:</span>
+                    <span className="font-medium">
+                      {totals.dailyRate.toLocaleString()}đ
+                    </span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm text-gray-600">Duration:</span>
+                    <span className="font-medium">
+                      {totals.duration} day(s)
+                    </span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm text-gray-600">Rental Cost:</span>
+                    <span className="font-medium">
+                      {totals.rentalCost.toLocaleString()}đ
+                    </span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm text-orange-600">
+                      Deposit (1.5%):
+                    </span>
+                    <span className="font-medium text-orange-600">
+                      {totals.deposit.toLocaleString()}đ
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Daily Rate</p>
-                  <p className="font-semibold">
-                    {booking.pricingSnapshot?.basePrice?.toLocaleString()}đ
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Deposit</p>
-                  <p className="font-semibold text-blue-600">
-                    {booking.deposit?.amount?.toLocaleString()}đ
-                  </p>
-                </div>
-                <hr />
-                <div>
-                  <p className="text-sm text-gray-600">Total Amount</p>
-                  <p className="font-bold text-xl text-green-600">
-                    {booking.amountEstimated?.toLocaleString()}đ
-                  </p>
+
+                <hr className="my-3" />
+
+                <div className="flex justify-between items-center">
+                  <span className="text-base font-semibold text-gray-900">
+                    Total Amount
+                  </span>
+                  <span className="text-2xl font-bold text-green-600">
+                    {totals.total.toLocaleString()}đ
+                  </span>
                 </div>
               </div>
 

@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   MdClose,
   MdDirectionsCar,
-  MdCode,
   MdBusiness,
   MdModelTraining,
   MdCalendarToday,
@@ -14,15 +13,17 @@ import {
   MdLocationOn,
   MdEdit,
 } from "react-icons/md";
-import { updateVehicle } from "../../../../service/apiAdmin/apiVehicles/API";
+import { updateVehicle, getPhotoUrls } from "../../../../service/apiAdmin/apiVehicles/API";
 import type { Vehicle, UpdateVehicleData } from "../../../../service/apiAdmin/apiVehicles/API";
 import UploadCarPhotos from "./UploadCarPhotos";
+
 
 interface UpdateVehicleModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdated: () => void;
   vehicle: Vehicle | null;
+  stations: any[]; // Station options
 }
 
 const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
@@ -30,10 +31,10 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
   onClose,
   onUpdated,
   vehicle,
+  stations = [],
 }) => {
   const [formData, setFormData] = useState<UpdateVehicleData>({
     plateNumber: "",
-    vin: "",
     brand: "",
     model: "",
     year: new Date().getFullYear(),
@@ -50,7 +51,11 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [photos, setPhotos] = useState<{ exterior: any[]; interior: any[] }>({
+  const [existingPhotos, setExistingPhotos] = useState<{ exterior: string[]; interior: string[] }>({
+    exterior: [],
+    interior: []
+  });
+  const [newPhotos, setNewPhotos] = useState<{ exterior: any[]; interior: any[] }>({
     exterior: [],
     interior: []
   });
@@ -59,9 +64,17 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
   useEffect(() => {
     if (vehicle) {
       console.log("Pre-filling form with vehicle data:", vehicle);
+      
+      // Get station ID - can be string or object
+      let stationId = "";
+      if (typeof vehicle.station === 'string') {
+        stationId = vehicle.station;
+      } else if (vehicle.station && typeof vehicle.station === 'object' && vehicle.station._id) {
+        stationId = vehicle.station._id;
+      }
+      
       setFormData({
         plateNumber: vehicle.plateNumber || "",
-        vin: vehicle.vin || "",
         brand: vehicle.brand || "",
         model: vehicle.model || "",
         year: vehicle.year || new Date().getFullYear(),
@@ -71,8 +84,45 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         pricePerDay: vehicle.pricePerDay || 0,
         pricePerHour: vehicle.pricePerHour || 0,
         status: vehicle.status || "available",
-        station: vehicle.station || "",
+        station: stationId,
       });
+      
+      // Pre-fill existing photos from vehicle data
+      if (vehicle.defaultPhotos) {
+        console.log("📸 Vehicle photos data:", vehicle.defaultPhotos);
+        
+        const exteriorIds = vehicle.defaultPhotos.exterior.map(photo => {
+          if (typeof photo === 'string') {
+            console.log("📸 Exterior photo ID (string):", photo);
+            return photo;
+          } else if (photo && typeof photo === 'object' && photo._id) {
+            console.log("📸 Exterior photo ID (object):", photo._id, photo);
+            return photo._id;
+          }
+          return '';
+        }).filter(id => id !== '');
+        
+        const interiorIds = vehicle.defaultPhotos.interior.map(photo => {
+          if (typeof photo === 'string') {
+            console.log("📸 Interior photo ID (string):", photo);
+            return photo;
+          } else if (photo && typeof photo === 'object' && photo._id) {
+            console.log("📸 Interior photo ID (object):", photo._id, photo);
+            return photo._id;
+          }
+          return '';
+        }).filter(id => id !== '');
+        
+        console.log("📸 Final photo IDs - Exterior:", exteriorIds, "Interior:", interiorIds);
+        
+        setExistingPhotos({
+          exterior: exteriorIds,
+          interior: interiorIds
+        });
+      } else {
+        console.log("📸 No photos in vehicle.defaultPhotos");
+        setExistingPhotos({ exterior: [], interior: [] });
+      }
     }
   }, [vehicle]);
 
@@ -83,12 +133,6 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
       newErrors.plateNumber = "Plate number is required";
     } else if (formData.plateNumber.trim().length < 4) {
       newErrors.plateNumber = "Plate number must be at least 4 characters";
-    }
-
-    if (!formData.vin?.trim()) {
-      newErrors.vin = "VIN is required";
-    } else if (formData.vin.trim().length < 10) {
-      newErrors.vin = "VIN must be at least 10 characters";
     }
 
     if (!formData.brand?.trim()) {
@@ -141,9 +185,23 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
 
     setLoading(true);
     try {
-      await updateVehicle(vehicle._id, {
+      // Keep existing photos (not deleted)
+      const updatedPhotos = {
+        exterior: [...existingPhotos.exterior],
+        interior: [...existingPhotos.interior]
+      };
+      
+      console.log("Updating vehicle - keeping existing photos:", {
+        exterior: existingPhotos.exterior.length, 
+        interior: existingPhotos.interior.length 
+      });
+      
+      // Note: Photo upload during update is not yet implemented
+      // New photos will need to be added separately after backend provides update endpoint
+
+      // Build update data, only include VIN if it has a value (to avoid unique constraint error on empty string)
+      const updateData: any = {
         plateNumber: formData.plateNumber?.trim() || "",
-        vin: formData.vin?.trim() || "",
         brand: formData.brand?.trim() || "",
         model: formData.model?.trim() || "",
         year: formData.year || new Date().getFullYear(),
@@ -154,7 +212,10 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         pricePerHour: formData.pricePerHour || 0,
         status: formData.status || "available",
         station: formData.station?.trim() || "",
-      });
+        defaultPhotos: updatedPhotos,
+      };
+      
+      await updateVehicle(vehicle._id || "", updateData);
 
       // Success - Show popup first, then close modal
       setShowSuccessModal(true);
@@ -179,7 +240,6 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
     if (!loading) {
       setFormData({
         plateNumber: "",
-        vin: "",
         brand: "",
         model: "",
         year: new Date().getFullYear(),
@@ -191,6 +251,8 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
         status: "available",
         station: "",
       });
+      setExistingPhotos({ exterior: [], interior: [] });
+      setNewPhotos({ exterior: [], interior: [] });
       setErrors({});
       setSubmitError("");
       onClose();
@@ -206,7 +268,7 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
           {isOpen && (
             <>
               <motion.div
-                className="fixed inset-0 bg-black/40 z-[9998]"
+                className="fixed inset-0 bg-black/40 z-[9999]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -253,8 +315,8 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                   </div>
                 )}
 
-                {/* Row 1: Plate Number & VIN */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Row 1: Plate Number */}
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Plate Number <span className="text-red-500">*</span>
@@ -282,32 +344,6 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      VIN <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <MdCode className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <input
-                        type="text"
-                        value={formData.vin || ""}
-                        onChange={(e) => {
-                          setFormData({ ...formData, vin: e.target.value.toUpperCase() });
-                          if (errors.vin) setErrors({ ...errors, vin: "" });
-                        }}
-                        className={`w-full pl-10 pr-3 py-2 text-sm border font-mono uppercase ${
-                          errors.vin
-                            ? "border-red-300 bg-red-50/30"
-                            : "border-gray-200 bg-gray-50/50"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
-                        placeholder="Enter VIN"
-                        disabled={loading}
-                      />
-                    </div>
-                    {errors.vin && (
-                      <p className="mt-1 text-xs text-red-500">{errors.vin}</p>
-                    )}
-                  </div>
                 </div>
 
                 {/* Row 2: Brand & Model */}
@@ -377,9 +413,12 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                       <MdCalendarToday className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                       <input
                         type="number"
-                        value={formData.year || new Date().getFullYear()}
+                        min="1900"
+                        max={new Date().getFullYear() + 1}
+                        value={formData.year === 0 ? '' : formData.year}
                         onChange={(e) => {
-                          setFormData({ ...formData, year: parseInt(e.target.value) || new Date().getFullYear() });
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value) || new Date().getFullYear();
+                          setFormData({ ...formData, year: value });
                           if (errors.year) setErrors({ ...errors, year: "" });
                         }}
                         className={`w-full pl-10 pr-3 py-2 text-sm border ${
@@ -387,8 +426,12 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                             ? "border-red-300 bg-red-50/30"
                             : "border-gray-200 bg-gray-50/50"
                         } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
-                        placeholder="Enter year"
+                        placeholder="Select year"
                         disabled={loading}
+                        style={{ 
+                          appearance: 'none',
+                          MozAppearance: 'textfield'
+                        }}
                       />
                     </div>
                     {errors.year && (
@@ -485,9 +528,10 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                       <MdSpeed className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                       <input
                         type="number"
-                        value={formData.mileage || 0}
+                        value={formData.mileage === 0 ? '' : formData.mileage}
                         onChange={(e) => {
-                          setFormData({ ...formData, mileage: parseInt(e.target.value) || 0 });
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          setFormData({ ...formData, mileage: value });
                           if (errors.mileage) setErrors({ ...errors, mileage: "" });
                         }}
                         className={`w-full pl-10 pr-3 py-2 text-sm border ${
@@ -515,9 +559,10 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                       <MdAttachMoney className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                       <input
                         type="number"
-                        value={formData.pricePerDay || 0}
+                        value={formData.pricePerDay === 0 ? '' : formData.pricePerDay}
                         onChange={(e) => {
-                          setFormData({ ...formData, pricePerDay: parseInt(e.target.value) || 0 });
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          setFormData({ ...formData, pricePerDay: value });
                           if (errors.pricePerDay) setErrors({ ...errors, pricePerDay: "" });
                         }}
                         className={`w-full pl-10 pr-3 py-2 text-sm border ${
@@ -542,9 +587,10 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                       <MdAttachMoney className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                       <input
                         type="number"
-                        value={formData.pricePerHour || 0}
+                        value={formData.pricePerHour === 0 ? '' : formData.pricePerHour}
                         onChange={(e) => {
-                          setFormData({ ...formData, pricePerHour: parseInt(e.target.value) || 0 });
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          setFormData({ ...formData, pricePerHour: value });
                           if (errors.pricePerHour) setErrors({ ...errors, pricePerHour: "" });
                         }}
                         className={`w-full pl-10 pr-3 py-2 text-sm border ${
@@ -572,7 +618,7 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                       <select
                         value={formData.status}
                         onChange={(e) => {
-                          setFormData({ ...formData, status: e.target.value });
+                          setFormData({ ...formData, status: e.target.value as "available" | "reserved" | "rented" | "maintenance" });
                           if (errors.status) setErrors({ ...errors, status: "" });
                         }}
                         className={`w-full px-4 py-3 text-sm border ${
@@ -606,25 +652,30 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Station ID <span className="text-red-500">*</span>
+                      Station <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <MdLocationOn className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <input
-                        type="text"
+                      <MdLocationOn className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+                      <select
                         value={formData.station || ""}
                         onChange={(e) => {
                           setFormData({ ...formData, station: e.target.value });
                           if (errors.station) setErrors({ ...errors, station: "" });
                         }}
-                        className={`w-full pl-10 pr-3 py-2 text-sm border font-mono ${
+                        className={`w-full pl-10 pr-3 py-2 text-sm border ${
                           errors.station
                             ? "border-red-300 bg-red-50/30"
-                            : "border-gray-200 bg-gray-50/50"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
-                        placeholder="Enter station ID"
+                            : "border-gray-200 bg-white hover:border-blue-300 focus:border-blue-500"
+                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200`}
                         disabled={loading}
-                      />
+                      >
+                        <option value="">Select a station</option>
+                        {stations.map((station) => (
+                          <option key={station._id} value={station._id}>
+                            {station.name} ({station.code})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     {errors.station && (
                       <p className="mt-1 text-xs text-red-500">{errors.station}</p>
@@ -632,16 +683,126 @@ const UpdateVehicleModal: React.FC<UpdateVehicleModalProps> = ({
                   </div>
                 </div>
 
-                {/* Upload Car Photos */}
+                {/* Current Photos (can be deleted) */}
                 <div className="pt-4 border-t border-gray-100">
                   <h3 className="text-base font-semibold text-gray-800 mb-4">
-                    Vehicle Photos
+                    Current Vehicle Photos
+                  </h3>
+                  
+                  {/* Current Exterior Photos */}
+                  {existingPhotos.exterior.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                        <span className="text-blue-600 font-semibold">Exterior Photos ({existingPhotos.exterior.length})</span>
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {existingPhotos.exterior.map((photoId, index) => {
+                          // Convert photo ID to URL using the utility function
+                          const photoUrl = getPhotoUrls([photoId])[0];
+                          
+                          return (
+                            <div key={`existing-exterior-${photoId}-${index}`} className="relative group">
+                              <img
+                                src={photoUrl}
+                                alt={`Exterior ${index + 1}`}
+                                className="w-full h-32 object-cover rounded-lg border-2 border-blue-200"
+                                onLoad={() => console.log(`✅ Loaded exterior photo:`, photoUrl)}
+                                onError={(e) => {
+                                  console.error(`❌ Failed to load exterior photo ${photoId}`);
+                                  // Show a placeholder on error
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExistingPhotos(prev => ({
+                                    ...prev,
+                                    exterior: prev.exterior.filter(id => id !== photoId)
+                                  }));
+                                }}
+                                disabled={loading}
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 disabled:opacity-50"
+                                title="Delete photo"
+                              >
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Current Interior Photos */}
+                  {existingPhotos.interior.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                        <span className="text-green-600 font-semibold">Interior Photos ({existingPhotos.interior.length})</span>
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {existingPhotos.interior.map((photoId, index) => {
+                          // Convert photo ID to URL using the utility function
+                          const photoUrl = getPhotoUrls([photoId])[0];
+                          
+                          return (
+                            <div key={`existing-interior-${photoId}-${index}`} className="relative group">
+                              <img
+                                src={photoUrl}
+                                alt={`Interior ${index + 1}`}
+                                className="w-full h-32 object-cover rounded-lg border-2 border-green-200"
+                                onLoad={() => console.log(`✅ Loaded interior photo:`, photoUrl)}
+                                onError={(e) => {
+                                  console.error(`❌ Failed to load interior photo ${photoId}`);
+                                  // Show a placeholder on error
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExistingPhotos(prev => ({
+                                    ...prev,
+                                    interior: prev.interior.filter(id => id !== photoId)
+                                  }));
+                                }}
+                                disabled={loading}
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 disabled:opacity-50"
+                                title="Delete photo"
+                              >
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No current photos message */}
+                  {existingPhotos.exterior.length === 0 && existingPhotos.interior.length === 0 && (
+                    <div className="text-center py-4 bg-gray-50 rounded-lg mb-6">
+                      <p className="text-sm text-gray-500">No current photos</p>
+                    </div>
+                  )}
+
+                  {/* Add New Photos */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <h3 className="text-base font-semibold text-gray-800 mb-4">
+                      Add New Photos
                   </h3>
                   <UploadCarPhotos
-                    onPhotosChange={setPhotos}
-                    initialPhotos={photos}
+                      onPhotosChange={setNewPhotos}
+                      initialPhotos={newPhotos}
                     disabled={loading}
                   />
+                  </div>
                 </div>
 
                 {/* Buttons */}

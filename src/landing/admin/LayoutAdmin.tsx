@@ -24,8 +24,8 @@ const LayoutAdminContent: React.FC = () => {
         </div>
       </div>
 
-      {/* Chatbot Component */}
-      <ChatbotAnimated />
+      {/* Chatbot Component - Temporarily hidden */}
+      {/* <ChatbotAnimated /> */}
     </div>
   );
 };

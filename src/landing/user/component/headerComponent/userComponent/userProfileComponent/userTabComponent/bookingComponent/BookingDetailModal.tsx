@@ -10,16 +10,30 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
+  Battery,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import ConfirmModal from "./ConfirmModal";
 import type { Booking } from "../../../../../../../../service/apiBooking/API";
 import bookingApi from "../../../../../../../../service/apiBooking/API";
+import { getVehicleById } from "../../../../../../../../service/apiAdmin/apiVehicles/API";
 
 interface BookingDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   bookingId: string;
+}
+
+// ✅ Enhanced vehicle details type
+interface VehicleDetails {
+  defaultPhotos?: {
+    exterior?: Array<{ url: string }>;
+    interior?: Array<{ url: string }>;
+  };
+  batteryCapacity?: number;
+  mileage?: number;
+  color?: string;
+  year?: number;
 }
 
 const BookingDetailModal = ({
@@ -28,11 +42,15 @@ const BookingDetailModal = ({
   bookingId,
 }: BookingDetailModalProps) => {
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails | null>(
+    null
+  ); // ✅ Vehicle details state
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
+  // ✅ Fetch booking and vehicle details
   useEffect(() => {
     if (isOpen && bookingId) {
       fetchBookingDetails();
@@ -43,8 +61,27 @@ const BookingDetailModal = ({
     try {
       setIsLoading(true);
       setError(null);
-      const data = await bookingApi.getBookingById(bookingId);
-      setBooking(data);
+
+      // Fetch booking
+      const bookingData = await bookingApi.getBookingById(bookingId);
+      setBooking(bookingData);
+
+      // ✅ Fetch vehicle details
+      if (bookingData.vehicle._id) {
+        try {
+          const vehicleData = await getVehicleById(bookingData.vehicle._id);
+          setVehicleDetails({
+            defaultPhotos: vehicleData.defaultPhotos,
+            batteryCapacity: vehicleData.batteryCapacity,
+            mileage: vehicleData.mileage,
+            color: vehicleData.color,
+            year: vehicleData.year,
+          });
+        } catch (vehicleErr) {
+          console.error("Failed to fetch vehicle details:", vehicleErr);
+          // Continue without vehicle details
+        }
+      }
     } catch (err) {
       console.error("Failed to fetch booking details:", err);
       setError("Failed to load booking details");
@@ -100,17 +137,10 @@ const BookingDetailModal = ({
     }).format(new Date(dateString));
   };
 
-  // ✅ Get vehicle image
+  // ✅ Get vehicle image from fetched details
   const getVehicleImage = (): string | null => {
-    if (
-      booking &&
-      typeof booking.vehicle === "object" &&
-      booking.vehicle.defaultPhotos
-    ) {
-      const exteriorPhotos = booking.vehicle.defaultPhotos.exterior;
-      if (exteriorPhotos && exteriorPhotos.length > 0) {
-        return exteriorPhotos[0].url;
-      }
+    if (vehicleDetails?.defaultPhotos?.exterior?.[0]?.url) {
+      return vehicleDetails.defaultPhotos.exterior[0].url;
     }
     return null;
   };
@@ -230,7 +260,7 @@ const BookingDetailModal = ({
                           {/* Gradient overlay */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
 
-                          {/* ✅ Status Badge - Larger and positioned on image */}
+                          {/* Status Badge */}
                           <div className="absolute top-4 right-4">
                             <motion.div
                               initial={{ opacity: 0, scale: 0.8 }}
@@ -255,7 +285,6 @@ const BookingDetailModal = ({
                           </div>
                         </div>
                       ) : (
-                        // Fallback if no image
                         <div className="relative h-64 w-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                           <Car className="w-24 h-24 text-gray-400" />
                           <div className="absolute top-4 right-4">
@@ -308,6 +337,48 @@ const BookingDetailModal = ({
                             )}
                           </p>
                         </div>
+                        {/* ✅ Additional vehicle details */}
+                        {vehicleDetails?.year && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-gray-500 font-medium">
+                              Year
+                            </p>
+                            <p className="text-base font-semibold text-gray-900">
+                              {vehicleDetails.year}
+                            </p>
+                          </div>
+                        )}
+                        {vehicleDetails?.color && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-gray-500 font-medium">
+                              Color
+                            </p>
+                            <p className="text-base font-semibold text-gray-900 capitalize">
+                              {vehicleDetails.color}
+                            </p>
+                          </div>
+                        )}
+                        {vehicleDetails?.batteryCapacity !== undefined && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-gray-500 font-medium flex items-center">
+                              <Battery className="w-3 h-3 mr-1" />
+                              Battery
+                            </p>
+                            <p className="text-base font-semibold text-gray-900">
+                              {vehicleDetails.batteryCapacity}%
+                            </p>
+                          </div>
+                        )}
+                        {vehicleDetails?.mileage !== undefined && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-gray-500 font-medium">
+                              Mileage
+                            </p>
+                            <p className="text-base font-semibold text-gray-900">
+                              {vehicleDetails.mileage.toLocaleString()} km
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
 
@@ -388,7 +459,7 @@ const BookingDetailModal = ({
                       </div>
                     </motion.div>
 
-                    {/* ✅ Payment Info - Green theme */}
+                    {/* Payment Info */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}

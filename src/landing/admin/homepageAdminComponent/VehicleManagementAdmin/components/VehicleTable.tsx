@@ -1,14 +1,17 @@
 import React from "react";
 import { motion } from "framer-motion";
-import VehicleRow, { type Vehicle } from "./VehicleRow";
+import VehicleRow from "./VehicleRow";
+import type { Vehicle } from "../../../../../service/apiAdmin/apiVehicles/API";
 
 interface VehicleTableProps {
   vehicles: Vehicle[];
   onEdit?: (vehicle: Vehicle) => void;
   onDelete?: (vehicleId: string) => void;
   onTransfer?: (vehicle: Vehicle) => void;
-  onMarkMaintenance?: (vehicle: Vehicle) => void;
-  onRowClick?: (vehicle: Vehicle) => void;
+  onReportMaintenance?: (vehicle: Vehicle) => void;
+  onRequestDeletion?: (vehicle: Vehicle) => void;
+  onViewDetails?: (vehicle: Vehicle) => void;
+  getStationName?: (stationId: string) => string;
 }
 
 const VehicleTable: React.FC<VehicleTableProps> = ({
@@ -16,9 +19,22 @@ const VehicleTable: React.FC<VehicleTableProps> = ({
   onEdit,
   onDelete,
   onTransfer,
-  onMarkMaintenance,
-  onRowClick,
+  onReportMaintenance,
+  onRequestDeletion,
+  onViewDetails,
+  getStationName,
 }) => {
+  console.log("📊 VehicleTable rendering with vehicles:", vehicles?.length || 0);
+  
+  // Add safety check
+  if (!vehicles || !Array.isArray(vehicles)) {
+    console.error("❌ VehicleTable: vehicles is not an array:", vehicles);
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
+        <p className="text-red-600">Error: Invalid vehicles data</p>
+      </div>
+    );
+  }
   const headers = [
     "Vehicle Info",
     "License Plate",
@@ -65,19 +81,21 @@ const VehicleTable: React.FC<VehicleTableProps> = ({
             <tbody className="bg-white divide-y divide-gray-200">
               {vehicles.map((vehicle, index) => (
                 <motion.tr
-                  key={vehicle.id}
+                  key={vehicle._id || index}
                   className="hover:bg-gray-50 cursor-pointer"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 + index * 0.1 }}
-                  onClick={() => onRowClick?.(vehicle)}
+                  onClick={() => onViewDetails?.(vehicle)}
                 >
                   <VehicleRow
                     vehicle={vehicle}
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onTransfer={onTransfer}
-                    onMarkMaintenance={onMarkMaintenance}
+                    onReportMaintenance={onReportMaintenance}
+                    onRequestDeletion={onRequestDeletion}
+                    getStationName={getStationName}
                   />
                 </motion.tr>
               ))}

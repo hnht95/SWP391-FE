@@ -44,8 +44,8 @@ export interface Vehicle {
   status: "available" | "reserved" | "rented" | "maintenance";
   station: string | StationData;
   defaultPhotos: {
-    exterior: VehiclePhoto[];
-    interior: VehiclePhoto[];
+    exterior: (string | VehiclePhoto)[];
+    interior: (string | VehiclePhoto)[];
   };
   ratingAvg?: number;
   ratingCount?: number;
@@ -53,6 +53,12 @@ export interface Vehicle {
   maintenanceHistory: any[];
   createdAt?: string;
   updatedAt?: string;
+
+  // Additional fields for UI compatibility
+  image?: string;
+  stationData?: StationData;
+  batteryLevel?: number;
+  isPartnerVehicle?: boolean;  // From backend response
 }
 
 // ✅ API Response formats
@@ -85,7 +91,7 @@ export interface TransferLog {
 
 export interface CreateVehicleData {
   plateNumber: string;
-  vin: string;
+  vin?: string;
   brand: string;
   model: string;
   year: number;
@@ -94,8 +100,16 @@ export interface CreateVehicleData {
   mileage: number;
   pricePerDay: number;
   pricePerHour: number;
-  status: string;
+  status: "available" | "reserved" | "rented" | "maintenance";
   station: string;
+  // For FormData upload
+  exteriorFiles?: File[];
+  interiorFiles?: File[];
+  // For JSON with photo IDs
+  defaultPhotos?: {
+    exterior: string[];
+    interior: string[];
+  };
 }
 
 export interface UpdateVehicleData extends Partial<CreateVehicleData> {}
@@ -103,6 +117,65 @@ export interface UpdateVehicleData extends Partial<CreateVehicleData> {}
 export interface TransferStationData {
   toStationId: string;
   reason?: string;
+}
+
+/**
+ * Utility function to convert photo IDs or objects to URLs
+ * Handles both string IDs and VehiclePhoto objects
+ */
+export const getPhotoUrls = (photos: (string | VehiclePhoto)[]): string[] => {
+  if (!photos || !Array.isArray(photos)) return [];
+  
+  return photos.map((photo) => {
+    // If it's a string, assume it's a photo ID
+    if (typeof photo === 'string') {
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://be-ev-rental-system-production.up.railway.app';
+      return `${baseURL}/uploads/${photo}`;
+    }
+    
+    // If it's an object with url property
+    if (photo && typeof photo === 'object' && photo.url) {
+      return photo.url;
+    }
+    
+    // If it's an object with _id, construct URL
+    if (photo && typeof photo === 'object' && photo._id) {
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://be-ev-rental-system-production.up.railway.app';
+      return `${baseURL}/uploads/${photo._id}`;
+    }
+    
+    return '';
+  }).filter(url => url !== '');
+};
+
+/**
+ * Utility function to extract station ID from vehicle station data
+ * Handles both string IDs and StationData objects
+ */
+export const getStationId = (station: string | StationData | undefined): string => {
+  if (!station) return '';
+  
+  // If it's a string, return it directly
+  if (typeof station === 'string') {
+    return station;
+  }
+  
+  // If it's an object with _id, return the _id
+  if (station && typeof station === 'object' && station._id) {
+    return station._id;
+  }
+  
+  return '';
+};
+
+// ✅ Paginated response interface
+export interface PaginatedResponse<T> {
+  success: boolean;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  items: T[];
 }
 
 // ✅ Error handler
@@ -160,6 +233,7 @@ export const getAllVehicles = async (): Promise<Vehicle[]> => {
 
     throw new Error("Invalid API response format");
   } catch (error) {
+    console.error("❌ Error in getAllVehicles:", error);
     handleError(error);
     throw error;
   }
@@ -180,7 +254,7 @@ export const getVehicleById = async (id: string): Promise<Vehicle> => {
     }
 
     // ✅ Case 2: Direct vehicle object
-    if (response.data._id) {
+    if ((response.data as any)._id) {
       return response.data as any;
     }
 
@@ -207,7 +281,7 @@ export const createVehicle = async (
       return response.data.data;
     }
 
-    if (response.data._id) {
+    if ((response.data as any)._id) {
       return response.data as any;
     }
 
@@ -235,7 +309,7 @@ export const updateVehicle = async (
       return response.data.data;
     }
 
-    if (response.data._id) {
+    if ((response.data as any)._id) {
       return response.data as any;
     }
 
@@ -275,7 +349,7 @@ export const transferVehicleStation = async (
       return response.data.data;
     }
 
-    if (response.data._id) {
+    if ((response.data as any)._id) {
       return response.data as any;
     }
 
@@ -326,6 +400,157 @@ export const getVehicleTransferLogs = async (
     }
 
     return [];
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Vehicle Management Request Functions
+export const reportMaintenance = async (
+  id: string,
+  body: { description: string }
+): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/${id}/report-maintenance`,
+      body
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to report maintenance");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const createDeletionRequest = async (
+  id: string,
+  body: { reason: string }
+): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/${id}/deletion-requests`,
+      body
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to create deletion request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Deletion Requests Management
+export const getDeletionRequests = async (): Promise<any[]> => {
+  try {
+    const response = await api.get<{ success: boolean; data: any[] }>(
+      "/vehicles/deletion-requests"
+    );
+    
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+
+    return [];
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const approveDeletionRequest = async (requestId: string): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/deletion-requests/${requestId}/approve`
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to approve deletion request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const rejectDeletionRequest = async (requestId: string): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/deletion-requests/${requestId}/reject`
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to reject deletion request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Maintenance Requests Management
+export const getMaintenanceRequests = async (): Promise<any[]> => {
+  try {
+    const response = await api.get<{ success: boolean; data: any[] }>(
+      "/vehicles/maintenance-requests"
+    );
+    
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+    
+    return [];
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const approveMaintenanceRequest = async (requestId: string): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/maintenance-requests/${requestId}/approve`
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to approve maintenance request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const rejectMaintenanceRequest = async (requestId: string): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/maintenance-requests/${requestId}/reject`
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error("Failed to reject maintenance request");
   } catch (error) {
     handleError(error);
     throw error;

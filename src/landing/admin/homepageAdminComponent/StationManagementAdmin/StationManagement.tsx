@@ -11,14 +11,29 @@ import MapView from "./MapView";
 import AddStationModal from "./AddStationModal";
 import EditStationModal from "./EditStationModal";
 import MeasurementIndex from "./MeasurementIndex";
-import type { Station, StationFilters as Filters, Pagination } from "./types";
-import SuccessModal from "../StaffManagementAdmin/SuccessModal";
+import SuccessModal from "../UserManagementAdmin/SuccessModal";
 import {
   deleteStation,
   getAllStations,
   type DeleteStationResponse,
+  type Station,
 } from "../../../../service/apiAdmin/apiStation/API";
-import type { Station as APIStation } from "../../../../service/apiAdmin/apiStation/API";
+
+// ✅ Filters type
+interface StationFilters {
+  search: string;
+  status: "all" | "active" | "inactive";
+  page: number;
+  limit: number;
+}
+
+// ✅ Pagination type
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
 
 const StationManagement: React.FC = () => {
   const [stations, setStations] = useState<Station[]>([]);
@@ -39,7 +54,7 @@ const StationManagement: React.FC = () => {
   const [transferToStationId, setTransferToStationId] = useState<string>("");
   const [deleteInlineError, setDeleteInlineError] = useState<string>("");
 
-  const [filters, setFilters] = useState<Filters>({
+  const [filters, setFilters] = useState<StationFilters>({
     search: "",
     status: "all",
     page: 1,
@@ -64,30 +79,12 @@ const StationManagement: React.FC = () => {
         }
         setError(null);
 
-        // ✅ Fetch all stations (API doesn't support pagination params)
-        const apiItems: APIStation[] = await getAllStations();
+        // ✅ Fetch all stations from API
+        const apiItems: Station[] = await getAllStations();
 
-        // ✅ Map API items to UI Station type
-        const stationsData: Station[] = apiItems.map((s) => ({
-          id: s._id, // ✅ Use _id from API
-          name: s.name,
-          code: s.code || "",
-          location: s.location
-            ? {
-                address: s.location.address,
-                latitude: s.location.lat,
-                longitude: s.location.lng,
-              }
-            : { address: "", latitude: 0, longitude: 0 },
-          note: s.note,
-          isActive: s.isActive,
-          createdAt: s.createdAt || "",
-          updatedAt: s.updatedAt || "",
-        }));
-
-        // ✅ Loại bỏ bản ghi không hợp lệ (thiếu tên hoặc id)
-        const cleanedStations = stationsData.filter(
-          (st) => st.id && st.name && st.name.trim().length > 0
+        // ✅ Filter out invalid stations
+        const cleanedStations = apiItems.filter(
+          (st) => st._id && st.name && st.name.trim().length > 0
         );
 
         const total = cleanedStations.length;
@@ -115,7 +112,7 @@ const StationManagement: React.FC = () => {
       }
     },
     [filters.page, filters.limit]
-  ); // Only depend on pagination params
+  );
 
   // Apply client-side filters
   const applyFilters = useCallback(
@@ -128,7 +125,7 @@ const StationManagement: React.FC = () => {
         filtered = filtered.filter(
           (s) =>
             s.name.toLowerCase().includes(searchLower) ||
-            s.code.toLowerCase().includes(searchLower) ||
+            s.code?.toLowerCase().includes(searchLower) ||
             s.location?.address?.toLowerCase().includes(searchLower)
         );
       }
@@ -176,6 +173,7 @@ const StationManagement: React.FC = () => {
     filters.status,
     filters.page,
     filters.limit,
+    stations,
     applyFilters,
   ]);
 
@@ -192,8 +190,7 @@ const StationManagement: React.FC = () => {
     setIsMapVisible(!isMapVisible);
   };
 
-  const handleFiltersChange = (newFilters: Filters) => {
-    // Reset to page 1 when filters change (except pagination)
+  const handleFiltersChange = (newFilters: StationFilters) => {
     if (
       newFilters.search !== filters.search ||
       newFilters.status !== filters.status
@@ -202,7 +199,6 @@ const StationManagement: React.FC = () => {
     } else {
       setFilters(newFilters);
     }
-    // Hiển thị hiệu ứng loading ngắn khi đổi filter (Active/Inactive/All)
     setUiLoading(true);
     window.setTimeout(() => setUiLoading(false), 300);
   };
@@ -243,7 +239,7 @@ const StationManagement: React.FC = () => {
     if (!stationPendingDelete) return;
     try {
       const res: DeleteStationResponse = await deleteStation(
-        stationPendingDelete.id,
+        stationPendingDelete._id,
         transferToStationId || undefined
       );
       await fetchStations(false);
@@ -272,7 +268,7 @@ const StationManagement: React.FC = () => {
     }
   };
 
-  // Calculate stats for MeasurementIndex (from all stations, not filtered)
+  // Calculate stats for MeasurementIndex
   const totalStations = stations.length;
   const activeStations = stations.filter((s) => s.isActive).length;
   const inactiveStations = stations.filter((s) => !s.isActive).length;
@@ -315,7 +311,7 @@ const StationManagement: React.FC = () => {
               {!isMapVisible && (
                 <button
                   onClick={handleAddStation}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 hover:shadow-lg hover:scale-105"
+                  className="flex items-center space-x-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all duration-300 hover:shadow-lg hover:scale-105"
                 >
                   <MdAdd className="w-5 h-5" />
                   <span>Add Station</span>
@@ -440,19 +436,19 @@ const StationManagement: React.FC = () => {
           message={successMessage}
         />
 
-        {/* Confirm Delete Modal (portal + animation mượt như Edit) */}
+        {/* Confirm Delete Modal */}
         {confirmDeleteOpen &&
           createPortal(
             <AnimatePresence>
               <>
                 <motion.div
-                  className="fixed inset-0 bg-black/50 z-[99998]"
+                  className="fixed inset-0 bg-black/50 z-[9999]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setConfirmDeleteOpen(false)}
                 />
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pointer-events-none">
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none">
                   <motion.div
                     className="pointer-events-auto bg-white rounded-2xl shadow-2xl w-full max-w-md"
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -465,7 +461,7 @@ const StationManagement: React.FC = () => {
                         Delete Station
                       </h3>
                       <p className="text-sm text-gray-600 mb-5">
-                        Are you sure you want to delete station {""}
+                        Are you sure you want to delete station{" "}
                         <span className="font-semibold">
                           "{stationPendingDelete?.name}"
                         </span>
@@ -489,9 +485,11 @@ const StationManagement: React.FC = () => {
                               -- Select destination station --
                             </option>
                             {stations
-                              .filter((s) => s.id !== stationPendingDelete?.id)
+                              .filter(
+                                (s) => s._id !== stationPendingDelete?._id
+                              )
                               .map((s) => (
-                                <option key={s.id} value={s.id}>
+                                <option key={s._id} value={s._id}>
                                   {s.name} ({s.code})
                                 </option>
                               ))}
