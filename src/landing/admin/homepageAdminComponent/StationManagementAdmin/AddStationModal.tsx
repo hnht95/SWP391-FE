@@ -292,22 +292,57 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
 
       // Step 4: Log FormData contents
       console.log("\n📦 FormData Contents (will be sent to backend):");
+      console.log("═══════════════════════════════════════════════════════");
       let hasImage = false;
+      const formDataEntries: Record<string, string> = {};
+
       for (const [key, value] of formDataToSend.entries()) {
         if (value instanceof File) {
           hasImage = true;
-          console.log(`  ${key}: [File]`, {
+          const fileInfo = {
             name: value.name,
             type: value.type,
-            size: `${(value.size / 1024).toFixed(2)} KB`,
-          });
+            size: value.size,
+            sizeKB: `${(value.size / 1024).toFixed(2)} KB`,
+            lastModified: new Date(value.lastModified).toISOString(),
+          };
+          console.log(`  ${key}: [File Object]`);
+          console.log(`    - name: ${fileInfo.name}`);
+          console.log(`    - type: ${fileInfo.type}`);
+          console.log(
+            `    - size: ${fileInfo.sizeKB} (${fileInfo.size} bytes)`
+          );
+          console.log(`    - lastModified: ${fileInfo.lastModified}`);
+          formDataEntries[key] = `[File: ${fileInfo.name}]`;
         } else {
-          console.log(`  ${key}:`, value);
+          console.log(`  ${key}: ${value}`);
+          formDataEntries[key] = value as string;
+
+          // Parse location JSON to show structure
+          if (key === "location") {
+            try {
+              const locationObj = JSON.parse(value as string);
+              console.log(`    ↳ Parsed location object:`);
+              console.log(`      - address: ${locationObj.address}`);
+              console.log(`      - lat: ${locationObj.lat}`);
+              console.log(`      - lng: ${locationObj.lng}`);
+            } catch {
+              console.warn(`    ⚠️ Could not parse location JSON`);
+            }
+          }
         }
       }
 
+      console.log("\n🔍 Complete FormData Summary:");
+      console.log(JSON.stringify(formDataEntries, null, 2));
+      console.log("═══════════════════════════════════════════════════════");
+
       if (!hasImage && coverImage) {
-        console.warn("⚠️ WARNING: Image selected but not found in FormData!");
+        console.warn("\n⚠️ WARNING: Image selected but not found in FormData!");
+      }
+
+      if (hasImage) {
+        console.log("\n✅ Image file is attached to FormData as 'coverFile'");
       }
 
       // Step 5: Call API
@@ -347,7 +382,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
         console.log("    uploadedBy:", response.imgStation.uploadedBy);
         console.log("    createdAt:", response.imgStation.createdAt);
         console.log("    updatedAt:", response.imgStation.updatedAt);
-        console.log("    __v:", response.imgStation.__v);
+        console.log("    __v:", response.imgStation);
       } else {
         console.log(
           "  imgStation: ❌ No image (field not present in response)"
@@ -394,19 +429,6 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
         console.error("  message:", error.message);
         console.error("  name:", error.name);
         console.error("  stack:", error.stack);
-      }
-
-      // Log axios error details if available
-      if ((error as any).response) {
-        console.error("\n📥 Backend Error Response:");
-        console.error("  status:", (error as any).response.status);
-        console.error("  statusText:", (error as any).response.statusText);
-        console.error("  data:", (error as any).response.data);
-      }
-
-      if ((error as any).request) {
-        console.error("\n📤 Request Details:");
-        console.error("  Request was made but no response received");
       }
 
       console.error(

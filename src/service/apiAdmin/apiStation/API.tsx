@@ -353,6 +353,7 @@ export function buildCreateStationFormData(
     formData.append("code", data.code.trim());
   }
 
+  // ✅ Backend expects FLAT fields, not JSON string
   formData.append("address", data.address.trim());
   formData.append("lat", data.lat.toString());
   formData.append("lng", data.lng.toString());
@@ -399,6 +400,7 @@ export const buildUpdateStationFormData = (
     formData.append("code", data.code.trim());
   }
 
+  // ✅ Backend expects FLAT fields for update too
   formData.append("address", data.address.trim());
   formData.append("lat", data.lat.toString());
   formData.append("lng", data.lng.toString());
