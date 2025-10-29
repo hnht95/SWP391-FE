@@ -140,43 +140,67 @@ const BookingHistoryTab = () => {
 
         // ✅ Fix: Backend returns "items" not "data"
         if (response.success && response.items) {
+          // ✅ Add debug logging for each booking
+          response.items.forEach((booking: any, index: number) => {
+            console.log(`Booking ${index}:`, {
+              _id: booking._id,
+              vehicle:
+                typeof booking.vehicle === "string"
+                  ? booking.vehicle
+                  : booking.vehicle?._id,
+              station:
+                typeof booking.station === "string"
+                  ? booking.station
+                  : booking.station?._id,
+              hasVehicle: !!booking.vehicle,
+              hasStation: !!booking.station,
+            });
+          });
+
           setBookings(response.items);
 
           // ✅ Fetch vehicle images in parallel
           setLoadingImages(true);
 
-          // ✅ Extract vehicle IDs safely
+          // ✅ Extract vehicle IDs safely with null checks
           const uniqueVehicleIds = [
             ...new Set(
               response.items
-                .map((booking) => {
+                .map((booking: any) => {
+                  if (!booking.vehicle) {
+                    console.warn("⚠️ Booking missing vehicle:", booking._id);
+                    return null;
+                  }
                   // Handle both string and object vehicle
                   if (typeof booking.vehicle === "string") {
                     return booking.vehicle;
                   }
-                  return booking.vehicle._id;
+                  return booking.vehicle?._id;
                 })
                 .filter(Boolean) // Remove null/undefined
             ),
-          ];
+          ] as string[];
 
           console.log("🚗 Unique vehicle IDs:", uniqueVehicleIds);
 
-          const imagePromises = uniqueVehicleIds.map(async (vehicleId) => {
-            const imageUrl = await fetchVehicleThumbnail(vehicleId);
-            return { vehicleId, imageUrl };
-          });
+          if (uniqueVehicleIds.length > 0) {
+            const imagePromises = uniqueVehicleIds.map(async (vehicleId) => {
+              const imageUrl = await fetchVehicleThumbnail(vehicleId);
+              return { vehicleId, imageUrl };
+            });
 
-          const results = await Promise.all(imagePromises);
+            const results = await Promise.all(imagePromises);
 
-          const imagesMap: Record<string, string | null> = {};
-          results.forEach(({ vehicleId, imageUrl }) => {
-            imagesMap[vehicleId] = imageUrl;
-          });
+            const imagesMap: Record<string, string | null> = {};
+            results.forEach(({ vehicleId, imageUrl }) => {
+              imagesMap[vehicleId] = imageUrl;
+            });
 
-          console.log("🖼️ Vehicle images map:", imagesMap);
+            console.log("🖼️ Vehicle images map:", imagesMap);
 
-          setVehicleImages(imagesMap);
+            setVehicleImages(imagesMap);
+          }
+
           setLoadingImages(false);
         } else {
           console.error("❌ Invalid response format:", response);
@@ -253,32 +277,39 @@ const BookingHistoryTab = () => {
         )}
 
         {bookings.map((booking, index) => {
-          // ✅ Handle string or object vehicle
+          // ✅ Handle null/undefined vehicle
+          if (!booking.vehicle) {
+            console.warn("⚠️ Skipping booking without vehicle:", booking._id);
+            return null;
+          }
+
+          // ✅ Handle string or object vehicle with safe checks
           const vehicleId =
             typeof booking.vehicle === "string"
               ? booking.vehicle
-              : booking.vehicle._id;
+              : booking.vehicle?._id || "";
 
           const vehicleBrand =
             typeof booking.vehicle === "string"
               ? "Unknown"
-              : booking.vehicle.brand;
+              : booking.vehicle?.brand || "Unknown";
 
           const vehicleModel =
             typeof booking.vehicle === "string"
               ? "Vehicle"
-              : booking.vehicle.model;
+              : booking.vehicle?.model || "Vehicle";
 
           const vehiclePlate =
             typeof booking.vehicle === "string"
               ? "N/A"
-              : booking.vehicle.plateNumber;
+              : booking.vehicle?.plateNumber || "N/A";
 
-          // ✅ Handle string or object station
-          const stationName =
-            typeof booking.station === "string"
-              ? "N/A"
-              : booking.station?.name || "N/A";
+          // ✅ Handle null/undefined station with safe checks
+          const stationName = !booking.station
+            ? "Station Not Available"
+            : typeof booking.station === "string"
+            ? "N/A"
+            : booking.station?.name || "N/A";
 
           const vehicleImage = vehicleImages[vehicleId];
           const imageLoading = loadingImages && !vehicleImage;
@@ -347,7 +378,7 @@ const BookingHistoryTab = () => {
                     <div className="flex items-center text-gray-600">
                       <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
                       <span className="truncate">
-                        Start-Day: {formatDate(booking.startTime)}
+                        Start: {formatDate(booking.startTime)}
                       </span>
                     </div>
                     <div className="flex items-center text-gray-600">
@@ -357,13 +388,13 @@ const BookingHistoryTab = () => {
                     <div className="flex items-center text-gray-600">
                       <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
                       <span className="truncate">
-                        End-Days: {formatDate(booking.endTime)}
+                        End: {formatDate(booking.endTime)}
                       </span>
                     </div>
                     <div className="flex items-center font-semibold text-green-600">
                       <CreditCard className="w-4 h-4 mr-2 flex-shrink-0" />
                       <span className="truncate">
-                        {booking.amounts.grandTotal.toLocaleString()}đ
+                        {booking.amounts?.grandTotal?.toLocaleString() || "0"}đ
                       </span>
                     </div>
                   </div>
