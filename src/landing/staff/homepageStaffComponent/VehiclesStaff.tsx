@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVehicles, useVehicleOperations } from "../../../hooks/useVehicles";
-
 import {
   MdDirectionsCar,
   MdSearch,
@@ -10,15 +9,15 @@ import {
   MdCalendarToday,
   MdBuild,
   MdAssignment,
-  MdPriorityHigh,
 } from "react-icons/md";
 import CustomSelect from "../../../components/CustomSelect";
 import type { ApiVehicle, Vehicle } from "../../../types/vehicle";
 import { formatDate } from "../../../utils/dateUtils";
 import MaintenanceRequestModal from "../vehiclesComponent/MaintenanceRequestModal";
+import DeletionRequestModal from "../vehiclesComponent/DeletionRequestModal";
 import SuccessNotification from "../vehiclesComponent/SuccessNotification";
 
-// Vehicle Image Carousel Component
+// Minimal Vehicle Image Carousel
 const VehicleImageCarousel = ({
   vehicle,
   loading,
@@ -27,196 +26,84 @@ const VehicleImageCarousel = ({
   loading: boolean;
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-  // Combine all photos
   const allPhotos = [
-    ...(vehicle.defaultPhotos?.exterior || []),
-    ...(vehicle.defaultPhotos?.interior || []),
+    ...(vehicle?.defaultPhotos?.exterior || []),
+    ...(vehicle?.defaultPhotos?.interior || []),
   ];
-
   const hasPhotos = allPhotos.length > 0;
 
   React.useEffect(() => {
     if (!hasPhotos) return;
-
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % allPhotos.length);
-    }, 3000); // Auto-slide every 3 seconds
-
-    return () => clearInterval(interval);
-  }, [allPhotos.length, hasPhotos]);
-
-  const goToPrevious = () => {
-    setCurrentImageIndex(
-      (prev) => (prev - 1 + allPhotos.length) % allPhotos.length
+    const id = setInterval(
+      () => setCurrentImageIndex((i) => (i + 1) % allPhotos.length),
+      3000
     );
-  };
-
-  const goToNext = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % allPhotos.length);
-  };
-
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-xl">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading images...</p>
-        </div>
-      </div>
-    );
-  }
+    return () => clearInterval(id);
+  }, [hasPhotos, allPhotos.length]);
 
   return (
-    <div className="space-y-4">
-      {/* Main Image Display */}
-      <div className="relative aspect-video bg-gray-200 rounded-xl overflow-hidden shadow-lg">
-        {hasPhotos ? (
-          <>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentImageIndex}
-                className="absolute inset-0 flex items-center justify-center"
-                initial={{ opacity: 0, x: 100 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -100 }}
-                transition={{ duration: 0.3 }}
-              >
-                {/* Replace with actual image when available */}
-                <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
-                  <div className="text-center">
-                    <MdDirectionsCar className="w-24 h-24 text-blue-400 mx-auto mb-2" />
-                    <p className="text-gray-600 text-sm">
-                      Photo {currentImageIndex + 1}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Navigation Arrows */}
-            {allPhotos.length > 1 && (
-              <>
-                <button
-                  onClick={goToPrevious}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all hover:scale-110"
-                >
-                  ‹
-                </button>
-                <button
-                  onClick={goToNext}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all hover:scale-110"
-                >
-                  ›
-                </button>
-              </>
-            )}
-
-            {/* Image Counter */}
-            <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
-              {currentImageIndex + 1} / {allPhotos.length}
-            </div>
-          </>
+    <div className="space-y-3">
+      <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-100">
+        {loading ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="animate-pulse h-6 w-6 rounded-full bg-gray-300" />
+          </div>
+        ) : hasPhotos ? (
+          <img
+            src={String(allPhotos[currentImageIndex])}
+            alt="Vehicle"
+            className="w-full h-full object-cover"
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
             <div className="text-center">
-              <MdDirectionsCar className="w-32 h-32 text-gray-300 mx-auto mb-4" />
+              <MdDirectionsCar className="w-20 h-20 text-gray-300 mx-auto mb-2" />
               <p className="text-gray-500">No photos available</p>
             </div>
           </div>
         )}
+        {hasPhotos && (
+          <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+            {currentImageIndex + 1}/{allPhotos.length}
+          </div>
+        )}
       </div>
-
-      {/* Thumbnail Gallery */}
       {hasPhotos && allPhotos.length > 1 && (
         <div className="grid grid-cols-4 gap-2">
-          {allPhotos.slice(0, 8).map((_photo, index) => (
-            <motion.button
-              key={index}
-              onClick={() => setCurrentImageIndex(index)}
-              className={`aspect-video rounded-lg overflow-hidden border-2 transition-all ${
-                currentImageIndex === index
-                  ? "border-blue-500 shadow-md"
+          {allPhotos.slice(0, 8).map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentImageIndex(idx)}
+              className={`aspect-video rounded-lg overflow-hidden border-2 ${
+                currentImageIndex === idx
+                  ? "border-blue-500"
                   : "border-transparent hover:border-gray-300"
               }`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
             >
               <div className="w-full h-full bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center">
-                <span className="text-xs text-gray-500">{index + 1}</span>
+                <span className="text-xs text-gray-500">{idx + 1}</span>
               </div>
-            </motion.button>
+            </button>
           ))}
         </div>
       )}
-
-      {/* Vehicle Quick Info */}
-      <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Status</span>
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              vehicle.status === "available"
-                ? "bg-green-100 text-green-800"
-                : vehicle.status === "reserved"
-                ? "bg-blue-100 text-blue-800"
-                : vehicle.status === "maintenance"
-                ? "bg-red-100 text-red-800"
-                : "bg-gray-100 text-gray-800"
-            }`}
-          >
-            {vehicle.status === "available"
-              ? "Available"
-              : vehicle.status === "reserved"
-              ? "Reserved"
-              : vehicle.status === "maintenance"
-              ? "Maintenance"
-              : vehicle.status === "rented"
-              ? "Rented"
-              : vehicle.status}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Battery Level</span>
-          <div className="flex items-center space-x-2">
-            {vehicle.batteryLevel !== undefined && (
-              <>
-                <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${
-                      vehicle.batteryLevel > 60
-                        ? "bg-green-500"
-                        : vehicle.batteryLevel > 30
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
-                    }`}
-                    style={{ width: `${vehicle.batteryLevel}%` }}
-                  />
-                </div>
-                <span className="text-sm font-semibold text-gray-900">
-                  {vehicle.batteryLevel}%
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
 
 const VehiclesStaff = () => {
   const [activeTab, setActiveTab] = useState<
-    "all" | "available" | "booked" | "maintenance" | "returning"
+    "all" | "available" | "booked" | "deleted" | "maintenance" | "returning"
   >("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedType, setSelectedType] = useState("all");
+
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [detailedVehicle, setDetailedVehicle] = useState<ApiVehicle | null>(
     null
   );
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
+  const [isDeletionModalOpen, setIsDeletionModalOpen] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -252,43 +139,51 @@ const VehiclesStaff = () => {
   };
 
   const vehicles: Vehicle[] =
-    apiVehicles?.map((vehicle: ApiVehicle) => ({
-      id: vehicle.id,
-      licensePlate: vehicle.licensePlate,
-      vin: vehicle.vin,
-      type: "standard" as const, // Default type since API doesn't categorize
-      brand: vehicle.brand,
-      model: vehicle.model,
-      year: vehicle.year,
-      color: vehicle.color,
-      status: vehicle.status,
-      batteryLevel: vehicle.batteryLevel,
-      batteryCapacity: vehicle.batteryCapacity,
-      mileage: vehicle.mileage,
-      pricePerDay: vehicle.pricePerDay,
-      pricePerHour: vehicle.pricePerHour,
-      lastMaintenance:
-        vehicle.maintenanceHistory && vehicle.maintenanceHistory.length > 0
-          ? vehicle.maintenanceHistory[
-              vehicle.maintenanceHistory.length - 1
-            ].reportedAt.split("T")[0]
-          : new Date().toISOString().split("T")[0],
-      rentalHistory: Math.floor(Math.random() * 100), // Mock data for now
-      location: vehicle.station?.location?.address || "N/A",
-      station: vehicle.station,
-      owner: vehicle.owner,
-      company: vehicle.company,
-      valuation: vehicle.valuation,
-      defaultPhotos: vehicle.defaultPhotos,
-      ratingAvg: vehicle.ratingAvg,
-      ratingCount: vehicle.ratingCount,
-      tags: vehicle.tags || [],
-      maintenanceHistory: vehicle.maintenanceHistory || [],
-      createdAt: vehicle.createdAt,
-      updatedAt: vehicle.updatedAt,
-      image: vehicle.imageUrl,
-      notes: `VIN: ${vehicle.vin} | Mileage: ${vehicle.mileage}km | Rating: ${vehicle.ratingAvg}/5`,
-    })) || [];
+    apiVehicles?.map((vehicle: ApiVehicle) => {
+      const normalizedStatus = (
+        vehicle.status === "maintenance"
+          ? "pending_maintenance"
+          : vehicle.status
+      ) as Vehicle["status"];
+
+      return {
+        id: vehicle.id,
+        licensePlate: vehicle.licensePlate,
+        vin: vehicle.vin,
+        type: "standard" as const,
+        brand: vehicle.brand,
+        model: vehicle.model,
+        year: vehicle.year,
+        color: vehicle.color,
+        status: normalizedStatus,
+        batteryLevel: vehicle.batteryLevel,
+        batteryCapacity: vehicle.batteryCapacity,
+        mileage: vehicle.mileage,
+        pricePerDay: vehicle.pricePerDay,
+        pricePerHour: vehicle.pricePerHour,
+        lastMaintenance:
+          vehicle.maintenanceHistory && vehicle.maintenanceHistory.length > 0
+            ? vehicle.maintenanceHistory[
+                vehicle.maintenanceHistory.length - 1
+              ].reportedAt.split("T")[0]
+            : new Date().toISOString().split("T")[0],
+        rentalHistory: Math.floor(Math.random() * 100),
+        location: vehicle.station?.location?.address || "N/A",
+        station: vehicle.station,
+        owner: vehicle.owner,
+        company: vehicle.company,
+        valuation: vehicle.valuation,
+        defaultPhotos: vehicle.defaultPhotos,
+        ratingAvg: vehicle.ratingAvg,
+        ratingCount: vehicle.ratingCount,
+        tags: vehicle.tags || [],
+        maintenanceHistory: vehicle.maintenanceHistory || [],
+        createdAt: vehicle.createdAt,
+        updatedAt: vehicle.updatedAt,
+        image: vehicle.imageUrl,
+        notes: `VIN: ${vehicle.vin} | Mileage: ${vehicle.mileage}km | Rating: ${vehicle.ratingAvg}/5`,
+      };
+    }) || [];
 
   // Fetch all vehicles only once on mount and when page/pageSize changes
   React.useEffect(() => {
@@ -304,27 +199,32 @@ const VehiclesStaff = () => {
     fetchVehicles(filterParams);
   }, [currentPage, pageSize, fetchVehicles]);
 
+  // Reset to first page when search or tab changes (match VehicleHandover behavior)
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeTab]);
+
   const filteredVehicles = vehicles?.filter((vehicle) => {
     const matchesSearch =
       vehicle.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesType = selectedType === "all" || vehicle.type === selectedType;
-
     // Filter based on active tab
     let matchesStatus = true;
     if (activeTab === "available") {
       matchesStatus = vehicle.status === "available";
     } else if (activeTab === "booked") {
-      matchesStatus = vehicle.status === "reserved";
+      matchesStatus = vehicle.status === "rented";
     } else if (activeTab === "maintenance") {
-      matchesStatus = vehicle.status === "maintenance";
+      matchesStatus = vehicle.status === "pending_maintenance";
+    } else if (activeTab === "deleted") {
+      matchesStatus = String(vehicle.status) === "pending_deletion";
     } else if (activeTab === "returning") {
       matchesStatus = vehicle.status === "rented";
     }
 
-    return matchesSearch && matchesType && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
   const getStatusInfo = (status: string) => {
@@ -341,10 +241,16 @@ const VehiclesStaff = () => {
           label: "Rented",
           dotColor: "bg-gray-500",
         };
-      case "maintenance":
+      case "pending_maintenance":
+        return {
+          color: "bg-orange-100 text-orange-800",
+          label: "Maintenance",
+          dotColor: "bg-orange-500",
+        };
+      case "pending_deletion":
         return {
           color: "bg-red-100 text-red-800",
-          label: "Maintenance",
+          label: "Deleted",
           dotColor: "bg-red-500",
         };
       case "reserved":
@@ -364,12 +270,14 @@ const VehiclesStaff = () => {
 
   // Stats based on all vehicles data from API
   const stats = {
-    total: pagination?.total || vehicles?.length || 0,
+    total: pagination?.total ?? vehicles?.length ?? 0,
     available: vehicles?.filter((v) => v.status === "available")?.length || 0,
     booked: vehicles?.filter((v) => v.status === "reserved")?.length || 0,
     maintenance:
-      vehicles?.filter((v) => v.status === "maintenance")?.length || 0,
+      vehicles?.filter((v) => v.status === "pending_maintenance")?.length || 0,
     returning: vehicles?.filter((v) => v.status === "rented")?.length || 0,
+    deleted:
+      vehicles?.filter((v) => v.status === "pending_deletion")?.length || 0,
   };
 
   const handleVehicleClick = async (vehicle: Vehicle) => {
@@ -379,12 +287,10 @@ const VehiclesStaff = () => {
     setDetailedVehicle(null);
 
     try {
-      // Fetch detailed vehicle information
       const detailVehicle = await getVehicleDetail(vehicle.id);
       setDetailedVehicle(detailVehicle);
     } catch (error) {
       console.error("Error fetching vehicle detail:", error);
-      // Keep the basic vehicle info if detail fetch fails
     } finally {
       setLoadingDetail(false);
     }
@@ -420,14 +326,9 @@ const VehiclesStaff = () => {
           </div>
           <button
             onClick={() => {
-              const filterParams: {
-                page?: number;
-                limit?: number;
-              } = {};
-
+              const filterParams: { page?: number; limit?: number } = {};
               filterParams.page = currentPage;
               filterParams.limit = 20;
-
               fetchVehicles(filterParams);
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
@@ -472,26 +373,15 @@ const VehiclesStaff = () => {
             {(
               [
                 { id: "all", label: "All", count: stats.total },
-                {
-                  id: "available",
-                  label: "Available",
-                  count: stats.available,
-                },
-                {
-                  id: "booked",
-                  label: "Booked",
-                  count: stats.booked,
-                },
+                { id: "available", label: "Available", count: stats.available },
+                { id: "booked", label: "Booked", count: stats.booked },
                 {
                   id: "maintenance",
                   label: "Maintenance",
                   count: stats.maintenance,
                 },
-                {
-                  id: "returning",
-                  label: "Returning",
-                  count: stats.returning,
-                },
+                { id: "deleted", label: "Deleted", count: stats.deleted },
+                { id: "returning", label: "Returning", count: stats.returning },
               ] as Array<{ id: typeof activeTab; label: string; count: number }>
             ).map((tab) => (
               <button
@@ -515,15 +405,13 @@ const VehiclesStaff = () => {
 
       {/* Search and Filters Row */}
       <motion.div
-        className="mb-6 bg-white rounded-lg shadow-sm p-4"
+        className="mb-6 bg-white rounded-lg shadow-sm p-4 relative"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
       >
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          {/* Left side - Search */}
+        <div className="flex flex-col  md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
-            {/* Search */}
             <div className="relative flex-1 md:w-80">
               <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
@@ -532,25 +420,6 @@ const VehiclesStaff = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Right side - Vehicle Type Filter */}
-          <div className="flex items-center gap-3">
-            {/* Vehicle Type Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Vehicle Type</span>
-              <CustomSelect
-                value={selectedType}
-                onChange={(val) => setSelectedType(String(val))}
-                options={[
-                  { value: "all", label: "Any" },
-                  { value: "scooter", label: "Scooter" },
-                  { value: "sport", label: "Sport" },
-                  { value: "standard", label: "Standard" },
-                ]}
-                className="w-32"
               />
             </div>
           </div>
@@ -715,10 +584,10 @@ const VehiclesStaff = () => {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-l from-blue-50 to-white">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <MdDirectionsCar className="w-6 h-6 text-blue-600" />
+                  <div className="p-2  rounded-lg">
+                    <MdDirectionsCar className="w-6 h-6 " />
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">
@@ -736,7 +605,7 @@ const VehiclesStaff = () => {
                 </div>
                 <motion.button
                   onClick={handleCloseModal}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                  className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                 >
@@ -744,58 +613,22 @@ const VehiclesStaff = () => {
                 </motion.button>
               </div>
 
-              {/* Modal Content - 2 Column Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 h-[calc(95vh-80px)]">
-                {/* Left Column - Image Carousel */}
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 overflow-y-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 h-[calc(95vh-80px)] bg-gray-50">
+                <div className=" p-6 overflow-y-auto">
                   <VehicleImageCarousel
                     vehicle={detailedVehicle || selectedVehicle}
                     loading={loadingDetail}
                   />
                 </div>
-
-                {/* Right Column - Vehicle Information */}
                 <div className="p-6 overflow-y-auto space-y-4">
-                  {/* Status Badge */}
-                  <div className="flex items-center justify-between mb-4">
-                    <span
-                      className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-                        (detailedVehicle?.status || selectedVehicle.status) ===
-                        "available"
-                          ? "bg-green-100 text-green-800"
-                          : (detailedVehicle?.status ||
-                              selectedVehicle.status) === "reserved"
-                          ? "bg-blue-100 text-blue-800"
-                          : (detailedVehicle?.status ||
-                              selectedVehicle.status) === "maintenance"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {(detailedVehicle?.status || selectedVehicle.status) ===
-                      "available"
-                        ? "✓ Available"
-                        : (detailedVehicle?.status ||
-                            selectedVehicle.status) === "reserved"
-                        ? "📅 Reserved"
-                        : (detailedVehicle?.status ||
-                            selectedVehicle.status) === "maintenance"
-                        ? "🔧 In Maintenance"
-                        : (detailedVehicle?.status ||
-                            selectedVehicle.status) === "rented"
-                        ? "🚗 Rented"
-                        : detailedVehicle?.status || selectedVehicle.status}
-                    </span>
-                  </div>
-
                   {/* Basic Information Card */}
                   <motion.div
-                    className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-5 border border-blue-100"
+                    className=" rounded-xl p-5 shadow border border-slate-100 bg-white"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <MdDirectionsCar className="w-5 h-5 mr-2 text-blue-600" />
+                      <MdDirectionsCar className="w-5 h-5 mr-2 " />
                       Basic Information
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
@@ -863,13 +696,13 @@ const VehiclesStaff = () => {
 
                   {/* Technical Specs Card */}
                   <motion.div
-                    className="bg-gradient-to-br from-purple-50 to-white rounded-xl p-5 border border-purple-100"
+                    className=" rounded-xl p-5 shadow border border-slate-100 bg-white"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                   >
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <MdBuild className="w-5 h-5 mr-2 text-purple-600" />
+                      <MdBuild className="w-5 h-5 mr-2 " />
                       Technical Specifications
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
@@ -907,13 +740,13 @@ const VehiclesStaff = () => {
 
                   {/* Station & Location Card */}
                   <motion.div
-                    className="bg-gradient-to-br from-green-50 to-white rounded-xl p-5 border border-green-100"
+                    className=" rounded-xl p-5 shadow border border-slate-100 bg-white"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                   >
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <MdLocationOn className="w-5 h-5 mr-2 text-green-600" />
+                      <MdLocationOn className="w-5 h-5 mr-2 " />
                       Station & Location
                     </h3>
                     {loadingDetail ? (
@@ -937,16 +770,6 @@ const VehiclesStaff = () => {
                         </div>
                         <div>
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Station Code
-                          </label>
-                          <p className="text-sm font-semibold text-gray-900 mt-1">
-                            {detailedVehicle?.station?.code ||
-                              selectedVehicle.station?.code ||
-                              "N/A"}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                             Address
                           </label>
                           <p className="text-sm text-gray-700 mt-1 leading-relaxed">
@@ -961,13 +784,13 @@ const VehiclesStaff = () => {
 
                   {/* Pricing Card */}
                   <motion.div
-                    className="bg-gradient-to-br from-yellow-50 to-white rounded-xl p-5 border border-yellow-100"
+                    className=" rounded-xl p-5 shadow border border-slate-100 bg-white"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                   >
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <MdAssignment className="w-5 h-5 mr-2 text-yellow-600" />
+                      <MdAssignment className="w-5 h-5 mr-2 " />
                       Pricing & Valuation
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
@@ -1031,13 +854,13 @@ const VehiclesStaff = () => {
                     []
                   ).length > 0 && (
                     <motion.div
-                      className="bg-gradient-to-br from-red-50 to-white rounded-xl p-5 border border-red-100"
+                      className=" rounded-xl p-5 shadow border border-slate-100 bg-white"
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 }}
                     >
                       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                        <MdCalendarToday className="w-5 h-5 mr-2 text-red-600" />
+                        <MdCalendarToday className="w-5 h-5 mr-2 " />
                         Recent Maintenance History
                       </h3>
                       <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -1063,48 +886,90 @@ const VehiclesStaff = () => {
 
                   {/* Action Buttons */}
                   <motion.div
-                    className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-dashed border-gray-300 sticky bottom-0"
+                    className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-dashed  border-gray-300 sticky bottom-0"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
                   >
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <MdPriorityHigh className="w-5 h-5 mr-2 text-gray-600" />
                       Staff Actions
                     </h3>
-                    <div className="grid grid-cols-1 gap-3">
-                      <motion.button
-                        className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2"
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => {
-                          setIsMaintenanceModalOpen(true);
-                        }}
-                      >
-                        <MdBuild className="w-5 h-5" />
-                        <span>Send Maintenance Request</span>
-                      </motion.button>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(() => {
+                        // Determine if maintenance action should be disabled.
+                        const isUnderMaintenance =
+                          detailedVehicle?.status === "maintenance" ||
+                          selectedVehicle?.status === "pending_maintenance";
 
-                      <motion.button
-                        className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2"
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => {
-                          if (
-                            confirm(
-                              "Are you sure you want to send a delete request for this vehicle?"
-                            )
-                          ) {
-                            alert(
-                              "Delete request sent for " +
-                                getPlateNumber(detailedVehicle, selectedVehicle)
-                            );
-                          }
-                        }}
-                      >
-                        <MdClose className="w-5 h-5" />
-                        <span>Send Delete Request</span>
-                      </motion.button>
+                        return (
+                          <motion.button
+                            className={`px-4 py-3 rounded-lg font-semibold border text-orange-600 border-orange-200 bg-gradient-to-l from-white to-orange-100 shadow flex items-center justify-center space-x-2 ${
+                              isUnderMaintenance
+                                ? "opacity-50 cursor-not-allowed hover:shadow-none"
+                                : "hover:shadow-lg"
+                            }`}
+                            whileHover={
+                              isUnderMaintenance
+                                ? undefined
+                                : { scale: 1.02, y: -2 }
+                            }
+                            whileTap={
+                              isUnderMaintenance ? undefined : { scale: 0.98 }
+                            }
+                            onClick={() => {
+                              if (isUnderMaintenance) return;
+                              setIsMaintenanceModalOpen(true);
+                            }}
+                            disabled={isUnderMaintenance}
+                            aria-disabled={isUnderMaintenance}
+                            title={
+                              isUnderMaintenance
+                                ? "Vehicle is under maintenance"
+                                : "Send maintenance request"
+                            }
+                          >
+                            <MdBuild className="w-5 h-5" />
+                            <span>Send Maintenance Request</span>
+                          </motion.button>
+                        );
+                      })()}
+
+                      {(() => {
+                        const isPendingDeletion =
+                          selectedVehicle?.status === "pending_deletion";
+
+                        return (
+                          <motion.button
+                            className={`px-4 py-3 rounded-lg font-semibold border text-rose-600 border-rose-200 bg-gradient-to-l from-white to-rose-100 shadow flex items-center justify-center space-x-2 ${
+                              isPendingDeletion
+                                ? "opacity-50 cursor-not-allowed hover:shadow-none"
+                                : "hover:shadow-lg"
+                            }`}
+                            whileHover={
+                              isPendingDeletion
+                                ? undefined
+                                : { scale: 1.02, y: -2 }
+                            }
+                            whileTap={
+                              isPendingDeletion ? undefined : { scale: 0.98 }
+                            }
+                            onClick={() => {
+                              if (isPendingDeletion) return;
+                              setIsDeletionModalOpen(true);
+                            }}
+                            disabled={isPendingDeletion}
+                            aria-disabled={isPendingDeletion}
+                            title={
+                              isPendingDeletion
+                                ? "Vehicle already has a deletion request"
+                                : "Send delete request"
+                            }
+                          >
+                            <MdClose className="w-5 h-5" />
+                            <span>Send Delete Request</span>
+                          </motion.button>
+                        );
+                      })()}
                     </div>
                   </motion.div>
                 </div>
@@ -1115,167 +980,51 @@ const VehiclesStaff = () => {
       </AnimatePresence>
 
       {/* Pagination */}
-      {pagination && pagination.total > 0 && (
-        <motion.div
-          className="mt-8 bg-white rounded-xl border border-gray-100 p-6 shadow-sm"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
-            {/* Page Size Selector */}
-            <div className="flex items-center space-x-3">
-              <span className="text-sm text-gray-600">Rows per page:</span>
-              <CustomSelect
-                value={pageSize}
-                onChange={(val) => {
-                  setPageSize(Number(val));
-                  setCurrentPage(1);
-                }}
-                options={[10, 20, 50, 100].map((s) => ({
-                  value: s,
-                  label: String(s),
-                }))}
-                className="min-w-[6rem]"
-              />
-              <span className="text-sm text-gray-500">
-                Showing {(currentPage - 1) * pageSize + 1}-
-                {Math.min(currentPage * pageSize, pagination.total)} of{" "}
-                {pagination.total}
-              </span>
-            </div>
-
-            {/* Pagination Controls */}
-            <div className="flex items-center space-x-2">
-              {/* First Page */}
-              <motion.button
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                className={`p-2 rounded-lg transition-colors ${
-                  currentPage === 1
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-500"
-                }`}
-                whileHover={{ scale: currentPage === 1 ? 1 : 1.05 }}
-                whileTap={{ scale: currentPage === 1 ? 1 : 0.95 }}
-              >
-                «
-              </motion.button>
-
-              {/* Previous */}
-              <motion.button
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg transition-colors font-medium ${
-                  currentPage === 1
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-500"
-                }`}
-                whileHover={{ scale: currentPage === 1 ? 1 : 1.05 }}
-                whileTap={{ scale: currentPage === 1 ? 1 : 0.95 }}
-              >
-                Previous
-              </motion.button>
-
-              {/* Page Numbers */}
-              <div className="hidden sm:flex items-center space-x-1">
-                {[...Array(Math.min(5, pagination.totalPages))].map(
-                  (_, idx) => {
-                    let pageNum;
-                    if (pagination.totalPages <= 5) {
-                      pageNum = idx + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = idx + 1;
-                    } else if (currentPage >= pagination.totalPages - 2) {
-                      pageNum = pagination.totalPages - 4 + idx;
-                    } else {
-                      pageNum = currentPage - 2 + idx;
-                    }
-
-                    return (
-                      <motion.button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 h-10 rounded-lg font-medium transition-all ${
-                          currentPage === pageNum
-                            ? "bg-blue-600 text-white shadow-lg"
-                            : "bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-500"
-                        }`}
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        {pageNum}
-                      </motion.button>
-                    );
-                  }
-                )}
-              </div>
-
-              {/* Current Page Input (Mobile) */}
-              <div className="sm:hidden flex items-center space-x-2">
-                <input
-                  type="number"
-                  min="1"
-                  max={pagination.totalPages}
-                  value={currentPage}
-                  onChange={(e) => {
-                    const page = Math.max(
-                      1,
-                      Math.min(pagination.totalPages, Number(e.target.value))
-                    );
-                    if (!isNaN(page)) setCurrentPage(page);
-                  }}
-                  className="w-16 px-2 py-2 border-2 border-gray-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
-                />
-                <span className="text-sm text-gray-600">
-                  / {pagination.totalPages}
-                </span>
-              </div>
-
-              {/* Next */}
-              <motion.button
-                onClick={() =>
-                  setCurrentPage((prev) =>
-                    Math.min(pagination.totalPages, prev + 1)
-                  )
-                }
-                disabled={currentPage === pagination.totalPages}
-                className={`px-4 py-2 rounded-lg transition-colors font-medium ${
-                  currentPage === pagination.totalPages
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-500"
-                }`}
-                whileHover={{
-                  scale: currentPage === pagination.totalPages ? 1 : 1.05,
-                }}
-                whileTap={{
-                  scale: currentPage === pagination.totalPages ? 1 : 0.95,
-                }}
-              >
-                Next
-              </motion.button>
-
-              {/* Last Page */}
-              <motion.button
-                onClick={() => setCurrentPage(pagination.totalPages)}
-                disabled={currentPage === pagination.totalPages}
-                className={`p-2 rounded-lg transition-colors ${
-                  currentPage === pagination.totalPages
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-500"
-                }`}
-                whileHover={{
-                  scale: currentPage === pagination.totalPages ? 1 : 1.05,
-                }}
-                whileTap={{
-                  scale: currentPage === pagination.totalPages ? 1 : 0.95,
-                }}
-              >
-                »
-              </motion.button>
-            </div>
+      {!loading && pagination && (pagination.total ?? 0) > 0 && (
+        <div className="mt-6 flex items-center justify-between border-t pt-4 bg-white rounded-lg p-4">
+          <div className="text-sm text-gray-600">
+            Showing{" "}
+            {pagination.total === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
+            {Math.min(currentPage * pageSize, pagination.total)} of{" "}
+            {pagination.total}
           </div>
-        </motion.div>
+          <div className="flex items-center gap-3">
+            <button
+              className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50 transition-colors"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+            >
+              Prev
+            </button>
+            <span className="text-sm text-gray-700">
+              Page {currentPage} / {pagination.totalPages}
+            </span>
+            <button
+              className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50 transition-colors"
+              onClick={() =>
+                setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
+              }
+              disabled={currentPage >= pagination.totalPages}
+            >
+              Next
+            </button>
+            <CustomSelect
+              className="ml-2"
+              value={pageSize}
+              options={[
+                { value: 5, label: "5 / page" },
+                { value: 10, label: "10 / page" },
+                { value: 20, label: "20 / page" },
+                { value: 50, label: "50 / page" },
+              ]}
+              onChange={(v: string | number) => {
+                setPageSize(Number(v));
+                setCurrentPage(1);
+              }}
+              menuPlacement="top"
+            />
+          </div>
+        </div>
       )}
 
       {/* Maintenance Request Modal */}
@@ -1290,6 +1039,22 @@ const VehiclesStaff = () => {
             setSuccessMessage("Maintenance request submitted successfully!");
             setShowSuccessNotification(true);
             // Refresh vehicle list
+            fetchVehicles();
+          }}
+        />
+      )}
+
+      {/* Deletion Request Modal */}
+      {selectedVehicle && (
+        <DeletionRequestModal
+          isOpen={isDeletionModalOpen}
+          onClose={() => setIsDeletionModalOpen(false)}
+          vehicleId={selectedVehicle.id}
+          vehicleName={`${selectedVehicle.brand} ${selectedVehicle.model}`}
+          licensePlate={getPlateNumber(detailedVehicle, selectedVehicle)}
+          onSuccess={() => {
+            setSuccessMessage("Deletion request submitted successfully!");
+            setShowSuccessNotification(true);
             fetchVehicles();
           }}
         />

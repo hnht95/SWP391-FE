@@ -19,7 +19,7 @@ import type {
   CreateBookingResponse,
 } from "../../../types/bookings";
 import type { RawApiVehicle } from "../../../types/vehicle";
-import { getAllStations, type Station } from "../../../service/apiAdmin/apiStation/API";
+import { getAllStations } from "../../../service/apiAdmin/apiStation/API";
 import { formatDateTime } from "../../../utils/dateUtils";
 import useDebounce from "../../../hooks/useDebounce";
 
