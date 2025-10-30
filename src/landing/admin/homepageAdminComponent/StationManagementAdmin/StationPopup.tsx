@@ -7,7 +7,7 @@ interface StationPopupProps {
 export const createPopupContent = (station: Station): string => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("vi-VN", {
+    return date.toLocaleDateString("en-US", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -58,23 +58,23 @@ export const createPopupContent = (station: Station): string => {
 
       <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 10px;">
         <div style="padding: 10px; background-color: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
-          <div style="font-size: 10px; color: #6b7280; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📍 Địa chỉ</div>
+          <div style="font-size: 10px; color: #6b7280; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📍 Address</div>
           <div style="font-size: 13px; color: #111827; line-height: 1.5;">${
-            station.location?.address || "Chưa cập nhật"
+            station.location?.address || "Not updated"
           }</div>
         </div>
 
         ${
           station.note
             ? `<div style="padding: 10px; background-color: #fef3c7; border-radius: 6px; border-left: 4px solid #f59e0b;">
-                <div style="font-size: 10px; color: #92400e; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📝 Ghi chú</div>
+                <div style="font-size: 10px; color: #92400e; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📝 Note</div>
                 <div style="font-size: 12px; color: #78350f; line-height: 1.5;">${station.note}</div>
               </div>`
             : ""
         }
 
         <div style="padding: 10px; background-color: #eff6ff; border-radius: 6px; border: 1px solid #bfdbfe;">
-          <div style="font-size: 10px; color: #1e40af; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🌍 Tọa độ</div>
+          <div style="font-size: 10px; color: #1e40af; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🌍 Coordinates</div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
             <div>
               <div style="font-size: 10px; color: #6b7280; margin-bottom: 2px;">Latitude</div>
@@ -92,12 +92,37 @@ export const createPopupContent = (station: Station): string => {
         </div>
 
         <div style="padding: 10px; background-color: #1f2937; border-radius: 6px;">
-          <div style="font-size: 10px; color: #9ca3af; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📅 Ngày tạo</div>
+          <div style="font-size: 10px; color: #9ca3af; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📅 Created</div>
           <div style="font-size: 12px; font-weight: 600; color: white;">${formatDate(
             station.createdAt
           )}</div>
         </div>
       </div>
+    </div>
+  `;
+};
+
+// ✅ Create tooltip content (shown on hover)
+export const createTooltipContent = (station: Station): string => {
+  const statusColor = station.isActive ? "#10b981" : "#ef4444";
+  const statusText = station.isActive ? "Active" : "Inactive";
+
+  return `
+    <div style="font-family: system-ui, -apple-system, sans-serif; min-width: 200px;">
+      <div style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 6px;">
+        📍 ${station.name}
+      </div>
+      <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">
+        ${station.location?.address || "Not updated"}
+      </div>
+      <div style="display: inline-block; font-size: 11px; font-weight: 600; color: ${statusColor}; background: ${statusColor}20; padding: 2px 8px; border-radius: 4px;">
+        ${statusText}
+      </div>
+      ${
+        station.code
+          ? `<div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Code: ${station.code}</div>`
+          : ""
+      }
     </div>
   `;
 };
@@ -150,17 +175,17 @@ const StationPopup: React.FC<StationPopupProps> = ({ station }) => {
       <div className="space-y-2">
         <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
           <div className="text-xs text-gray-600 font-semibold mb-1">
-            📍 Địa chỉ
+            📍 Address
           </div>
           <div className="text-sm text-gray-900">
-            {station.location?.address || "Chưa cập nhật"}
+            {station.location?.address || "Not updated"}
           </div>
         </div>
 
         {station.note && (
           <div className="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-400">
             <div className="text-xs text-yellow-900 font-semibold mb-1">
-              📝 Ghi chú
+              📝 Note
             </div>
             <div className="text-xs text-yellow-800">{station.note}</div>
           </div>
@@ -168,7 +193,7 @@ const StationPopup: React.FC<StationPopupProps> = ({ station }) => {
 
         <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
           <div className="text-xs text-blue-900 font-semibold mb-2">
-            🌍 Tọa độ
+            🌍 Coordinates
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
@@ -188,10 +213,10 @@ const StationPopup: React.FC<StationPopupProps> = ({ station }) => {
 
         <div className="bg-gray-900 p-3 rounded-lg">
           <div className="text-xs text-gray-400 font-semibold mb-1">
-            📅 Ngày tạo
+            📅 Created
           </div>
           <div className="text-sm font-semibold text-white">
-            {new Date(station.createdAt).toLocaleDateString("vi-VN", {
+            {new Date(station.createdAt).toLocaleDateString("en-US", {
               day: "2-digit",
               month: "2-digit",
               year: "numeric",
