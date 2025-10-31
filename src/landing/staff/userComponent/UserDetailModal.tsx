@@ -183,7 +183,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({
                   <label className="text-sm font-medium text-gray-600">
                     CCCD
                   </label>
-                  <p className="text-gray-900">{user.cccd || "N/A"}</p>
+                  <p className="text-gray-900">{user.kyc.idNumber || "N/A"}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-600">

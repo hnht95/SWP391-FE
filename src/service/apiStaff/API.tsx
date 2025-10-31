@@ -229,6 +229,28 @@ export const staffAPI = {
       throw error;
     }
   },
+
+  // Verify user KYC (approve)
+  verifyKYC: async (userId: string) => {
+    try {
+      const response = await api.patch(`/users/${userId}/kyc/verify`);
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Unverify user KYC (reject)
+  unverifyKYC: async (userId: string) => {
+    try {
+      const response = await api.patch(`/api/users/${userId}/kyc/unverify`);
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
 };
 
 export default staffAPI;

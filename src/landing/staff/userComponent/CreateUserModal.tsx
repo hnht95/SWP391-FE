@@ -49,19 +49,19 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   // Validate password strength
   const validatePassword = (password: string): string | null => {
     if (password.length < 6) {
-      return "Mật khẩu phải có ít nhất 6 ký tự";
+      return "Password must be at least 6 characters";
     }
     if (!/[A-Z]/.test(password)) {
-      return "Mật khẩu phải có ít nhất 1 chữ HOA";
+      return "Password must contain at least 1 uppercase letter";
     }
     if (!/[a-z]/.test(password)) {
-      return "Mật khẩu phải có ít nhất 1 chữ thường";
+      return "Password must contain at least 1 lowercase letter";
     }
     if (!/[0-9]/.test(password)) {
-      return "Mật khẩu phải có ít nhất 1 số";
+      return "Password must contain at least 1 number";
     }
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      return "Mật khẩu phải có ít nhất 1 ký tự đặc biệt";
+      return "Password must contain at least 1 special character";
     }
     return null;
   };
@@ -69,7 +69,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   // Validate phone number
   const validatePhone = (phone: string): string | null => {
     if (!/^0\d{9}$/.test(phone)) {
-      return "Số điện thoại phải có 10 số và bắt đầu bằng 0";
+      return "Phone number must have 10 digits and start with 0";
     }
     return null;
   };
@@ -78,7 +78,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const validateEmail = (email: string): string | null => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return "Email không hợp lệ";
+      return "Invalid email address";
     }
     return null;
   };
@@ -91,7 +91,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
 
     // Validate all required fields
     if (!createForm.name || !createForm.email || !createForm.phone) {
-      setCreateError("Vui lòng nhập đầy đủ họ tên, email và số điện thoại.");
+      setCreateError("Please enter full name, email and phone number.");
       return;
     }
 
@@ -117,7 +117,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
     }
 
     if (createForm.password !== createForm.confirmPassword) {
-      setCreateError("Mật khẩu xác nhận không khớp.");
+      setCreateError("Confirmation password does not match.");
       return;
     }
 
@@ -182,7 +182,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
         error instanceof Error
           ? error.message
           : (error as { response?: { data?: { message?: string } } })?.response
-              ?.data?.message || "Không thể tạo tài khoản.";
+              ?.data?.message || "Unable to create account.";
       setCreateError(errorMessage);
     } finally {
       setCreating(false);
@@ -207,10 +207,10 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
             >
               <MdCheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
               <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                Tạo tài khoản thành công!
+                Account created successfully!
               </h3>
               <p className="text-gray-600">
-                Tài khoản mới đã được tạo và thêm vào danh sách người dùng.
+                New account has been created and added to the user list.
               </p>
             </motion.div>
           </motion.div>
@@ -243,22 +243,13 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Create new account
             </h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Already A Member?{" "}
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-blue-600 hover:underline"
-              >
-                Log In
-              </button>
-            </p>
+            <p className="text-sm text-gray-600 mb-6">Already A Member? </p>
             <form className="space-y-4" onSubmit={handleCreateSubmit}>
               <div className="flex items-center justify-between gap-2">
                 {" "}
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-gray-900 mb-2">
-                    Họ tên
+                    Full Name
                   </label>
                   <div className="relative">
                     <MdPerson className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -269,7 +260,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                       onChange={(e) =>
                         setCreateForm((s) => ({ ...s, name: e.target.value }))
                       }
-                      placeholder="Nguyễn Văn A"
+                      placeholder="John Doe"
                       required
                     />
                   </div>
@@ -296,7 +287,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
               <div className="flex items-center justify-between gap-2">
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-gray-900 mb-2">
-                    Số điện thoại
+                    Phone Number
                   </label>
                   <div className="relative">
                     <MdPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -314,7 +305,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 </div>
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-gray-900 mb-2">
-                    Giới tính
+                    Gender
                   </label>
                   <select
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-gray-50"
@@ -326,16 +317,16 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                       }))
                     }
                   >
-                    <option value="male">Nam</option>
-                    <option value="female">Nữ</option>
-                    <option value="other">Khác</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Mật khẩu
+                  Password
                 </label>
                 <div className="relative">
                   <MdLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -349,14 +340,14 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                         password: e.target.value,
                       }))
                     }
-                    placeholder="Tối thiểu 6 ký tự, bao gồm chữ HOA, số và ký tự đặc biệt"
+                    placeholder="Minimum 6 characters, including uppercase, number and special character"
                     required
                   />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Xác nhận mật khẩu
+                  Confirm Password
                 </label>
                 <div className="relative">
                   <MdLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -370,7 +361,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                         confirmPassword: e.target.value,
                       }))
                     }
-                    placeholder="Nhập lại mật khẩu"
+                    placeholder="Re-enter password"
                     required
                   />
                 </div>
@@ -391,7 +382,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 whileHover={{ scale: creating ? 1 : 1.02 }}
                 whileTap={{ scale: creating ? 1 : 0.98 }}
               >
-                {creating ? "Đang tạo..." : "Create account"}
+                {creating ? "Creating..." : "Create account"}
               </motion.button>
             </form>
           </div>

@@ -10,23 +10,23 @@ interface UserStatsCardsProps {
 const UserStatsCards: React.FC<UserStatsCardsProps> = ({ stats }) => {
   const statCards = [
     {
-      title: "Tổng người dùng",
+      title: "Total Users",
       value: stats.total,
-      subtitle: "Tất cả khách hàng thuê xe",
+      subtitle: "All car rental customers",
       icon: MdPerson,
       color: "blue",
     },
     {
-      title: "Đang hoạt động",
+      title: "Active",
       value: stats.active,
-      subtitle: "Tài khoản đang hoạt động",
+      subtitle: "Active accounts",
       icon: MdCheckCircle,
       color: "green",
     },
     {
-      title: "Đã khóa",
+      title: "Locked",
       value: stats.locked,
-      subtitle: "Tài khoản bị hạn chế",
+      subtitle: "Restricted accounts",
       icon: MdBlock,
       color: "red",
     },
