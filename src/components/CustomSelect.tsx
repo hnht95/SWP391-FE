@@ -48,10 +48,10 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const baseBtn = `relative w-full min-w-[12rem] select-none border-2 rounded-xl px-4 py-3 bg-white text-gray-900 flex items-center justify-between shadow-sm transition-all ${
+  const baseBtn = `relative w-full min-w-[12rem] select-none border border-gray-300 rounded-xl px-4 py-3 bg-white text-gray-900 flex items-center justify-between shadow-sm transition-all ${
     disabled
       ? "opacity-60 cursor-not-allowed"
-      : "cursor-pointer hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500"
+      : "cursor-pointer hover:shadow-md focus-within:ring-2 focus-within:ring-gray-300"
   }`;
 
   return (

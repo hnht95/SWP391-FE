@@ -168,6 +168,54 @@ export type PaginatedBookingsResponse = {
   items: Booking[];
 };
 
+// ==== Admin Transactions types ====
+export type AdminTransactionStatus =
+  | "none"
+  | "pending"
+  | "captured"
+  | "failed"
+  | "refunded";
+
+export type AdminTransactionItem = {
+  _id: string;
+  renter: string;
+  vehicle: string | null;
+  station: string | null;
+  company: string | null;
+  status: BookingStatus; // booking status from sample
+  deposit: {
+    amount: number;
+    currency: string;
+    providerRef: string | null;
+    status: AdminTransactionStatus;
+    payos?: {
+      orderCode: number;
+      paymentLinkId: string;
+      checkoutUrl: string;
+      qrCode: string;
+      paidAt?: string;
+    };
+  };
+  amounts: { totalPaid: number };
+  createdAt: string;
+  updatedAt: string;
+  bookingId: string;
+  _dateSort?: string;
+  renterInfo?: { _id: string; name: string; email: string; phone: string };
+  vehicleInfo?:
+    | null
+    | { _id: string; plateNumber: string; brand: string; model: string };
+  stationInfo?: null | { _id: string; name: string };
+  companyInfo?: null | { _id: string; name: string };
+};
+
+export type AdminTransactionsResponse = {
+  page: number;
+  limit: number;
+  total: number;
+  items: AdminTransactionItem[];
+};
+
 // ✅ Query params
 export type BookingQueryParams = {
   page?: number;
@@ -494,6 +542,66 @@ export const refundBooking = async (
   }
 };
 
+/**
+ * GET /api/bookings/admin/transactions
+ * Admin list payment transactions with filters
+ */
+export const getAdminTransactions = async (
+  params: {
+    provider?: string;
+    status?: AdminTransactionStatus | "--";
+    companyId?: string;
+    renterId?: string;
+    vehicleId?: string;
+    search?: string; // orderCode or paymentLinkId
+    from?: string; // ISO date string
+    to?: string; // ISO date string
+    dateField?: "createdAt" | "updatedAt";
+    page?: number;
+    limit?: number;
+  } = {}
+): Promise<AdminTransactionsResponse> => {
+  try {
+    const {
+      provider,
+      status,
+      companyId,
+      renterId,
+      vehicleId,
+      search,
+      from,
+      to,
+      dateField,
+      page = 1,
+      limit = 20,
+    } = params;
+
+    const response = await api.get<AdminTransactionsResponse>(
+      "/bookings/admin/transactions",
+      {
+        params: {
+          page,
+          limit,
+          ...(provider && { provider }),
+          ...(status && status !== "--" && { status }),
+          ...(companyId && { companyId }),
+          ...(renterId && { renterId }),
+          ...(vehicleId && { vehicleId }),
+          ...(search && { search }),
+          ...(from && { from }),
+          ...(to && { to }),
+          ...(dateField && { dateField }),
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    handleError(error, "getAdminTransactions");
+    throw error;
+  }
+};
+
 // ============ HELPER FUNCTIONS ============
 
 export const getBookingStatusColor = (status: BookingStatus): string => {
@@ -582,6 +690,7 @@ const bookingApi = {
   getPaymentStatus,
   cancelBooking,
   refundBooking,
+  getAdminTransactions,
   getBookingStatusColor,
   getBookingStatusLabel,
   getDepositStatusColor,

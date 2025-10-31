@@ -62,15 +62,6 @@ export interface Vehicle {
 }
 
 // ✅ API Response formats
-interface VehicleApiResponse {
-  success: boolean;
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  items: Vehicle[];
-}
-
 interface SingleVehicleResponse {
   success: boolean;
   data: Vehicle;
@@ -102,6 +93,9 @@ export interface CreateVehicleData {
   pricePerHour: number;
   status: "available" | "reserved" | "rented" | "maintenance";
   station: string;
+  valuation?: {
+    valueVND: number;
+  };
   // For FormData upload
   exteriorFiles?: File[];
   interiorFiles?: File[];
@@ -239,6 +233,66 @@ export const getAllVehicles = async (): Promise<Vehicle[]> => {
   }
 };
 
+// Paginated vehicles list
+export interface VehiclesPaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export const getVehiclesPaginated = async (
+  page = 1,
+  limit = 20
+): Promise<{ items: Vehicle[]; pagination: VehiclesPaginationMeta }> => {
+  try {
+    const response = await api.get<{ success?: boolean; items?: Vehicle[]; data?: Vehicle[]; page?: number; limit?: number; total?: number; totalPages?: number; pagination?: VehiclesPaginationMeta }>(
+      "/vehicles",
+      { params: { page, limit } }
+    );
+
+    // Swagger style: { success, items, pagination }
+    if (Array.isArray(response.data?.items)) {
+      return {
+        items: response.data.items,
+        pagination: response.data.pagination || {
+          page: response.data.page || page,
+          limit: response.data.limit || limit,
+          total: response.data.total || response.data.items.length,
+          totalPages: response.data.totalPages || 1,
+        },
+      };
+    }
+
+    // Alternative: { success, data, page, limit, total, totalPages }
+    if (Array.isArray(response.data?.data)) {
+      return {
+        items: response.data.data,
+        pagination: {
+          page: response.data.page || page,
+          limit: response.data.limit || limit,
+          total: response.data.total || response.data.data.length,
+          totalPages: response.data.totalPages || 1,
+        },
+      };
+    }
+
+    // Fallback direct array
+    if (Array.isArray(response.data)) {
+      const items = response.data as unknown as Vehicle[];
+      return {
+        items,
+        pagination: { page, limit, total: items.length, totalPages: 1 },
+      };
+    }
+
+    return { items: [], pagination: { page, limit, total: 0, totalPages: 1 } };
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
 /**
  * GET /api/vehicles/:id
  */
@@ -272,9 +326,53 @@ export const createVehicle = async (
   vehicleData: CreateVehicleData
 ): Promise<Vehicle> => {
   try {
+    // Check if we need to send as FormData (has files)
+    const hasFiles = vehicleData.exteriorFiles?.length || vehicleData.interiorFiles?.length;
+    
+    let payload: any;
+    let headers: any = {};
+    
+    if (hasFiles) {
+      // Create FormData for file upload
+      const formData = new FormData();
+      
+      // Append all text fields
+      if (vehicleData.plateNumber) formData.append('plateNumber', vehicleData.plateNumber);
+      if (vehicleData.brand) formData.append('brand', vehicleData.brand);
+      if (vehicleData.model) formData.append('model', vehicleData.model);
+      if (vehicleData.year) formData.append('year', vehicleData.year.toString());
+      if (vehicleData.color) formData.append('color', vehicleData.color);
+      if (vehicleData.batteryCapacity) formData.append('batteryCapacity', vehicleData.batteryCapacity.toString());
+      if (vehicleData.mileage) formData.append('mileage', vehicleData.mileage.toString());
+      if (vehicleData.pricePerDay) formData.append('pricePerDay', vehicleData.pricePerDay.toString());
+      if (vehicleData.pricePerHour) formData.append('pricePerHour', vehicleData.pricePerHour.toString());
+      if (vehicleData.status) formData.append('status', vehicleData.status);
+      if (vehicleData.station) formData.append('station', vehicleData.station);
+      if (vehicleData.valuation) formData.append('valuation', JSON.stringify(vehicleData.valuation));
+      
+      // Append files
+      if (vehicleData.exteriorFiles) {
+        vehicleData.exteriorFiles.forEach((file) => {
+          formData.append('exteriorFiles', file);
+        });
+      }
+      if (vehicleData.interiorFiles) {
+        vehicleData.interiorFiles.forEach((file) => {
+          formData.append('interiorFiles', file);
+        });
+      }
+      
+      payload = formData;
+      headers = { 'Content-Type': 'multipart/form-data' };
+    } else {
+      // Send as JSON if no files
+      payload = vehicleData;
+    }
+    
     const response = await api.post<SingleVehicleResponse>(
       "/vehicles",
-      vehicleData
+      payload,
+      hasFiles ? { headers } : undefined
     );
 
     if (response.data.success && response.data.data) {
@@ -300,20 +398,141 @@ export const updateVehicle = async (
   vehicleData: UpdateVehicleData
 ): Promise<Vehicle> => {
   try {
-    const response = await api.put<SingleVehicleResponse>(
-      `/vehicles/${id}`,
-      vehicleData
-    );
+    console.log("🔄 Updating vehicle with data:", vehicleData);
+    
+    // Separate files and photos from other data to avoid backend transaction requirements
+    const { exteriorFiles, interiorFiles, defaultPhotos, ...restData } = vehicleData as any;
+    
+    // Normalize station to ID string if object provided
+    let normalizedStation: string | undefined = undefined;
+    if (typeof restData.station !== 'undefined') {
+      normalizedStation = getStationId(restData.station);
+    }
+    
+    const basePayload: any = { ...restData };
+    if (typeof normalizedStation !== 'undefined' && normalizedStation) {
+      basePayload.station = normalizedStation;
+    } else if (typeof restData.station !== 'undefined') {
+      // Explicitly remove station if it's an object and no id resolved
+      delete basePayload.station;
+    }
+    
+    // Never send defaultPhotos in the main update; handled by separate upload step
+    if (typeof basePayload.defaultPhotos !== 'undefined') delete basePayload.defaultPhotos;
+    
+    // Remove undefined fields to prevent schema validation noise
+    Object.keys(basePayload).forEach((k) => {
+      if (typeof basePayload[k] === 'undefined' || basePayload[k] === null) {
+        delete basePayload[k];
+      }
+    });
+    
+    // First, update vehicle data without files
+    console.log("📡 Step 1: Updating vehicle basic info...");
+    
+    let response: { data: any };
+    try {
+      response = await api.put<SingleVehicleResponse>(
+        `/vehicles/${id}`,
+        basePayload
+      );
+    } catch (err: any) {
+      const msg = (err?.response?.data?.message || err?.message || '').toString();
+      const needRetry = /action|type|source/i.test(msg);
+      if (!needRetry) {
+        throw err;
+      }
+      // Retry once with ultra-minimal payload to avoid transaction plugin requirements
+      const minimalPayload: any = {
+        plateNumber: basePayload.plateNumber,
+        brand: basePayload.brand,
+        model: basePayload.model,
+        year: basePayload.year,
+        color: basePayload.color,
+        batteryCapacity: basePayload.batteryCapacity,
+        mileage: basePayload.mileage,
+        pricePerDay: basePayload.pricePerDay,
+        pricePerHour: basePayload.pricePerHour,
+        status: basePayload.status,
+      };
+      if (basePayload.station) minimalPayload.station = basePayload.station;
+      response = await api.put<SingleVehicleResponse>(`/vehicles/${id}`, minimalPayload);
+    }
 
+    console.log("✅ Update response:", response.data);
+
+    let updatedVehicle: Vehicle;
     if (response.data.success && response.data.data) {
-      return response.data.data;
+      updatedVehicle = response.data.data;
+    } else if ((response.data as any)._id) {
+      updatedVehicle = response.data as any;
+    } else {
+      throw new Error("Failed to update vehicle");
     }
-
-    if ((response.data as any)._id) {
-      return response.data as any;
+    
+    // If there are new files to upload, do it in a separate request
+    const hasNewFiles = exteriorFiles?.length || interiorFiles?.length;
+    
+    if (hasNewFiles) {
+      console.log("📤 Step 2: Uploading new photos...");
+      console.log("New files:", {
+        exterior: exteriorFiles?.length || 0,
+        interior: interiorFiles?.length || 0
+      });
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      
+      // Append files
+      if (exteriorFiles) {
+        exteriorFiles.forEach((file: File) => {
+          formData.append('exteriorFiles', file);
+        });
+      }
+      if (interiorFiles) {
+        interiorFiles.forEach((file: File) => {
+          formData.append('interiorFiles', file);
+        });
+      }
+      
+      // Send files to update photos with mode as query parameter
+      const photosResponse = await api.put<SingleVehicleResponse>(
+        `/vehicles/${id}?mode=append`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          }
+        }
+      );
+      
+      console.log("✅ Photos upload response:", photosResponse.data);
+      console.log("📸 Photos in response:", {
+        exterior: photosResponse.data.data?.defaultPhotos?.exterior?.length || 0,
+        interior: photosResponse.data.data?.defaultPhotos?.interior?.length || 0,
+        hasData: !!photosResponse.data.data,
+        fullData: photosResponse.data.data?.defaultPhotos
+      });
+      
+      // Always fetch the vehicle again to get the most up-to-date data including photos
+      if (photosResponse.data.success) {
+        console.log("🔄 Fetching updated vehicle data to get photos...");
+        
+        // Wait a bit for backend to process files (1 second delay)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const updatedVehicleWithPhotos = await getVehicleById(id);
+        
+        console.log("✅ Updated vehicle with photos:", {
+          exterior: updatedVehicleWithPhotos.defaultPhotos?.exterior?.length || 0,
+          interior: updatedVehicleWithPhotos.defaultPhotos?.interior?.length || 0
+        });
+        
+        return updatedVehicleWithPhotos;
+      }
     }
-
-    throw new Error("Failed to update vehicle");
+    
+    return updatedVehicle;
   } catch (error) {
     handleError(error);
     throw error;
@@ -452,10 +671,16 @@ export const createDeletionRequest = async (
 // Deletion Requests Management
 export const getDeletionRequests = async (): Promise<any[]> => {
   try {
-    const response = await api.get<{ success: boolean; data: any[] }>(
+    const response = await api.get<{ success: boolean; data?: any[]; items?: any[]; pagination?: any }>(
       "/vehicles/deletion-requests"
     );
     
+    // Swagger variant: { success, items: [], pagination }
+    if (response.data && response.data.success && Array.isArray(response.data.items)) {
+      return response.data.items as any[];
+    }
+
+    // Older variant: { success, data: [] }
     if (response.data.success && Array.isArray(response.data.data)) {
       return response.data.data;
     }
@@ -465,6 +690,57 @@ export const getDeletionRequests = async (): Promise<any[]> => {
     }
 
     return [];
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Paginated variant helper for deletion requests
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export const getDeletionRequestsPaginated = async (
+  page = 1,
+  limit = 20
+): Promise<{ items: any[]; pagination: PaginationMeta }> => {
+  try {
+    const response = await api.get<{ success?: boolean; items?: any[]; data?: any[]; pagination?: PaginationMeta }>(
+      "/vehicles/deletion-requests",
+      { params: { page, limit } }
+    );
+
+    // Prefer Swagger shape: { success, items, pagination }
+    if (Array.isArray(response.data?.items)) {
+      return {
+        items: response.data.items || [],
+        pagination: response.data.pagination || { page, limit, total: response.data.items?.length || 0, totalPages: 1 },
+      };
+    }
+
+    // Fallback: { success, data }
+    if (Array.isArray(response.data?.data)) {
+      const items = response.data.data || [];
+      return {
+        items,
+        pagination: { page, limit, total: items.length, totalPages: 1 },
+      };
+    }
+
+    // Fallback: array only
+    if (Array.isArray(response.data)) {
+      const items = response.data as any[];
+      return {
+        items,
+        pagination: { page, limit, total: items.length, totalPages: 1 },
+      };
+    }
+
+    return { items: [], pagination: { page, limit, total: 0, totalPages: 1 } };
   } catch (error) {
     handleError(error);
     throw error;

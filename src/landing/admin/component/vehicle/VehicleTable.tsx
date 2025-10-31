@@ -9,6 +9,11 @@ interface VehicleTableProps {
   onTransfer?: (vehicle: Vehicle) => void;
   onMarkMaintenance?: (vehicle: Vehicle) => void;
   onRowClick?: (vehicle: Vehicle) => void;
+  page?: number;
+  limit?: number;
+  total?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }
 
 const VehicleTable: React.FC<VehicleTableProps> = ({
@@ -18,6 +23,11 @@ const VehicleTable: React.FC<VehicleTableProps> = ({
   onTransfer,
   onMarkMaintenance,
   onRowClick,
+  page = 1,
+  limit = 20,
+  total = vehicles.length,
+  totalPages = 1,
+  onPageChange,
 }) => {
   const headers = [
     "Vehicle Info",
@@ -95,20 +105,22 @@ const VehicleTable: React.FC<VehicleTableProps> = ({
       >
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-700">
-            Showing <span className="font-medium">1</span> to{" "}
-            <span className="font-medium">{vehicles.length}</span> of{" "}
-            <span className="font-medium">{vehicles.length}</span> results
+            Page <span className="font-medium">{page}</span> of{" "}
+            <span className="font-medium">{totalPages}</span>{" "}
+            • Showing {Math.min((page - 1) * limit + 1, total)} to {Math.min(page * limit, total)} of {total} results
           </div>
           <div className="flex items-center space-x-2">
             <button
-              disabled
-              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => onPageChange && onPageChange(Math.max(1, page - 1))}
+              disabled={page <= 1}
+              className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
             >
               Previous
             </button>
             <button
-              disabled
-              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => onPageChange && onPageChange(Math.min(totalPages, page + 1))}
+              disabled={page >= totalPages}
+              className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
             >
               Next
             </button>

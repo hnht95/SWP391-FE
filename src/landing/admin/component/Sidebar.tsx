@@ -14,6 +14,8 @@ import {
 } from "react-icons/md";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 import { useAuth } from "../../../hooks/useAuth";
+import { PiUserListLight } from "react-icons/pi";
+import { FaUserCheck } from "react-icons/fa6";
 
 export interface MenuItem {
   id: string;
@@ -31,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [openUserMenu, setOpenUserMenu] = useState(false);
   const { logout, showGlobalLoading, hideGlobalLoading } = useAuth();
 
   const menuItems: MenuItem[] = [
@@ -53,18 +56,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
       path: "/admin/stations",
     },
     {
-      id: "user-management",
-      label: "User Management",
-      icon: <MdPeople className="w-5 h-5" />,
-      path: "/admin/users",
+      id: "transaction-history",
+      label: "Transaction History",
+      icon: <MdAssessment className="w-5 h-5" />,
+      path: "/admin/transactions",
     },
-    // Temporarily hide Reports & AI
-    // {
-    //   id: "reports-ai",
-    //   label: "Reports & AI",
-    //   icon: <MdAssessment className="w-5 h-5" />,
-    //   path: "/admin/reports",
-    // },
+    // User Management is rendered as a dropdown below
   ];
 
   const handleMenuClick = (item: MenuItem) => {
@@ -131,6 +128,61 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
               )}
             </button>
           ))}
+
+          {/* User Management dropdown */}
+          <div>
+            <button
+              onClick={() =>
+                isCollapsed ? navigate("/admin/users") : setOpenUserMenu((v) => !v)
+              }
+              className={`flex w-full items-center px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                location.pathname.startsWith("/admin/users")
+                  ? "bg-gray-900 text-white shadow-md"
+                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <span className={`${isCollapsed ? "mx-auto" : "mr-3"}`}>
+                <MdPeople className={`w-5 h-5 ${
+                  location.pathname.startsWith("/admin/users") ? "text-white" : ""
+                }`} />
+              </span>
+              {!isCollapsed && <span className="truncate">User Management</span>}
+              {!isCollapsed && (
+                <MdKeyboardArrowDown
+                  className={`ml-auto w-4 h-4 transition-transform ${openUserMenu ? "rotate-180" : ""}`}
+                />
+              )}
+            </button>
+
+            {!isCollapsed && openUserMenu && (
+              <div className="mt-1 ml-10 space-y-1">
+                <button
+                  onClick={() => navigate("/admin/users")}
+                  className={`flex w-full items-center px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100 ${
+                    location.pathname === "/admin/users" ? "text-gray-900" : ""
+                  }`}
+                >
+                  <span className="mr-2 inline-flex items-center justify-center"><PiUserListLight className="w-4 h-4" /></span>
+                  <span className="truncate">User List</span>
+                  {location.pathname === "/admin/users" && (
+                    <span className="ml-auto w-2 h-2 bg-black rounded-full" />
+                  )}
+                </button>
+                <button
+                  onClick={() => navigate("/admin/users/verification")}
+                  className={`flex w-full items-center px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100 ${
+                    location.pathname === "/admin/users/verification" ? "text-gray-900" : ""
+                  }`}
+                >
+                  <span className="mr-2 inline-flex items-center justify-center"><FaUserCheck className="w-4 h-4" /></span>
+                  <span className="truncate">User Verification</span>
+                  {location.pathname === "/admin/users/verification" && (
+                    <span className="ml-auto w-2 h-2 bg-black rounded-full" />
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </nav>
 

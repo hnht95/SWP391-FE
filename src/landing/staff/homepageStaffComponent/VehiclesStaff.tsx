@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVehicles, useVehicleOperations } from "../../../hooks/useVehicles";
+import { GrHostMaintenance } from "react-icons/gr";
 
 import {
   MdDirectionsCar,
@@ -18,7 +19,6 @@ import {
   MdClose,
   MdLocationOn,
   MdCalendarToday,
-  MdBuild,
   MdAssignment,
   MdPriorityHigh,
 } from "react-icons/md";
@@ -287,12 +287,97 @@ const VehiclesStaff = () => {
         </div>
       </motion.div>
 
+      {/* Stats Cards */}
+      <motion.div
+        className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        {[
+          {
+            title: "Total Vehicles",
+            value: stats.total,
+            icon: MdDirectionsCar,
+            color: "blue",
+            subtitle: "Total fleet size",
+            bgColor: "bg-blue-100",
+            iconColor: "text-blue-600",
+          },
+          {
+            title: "Available",
+            value: stats.available,
+            icon: () => (
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">✓</span>
+              </div>
+            ),
+            color: "green",
+            subtitle: "Ready for rental",
+            bgColor: "bg-green-100",
+            iconColor: "text-green-600",
+          },
+          {
+            title: "Active",
+            value: stats.active,
+            icon: () => (
+              <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">⟳</span>
+              </div>
+            ),
+            color: "orange",
+            subtitle: "Currently rented",
+            bgColor: "bg-orange-100",
+            iconColor: "text-orange-600",
+          },
+          {
+            title: "Maintenance",
+            value: stats.maintenance,
+            icon: GrHostMaintenance,
+            color: "red",
+            subtitle: "Under maintenance",
+            bgColor: "bg-red-100",
+            iconColor: "text-red-600",
+          },
+        ].map((stat, index) => (
+          <motion.div
+            key={stat.title}
+            className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 + index * 0.1 }}
+            whileHover={{
+              y: -5,
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <motion.div
+                className={`w-12 h-12 ${stat.bgColor} rounded-lg flex items-center justify-center`}
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.5 }}
+              >
+                {typeof stat.icon === "function" ? (
+                  stat.icon()
+                ) : (
+                  <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
+                )}
+              </motion.div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-xs text-gray-500">{stat.subtitle}</p>
+              </div>
+            </div>
+            <h3 className="text-sm font-medium text-gray-700">{stat.title}</h3>
+          </motion.div>
+        ))}
+      </motion.div>
+
       {/* Tabs and Filters */}
       <motion.div
         className="mb-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.3 }}
       >
         <div className="bg-white rounded-lg shadow-sm">
           {/* Status Tabs */}
@@ -764,7 +849,7 @@ const VehiclesStaff = () => {
                   },
                   {
                     title: "Technical Specifications",
-                    icon: MdBuild,
+                    icon: GrHostMaintenance,
                     content: (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -1077,7 +1162,7 @@ const VehiclesStaff = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <MdBuild className="w-4 h-4" />
+                    <GrHostMaintenance className="w-4 h-4" />
                     <span>Send to Maintenance</span>
                   </motion.button>
                   <motion.button
