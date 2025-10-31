@@ -1,14 +1,15 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVehicles, useVehicleOperations } from "../../../hooks/useVehicles";
+
 import {
   MdDirectionsCar,
   MdSearch,
   MdClose,
   MdLocationOn,
   MdCalendarToday,
-  MdBuild,
   MdAssignment,
+  MdBuild,
 } from "react-icons/md";
 import CustomSelect from "../../../components/CustomSelect";
 import type { ApiVehicle, Vehicle } from "../../../types/vehicle";
@@ -408,7 +409,7 @@ const VehiclesStaff = () => {
         className="mb-6 bg-white rounded-lg shadow-sm p-4 relative"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.3 }}
       >
         <div className="flex flex-col  md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">

@@ -4,20 +4,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MdLocationOn, MdAdd, MdMap, MdViewList } from "react-icons/md";
 import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
-import { useSidebar } from "../../context/SidebarContext";
 import StationTable from "./StationTable";
 import StationFilters from "./StationFilters";
 import MapView from "./MapView";
 import AddStationModal from "./AddStationModal";
 import EditStationModal from "./EditStationModal";
 import MeasurementIndex from "./MeasurementIndex";
-import SuccessModal from "../UserManagementAdmin/SuccessModal";
-import {
-  deleteStation,
-  getAllStations,
-  type DeleteStationResponse,
-  type Station,
-} from "../../../../service/apiAdmin/apiStation/API";
+import SuccessModal from "../UserManagerComponent/SuccessModal";
+import { deleteStation, getAllStations, type DeleteStationResponse, type Station } from "../../../../service/apiAdmin/apiStation/API";
 
 // ✅ Filters type
 interface StationFilters {
@@ -50,7 +44,6 @@ const StationManagement: React.FC = () => {
     useState<Station | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  const { setSidebarCollapsed } = useSidebar();
   const [transferToStationId, setTransferToStationId] = useState<string>("");
   const [deleteInlineError, setDeleteInlineError] = useState<string>("");
 
@@ -177,14 +170,6 @@ const StationManagement: React.FC = () => {
     applyFilters,
   ]);
 
-  // Auto control sidebar when map is visible
-  useEffect(() => {
-    if (isMapVisible) {
-      setSidebarCollapsed(true);
-    } else {
-      setSidebarCollapsed(false);
-    }
-  }, [isMapVisible, setSidebarCollapsed]);
 
   const handleToggleMap = () => {
     setIsMapVisible(!isMapVisible);

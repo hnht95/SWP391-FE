@@ -60,6 +60,31 @@ export type UpdateUserResponse = {
   message?: string;
 };
 
+// Normalize server user payload into a consistent shape the UI can safely use
+const normalizeUser = (raw: any | undefined | null): UserProfile | undefined => {
+  if (!raw) return undefined;
+  const avatarUrlField = raw.avatarUrl;
+  const normalizedAvatarUrl: string | { url: string } | null =
+    typeof avatarUrlField === "object" && avatarUrlField?.url
+      ? { url: avatarUrlField.url }
+      : typeof avatarUrlField === "string"
+      ? raw.avatarUrl
+      : null;
+
+  const avatarString: string | undefined =
+    normalizedAvatarUrl && typeof normalizedAvatarUrl === "object"
+      ? normalizedAvatarUrl.url
+      : typeof normalizedAvatarUrl === "string"
+      ? normalizedAvatarUrl
+      : raw.avatar || undefined;
+
+  return {
+    ...raw,
+    avatarUrl: normalizedAvatarUrl,
+    avatar: avatarString,
+  } as UserProfile;
+};
+
 const handleError = (error: unknown, context: string) => {
   const err = error as AxiosError;
   console.error(`Profile API Error [${context}]:`, {
@@ -93,21 +118,21 @@ export const getCurrentUser = async (): Promise<GetUserResponse> => {
     if (response.data.success && response.data.data) {
       return {
         success: true,
-        data: response.data.data,
+        data: normalizeUser(response.data.data),
       };
     }
 
     if (response.data.ok && response.data.user) {
       return {
         success: true,
-        data: response.data.user,
+        data: normalizeUser(response.data.user),
       };
     }
 
     if (response.data._id || response.data.id) {
       return {
         success: true,
-        data: response.data,
+        data: normalizeUser(response.data),
       };
     }
 
@@ -131,8 +156,15 @@ export const updateUserProfile = async (data: {
   try {
     console.log("Updating user profile (basic info):", data);
     const response = await api.patch<UpdateUserResponse>(`/users/me`, data);
-    console.log("✅ Update profile response:", response.data);
-    return response.data;
+    // Some backends omit unchanged fields or set them to null in PATCH response.
+    // Normalize the shape so UI never loses the avatar locally.
+    const normalized = {
+      ...response.data,
+      data: normalizeUser(response.data?.data ?? response.data?.user),
+      user: normalizeUser(response.data?.user ?? response.data?.data),
+    } as UpdateUserResponse;
+    console.log("✅ Update profile response (normalized):", normalized);
+    return normalized;
   } catch (error) {
     handleError(error, "updateUserProfile");
     throw error;
@@ -217,7 +249,11 @@ export const uploadKYCDocuments = async (documents: {
     );
 
     console.log("✅ KYC upload response:", response.data);
-    return response.data;
+    return {
+      ...response.data,
+      data: normalizeUser(response.data?.data ?? response.data?.user),
+      user: normalizeUser(response.data?.user ?? response.data?.data),
+    } as UpdateUserResponse;
   } catch (error) {
     handleError(error, "uploadKYCDocuments");
     throw error;
@@ -246,7 +282,11 @@ export const uploadAvatar = async (file: File): Promise<UpdateUserResponse> => {
     );
 
     console.log("✅ Avatar upload response:", response.data);
-    return response.data;
+    return {
+      ...response.data,
+      data: normalizeUser(response.data?.data ?? response.data?.user),
+      user: normalizeUser(response.data?.user ?? response.data?.data),
+    } as UpdateUserResponse;
   } catch (error) {
     handleError(error, "uploadAvatar");
     throw error;
