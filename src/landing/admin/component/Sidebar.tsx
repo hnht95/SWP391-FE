@@ -55,6 +55,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
       icon: <MdLocationOn className="w-5 h-5" />,
       path: "/admin/stations",
     },
+    {
+      id: "transaction-history",
+      label: "Transaction History",
+      icon: <MdAssessment className="w-5 h-5" />,
+      path: "/admin/transactions",
+    },
     // User Management is rendered as a dropdown below
   ];
 

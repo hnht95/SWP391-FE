@@ -18,6 +18,7 @@ import VehiclesManagement from "../landing/admin/homepageAdminComponent/VehicleM
 import StationManagementAdmin from "../landing/admin/homepageAdminComponent/StationManagementAdmin";
 import ListUserManagement from "../landing/admin/homepageAdminComponent/UserManagerComponent/ListUserManagement";
 import UserVerification from "../landing/admin/homepageAdminComponent/UserManagerComponent/UserVerification";
+import TransactionHistory from "../landing/admin/homepageAdminComponent/BookingManagementComponent";
 // import ReportsAndAI from "../landing/admin/homepageAdminComponent/ReportsAndAI";
 import AboutUs from "../landing/user/component/subnavComponent/AboutUs";
 import Vehicles from "../landing/user/component/subnavComponent/Vehicles";
@@ -112,6 +113,7 @@ const AllRouter = () => {
         <Route path="/admin/stations" element={<StationManagementAdmin />} />
         <Route path="/admin/users" element={<ListUserManagement />} />
         <Route path="/admin/users/verification" element={<UserVerification />} />
+        <Route path="/admin/transactions" element={<TransactionHistory />} />
         {/* <Route path="/admin/reports" element={<ReportsAndAI />} /> */}
       </Route>
     </Routes>

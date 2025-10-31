@@ -168,6 +168,54 @@ export type PaginatedBookingsResponse = {
   items: Booking[];
 };
 
+// ==== Admin Transactions types ====
+export type AdminTransactionStatus =
+  | "none"
+  | "pending"
+  | "captured"
+  | "failed"
+  | "refunded";
+
+export type AdminTransactionItem = {
+  _id: string;
+  renter: string;
+  vehicle: string | null;
+  station: string | null;
+  company: string | null;
+  status: BookingStatus; // booking status from sample
+  deposit: {
+    amount: number;
+    currency: string;
+    providerRef: string | null;
+    status: AdminTransactionStatus;
+    payos?: {
+      orderCode: number;
+      paymentLinkId: string;
+      checkoutUrl: string;
+      qrCode: string;
+      paidAt?: string;
+    };
+  };
+  amounts: { totalPaid: number };
+  createdAt: string;
+  updatedAt: string;
+  bookingId: string;
+  _dateSort?: string;
+  renterInfo?: { _id: string; name: string; email: string; phone: string };
+  vehicleInfo?:
+    | null
+    | { _id: string; plateNumber: string; brand: string; model: string };
+  stationInfo?: null | { _id: string; name: string };
+  companyInfo?: null | { _id: string; name: string };
+};
+
+export type AdminTransactionsResponse = {
+  page: number;
+  limit: number;
+  total: number;
+  items: AdminTransactionItem[];
+};
+
 // ✅ Query params
 export type BookingQueryParams = {
   page?: number;
@@ -313,7 +361,7 @@ export const createBooking = async (
  * GET /api/bookings/mine
  * Get user's bookings with pagination and filters
  */
-export const getMyBookings = async (
+export const getUserBookings = async (
   params: BookingQueryParams = {}
 ): Promise<PaginatedBookingsResponse> => {
   try {
@@ -329,26 +377,35 @@ export const getMyBookings = async (
 
     console.log("Fetching user bookings with params:", params);
 
-    const response = await api.get<PaginatedBookingsResponse>(
-      "/bookings/mine",
-      {
-        params: {
-          page,
-          limit,
-          ...(status && { status }),
-          ...(startDate && { startDate }),
-          ...(endDate && { endDate }),
-          ...(sortBy && { sortBy }),
-          ...(sortOrder && { sortOrder }),
-        },
-      }
-    );
+    const response = await api.get<any>("/bookings/mine", {
+      params: {
+        page,
+        limit,
+        ...(status && { status }),
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate }),
+        ...(sortBy && { sortBy }),
+        ...(sortOrder && { sortOrder }),
+      },
+    });
 
-    console.log("✅ Get bookings response:", response.data);
+    console.log("✅ Get bookings raw response:", response.data);
 
-    return response.data;
+    // ✅ Backend returns: { success, page, limit, total, totalPages, items }
+    if (response.data.success && response.data.items) {
+      return {
+        success: response.data.success,
+        page: response.data.page,
+        limit: response.data.limit,
+        total: response.data.total,
+        totalPages: response.data.totalPages,
+        items: response.data.items, // ✅ Use "items" not "data"
+      };
+    }
+
+    throw new Error("Invalid bookings response format");
   } catch (error) {
-    handleError(error, "getMyBookings");
+    handleError(error, "getUserBookings");
     throw error;
   }
 };
@@ -485,6 +542,66 @@ export const refundBooking = async (
   }
 };
 
+/**
+ * GET /api/bookings/admin/transactions
+ * Admin list payment transactions with filters
+ */
+export const getAdminTransactions = async (
+  params: {
+    provider?: string;
+    status?: AdminTransactionStatus | "--";
+    companyId?: string;
+    renterId?: string;
+    vehicleId?: string;
+    search?: string; // orderCode or paymentLinkId
+    from?: string; // ISO date string
+    to?: string; // ISO date string
+    dateField?: "createdAt" | "updatedAt";
+    page?: number;
+    limit?: number;
+  } = {}
+): Promise<AdminTransactionsResponse> => {
+  try {
+    const {
+      provider,
+      status,
+      companyId,
+      renterId,
+      vehicleId,
+      search,
+      from,
+      to,
+      dateField,
+      page = 1,
+      limit = 20,
+    } = params;
+
+    const response = await api.get<AdminTransactionsResponse>(
+      "/bookings/admin/transactions",
+      {
+        params: {
+          page,
+          limit,
+          ...(provider && { provider }),
+          ...(status && status !== "--" && { status }),
+          ...(companyId && { companyId }),
+          ...(renterId && { renterId }),
+          ...(vehicleId && { vehicleId }),
+          ...(search && { search }),
+          ...(from && { from }),
+          ...(to && { to }),
+          ...(dateField && { dateField }),
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    handleError(error, "getAdminTransactions");
+    throw error;
+  }
+};
+
 // ============ HELPER FUNCTIONS ============
 
 export const getBookingStatusColor = (status: BookingStatus): string => {
@@ -567,12 +684,13 @@ export const formatDate = (dateString: string): string => {
 
 const bookingApi = {
   createBooking,
-  getMyBookings,
+  getUserBookings,
   getBookingById,
   createPaymentLink,
   getPaymentStatus,
   cancelBooking,
   refundBooking,
+  getAdminTransactions,
   getBookingStatusColor,
   getBookingStatusLabel,
   getDepositStatusColor,

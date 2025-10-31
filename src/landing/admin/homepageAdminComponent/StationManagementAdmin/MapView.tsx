@@ -2,12 +2,13 @@ import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { createPopupContent } from "./StationPopup";
-import type { Station } from "./types";
+import type { Station } from "../../../../service/apiAdmin/apiStation/API";
 
 // Fix default marker icon issue with Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
@@ -19,24 +20,14 @@ interface MapViewProps {
 const MapView: React.FC<MapViewProps> = ({ stations }) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const markersRef = useRef<L.Marker[]>([]);
 
   // Tạo custom icon theo trạng thái
   const createCustomIcon = (station: Station) => {
-    // Determine color based on status and vehicle availability
-    let color = '#10b981'; // Default green (active)
-    
+    let color = "#10b981"; // Default green (active)
+
     if (!station.isActive) {
-      color = '#ef4444'; // Red (inactive)
-    } else if (station.maintenanceCount && station.vehicleCount) {
-      const maintenanceRatio = station.maintenanceCount / station.vehicleCount;
-      if (maintenanceRatio > 0.5) {
-        color = '#f59e0b'; // Yellow (high maintenance)
-      }
-    } else if (station.availableCount !== undefined && station.vehicleCount) {
-      const availableRatio = station.availableCount / station.vehicleCount;
-      if (availableRatio < 0.2) {
-        color = '#ef4444'; // Red (low availability)
-      }
+      color = "#ef4444"; // Red (inactive)
     }
 
     return L.divIcon({
@@ -76,36 +67,71 @@ const MapView: React.FC<MapViewProps> = ({ stations }) => {
     });
   };
 
+  // ✅ Initialize map
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current || stations.length === 0) return;
+    if (!mapContainerRef.current) return;
 
-    // Calculate bounds from all station markers
-    const bounds = L.latLngBounds(
-      stations
-        .filter((s) => s.location?.latitude && s.location?.longitude)
-        .map((station) => [
-          station.location!.latitude,
-          station.location!.longitude,
-        ])
+    // ✅ Cleanup existing map first
+    if (mapRef.current) {
+      console.log("🗑️ Cleaning up existing map");
+      mapRef.current.remove();
+      mapRef.current = null;
+      markersRef.current = [];
+    }
+
+    console.log("🗺️ Initializing map with", stations.length, "stations");
+
+    // ✅ Filter valid stations (có coordinates hợp lệ)
+    const validStations = stations.filter(
+      (s) =>
+        s.location?.lat &&
+        s.location?.lng &&
+        !isNaN(s.location.lat) &&
+        !isNaN(s.location.lng) &&
+        s.location.lat >= -90 &&
+        s.location.lat <= 90 &&
+        s.location.lng >= -180 &&
+        s.location.lng <= 180
     );
 
-    // Initialize map
+    console.log("✅ Valid stations:", validStations.length);
+
+    if (validStations.length === 0) {
+      console.warn("⚠️ No valid stations with coordinates");
+      return;
+    }
+
+    // ✅ Default center (Vietnam)
+    let center: [number, number] = [16.047079, 108.20623];
+    let zoom = 6;
+
+    // ✅ Calculate bounds if we have stations
+    if (validStations.length > 0) {
+      const coordinates = validStations.map(
+        (s) => [s.location.lat, s.location.lng] as [number, number]
+      );
+
+      // Use first station as center if only one
+      if (coordinates.length === 1) {
+        center = coordinates[0];
+        zoom = 13;
+      }
+    }
+
+    // ✅ Initialize map
     const map = L.map(mapContainerRef.current, {
-      center: [16.047079, 108.20623], // Center of Vietnam
-      zoom: 6,
+      center,
+      zoom,
       zoomControl: true,
       scrollWheelZoom: true,
       dragging: true,
+      maxZoom: 18,
+      minZoom: 5,
     });
-
-    // Fit map to bounds if we have stations
-    if (stations.length > 0) {
-      map.fitBounds(bounds, { padding: [50, 50] });
-    }
 
     mapRef.current = map;
 
-    // Add tile layer (OpenStreetMap)
+    // Add tile layer
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -113,18 +139,36 @@ const MapView: React.FC<MapViewProps> = ({ stations }) => {
       minZoom: 5,
     }).addTo(map);
 
-    // Add markers for each station
-    stations.forEach((station) => {
-      if (!station.location?.latitude || !station.location?.longitude) return;
+    // ✅ Fit bounds after map is ready
+    if (validStations.length > 1) {
+      const bounds = L.latLngBounds(
+        validStations.map((s) => [s.location.lat, s.location.lng])
+      );
 
+      // Wait for map to be fully initialized
+      setTimeout(() => {
+        if (mapRef.current) {
+          try {
+            mapRef.current.fitBounds(bounds, {
+              padding: [50, 50],
+              maxZoom: 15,
+            });
+          } catch (err) {
+            console.error("Error fitting bounds:", err);
+          }
+        }
+      }, 100);
+    }
+
+    // ✅ Add markers
+    validStations.forEach((station) => {
       const icon = createCustomIcon(station);
 
-      const marker = L.marker(
-        [station.location.latitude, station.location.longitude],
-        { icon }
-      ).addTo(map);
+      const marker = L.marker([station.location.lat, station.location.lng], {
+        icon,
+      }).addTo(map);
 
-      // Create popup with station info
+      // Create popup
       const popupContent = createPopupContent(station);
 
       const popup = L.popup({
@@ -138,42 +182,41 @@ const MapView: React.FC<MapViewProps> = ({ stations }) => {
 
       marker.bindPopup(popup);
 
-      // Click event to open popup
       marker.on("click", function () {
         this.openPopup();
       });
 
-      // Hover events for better UX
-      let closeTimeout: NodeJS.Timeout | null = null;
-
       marker.on("mouseover", function () {
-        if (closeTimeout) {
-          clearTimeout(closeTimeout);
-          closeTimeout = null;
-        }
         this.openPopup();
       });
 
-      marker.on("mouseout", function () {
-        // Don't auto-close on mouseout, let user close manually or click elsewhere
-      });
+      markersRef.current.push(marker);
     });
 
-    // Cleanup
+    console.log(
+      "✅ Map initialized with",
+      markersRef.current.length,
+      "markers"
+    );
+
+    // ✅ Cleanup function
     return () => {
+      console.log("🧹 Cleaning up map on unmount");
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
+      markersRef.current = [];
     };
   }, [stations]);
 
-  // Resize map when stations change
+  // ✅ Resize map when data/layout may change
   useEffect(() => {
     if (mapRef.current) {
       const timer = setTimeout(() => {
         mapRef.current?.invalidateSize();
-      }, 100);
+        console.log("📐 Map resized");
+      }, 250);
 
       return () => clearTimeout(timer);
     }
@@ -185,27 +228,21 @@ const MapView: React.FC<MapViewProps> = ({ stations }) => {
       <div className="map-header mb-2 -mt-2 px-8 py-3 bg-white border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              🗺️ Station Map
-            </h2>
+            <h2 className="text-xl font-bold text-gray-900">🗺️ Station Map</h2>
             <p className="text-sm text-gray-600 mt-1">
               Displaying location and status of {stations.length} stations
             </p>
           </div>
-          
+
           {/* Legend */}
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg shadow-sm">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-gray-700 font-medium">Normal</span>
-            </div>
-            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg shadow-sm">
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              <span className="text-gray-700 font-medium">High Maintenance</span>
+              <span className="text-gray-700 font-medium">Active</span>
             </div>
             <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg shadow-sm">
               <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="text-gray-700 font-medium">Low Stock / Inactive</span>
+              <span className="text-gray-700 font-medium">Inactive</span>
             </div>
           </div>
         </div>
@@ -223,4 +260,3 @@ const MapView: React.FC<MapViewProps> = ({ stations }) => {
 };
 
 export default MapView;
-

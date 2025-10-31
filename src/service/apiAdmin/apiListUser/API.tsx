@@ -185,16 +185,14 @@ export const getRenters = async (
 // ✅ Verify user KYC (admin)
 export const verifyUserKyc = async (id: string): Promise<RawApiUser> => {
   try {
-    // Using a generic admin update endpoint that accepts nested kyc fields
+    // Swagger: PATCH /api/users/{id}/kyc/verify (admin/staff only)
     const response = await api.patch<{ success?: boolean; data?: RawApiUser; user?: RawApiUser }>(
-      `/admin/users/${id}`,
-      { kyc: { verified: true } }
+      `/users/${id}/kyc/verify`
     );
 
     const data = response.data;
     if (data?.data) return data.data;
     if (data?.user) return data.user;
-    if ((data as any)?._id) return data as unknown as RawApiUser;
     throw new Error("Failed to verify user KYC");
   } catch (error) {
     handleError(error);

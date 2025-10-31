@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { MdSearch, MdVisibility } from "react-icons/md";
 import { PageTransition } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
 import { getRenters, verifyUserKyc, type GetRentersResponse } from "../../../../service/apiAdmin/apiListUser/API";
 import type { RawApiUser } from "../../../../types/userTypes";
 import VerifyUserModal from "./VerifyUserModal";
+import SuccessModal from "./SuccessModal";
 
 const hasAllKycFields = (u: RawApiUser): boolean => {
   const k = u.kyc || ({} as any);
@@ -30,6 +32,8 @@ const UserVerification: React.FC = () => {
 
   const [selectedUser, setSelectedUser] = useState<RawApiUser | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const fetchRenters = async () => {
     setLoading(true);
@@ -81,9 +85,16 @@ const UserVerification: React.FC = () => {
   };
 
   const approve = async (userId: string) => {
-    await verifyUserKyc(userId);
-    closeModal();
-    fetchRenters();
+    try {
+      await verifyUserKyc(userId);
+      closeModal();
+      setSuccessMessage("User verified successfully!");
+      setShowSuccessModal(true);
+      fetchRenters();
+    } catch (error) {
+      console.error("Error verifying user:", error);
+      // Error handling nếu cần
+    }
   };
 
   return (
@@ -120,7 +131,10 @@ const UserVerification: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
           {loading ? (
-            <div className="p-10 text-center">Loading...</div>
+            <div className="p-16 flex flex-col items-center justify-center gap-3">
+              <div className="h-10 w-10 rounded-full border-2 border-gray-200 border-t-black animate-spin" />
+              <p className="text-gray-700 font-medium">Loading users...</p>
+            </div>
           ) : error ? (
             <div className="p-10 text-center text-red-600">{error}</div>
           ) : candidates.length === 0 ? (
@@ -137,31 +151,40 @@ const UserVerification: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {candidates.map((u) => (
-                    <tr key={u._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{u.name}</div>
-                        <div className="text-xs text-gray-500">ID: {u._id.slice(-8)}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{u.email}</div>
-                        <div className="text-sm text-gray-500">{u.phone}</div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        <div>ID: {u.kyc?.idNumber}</div>
-                        <div>License: {u.kyc?.licenseNumber}</div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <button
-                          onClick={() => openModal(u)}
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-gray-50"
-                        >
-                          <MdVisibility className="w-5 h-5" />
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  <AnimatePresence initial={false}>
+                    {candidates.map((u, idx) => (
+                      <motion.tr
+                        key={u._id}
+                        className="hover:bg-gray-50"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.18, delay: Math.min(idx * 0.02, 0.2) }}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{u.name}</div>
+                          <div className="text-xs text-gray-500">ID: {u._id.slice(-8)}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{u.email}</div>
+                          <div className="text-sm text-gray-500">{u.phone}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <div>ID: {u.kyc?.idNumber}</div>
+                          <div>License: {u.kyc?.licenseNumber}</div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={() => openModal(u)}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-gray-50 transition-transform duration-150 hover:scale-[1.02]"
+                          >
+                            <MdVisibility className="w-5 h-5" />
+                            Review
+                          </button>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
                 </tbody>
               </table>
             </div>
@@ -197,6 +220,12 @@ const UserVerification: React.FC = () => {
           isOpen={isModalOpen}
           onClose={closeModal}
           onApprove={approve}
+        />
+
+        <SuccessModal
+          isOpen={showSuccessModal}
+          onClose={() => setShowSuccessModal(false)}
+          message={successMessage}
         />
       </div>
     </PageTransition>
