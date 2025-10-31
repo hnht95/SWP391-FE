@@ -2,65 +2,82 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import {
   X,
+  CreditCard,
+  Building2,
   User,
-  Mail,
-  Phone,
   Loader2,
   CheckCircle,
   AlertCircle,
-  Calendar,
-  MapPin,
 } from "lucide-react";
 import { createPortal } from "react-dom";
-import type { UserProfile } from "../../../../../../../../service/apiUser/profile/API";
+import type { BankInfo } from "../../../../../../../../service/apiUser/profile/API";
 import profileApi from "../../../../../../../../service/apiUser/profile/API";
 
-interface EditProfileModalProps {
+interface BankAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  user: UserProfile;
+  currentBankInfo?: BankInfo | null;
   onSuccess?: () => void;
 }
 
-const EditProfileModal = ({
+const BankAccountModal = ({
   isOpen,
   onClose,
-  user,
+  currentBankInfo,
   onSuccess,
-}: EditProfileModalProps) => {
+}: BankAccountModalProps) => {
   const [formData, setFormData] = useState({
-    name: user.name || "",
-    phone: user.phone || "",
-    gender: user.gender || "male",
-    dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split("T")[0] : "",
+    accountNumber: "",
+    accountName: "",
+    bankCode: "",
+    bankName: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Reset form when user data changes
+  const banks = profileApi.getVietnameseBanks();
+
+  // Reset form when bank info changes
   useEffect(() => {
-    if (user) {
+    if (currentBankInfo) {
       setFormData({
-        name: user.name || "",
-        phone: user.phone || "",
-        gender: user.gender || "male",
-        dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split("T")[0] : "",
+        accountNumber: currentBankInfo.accountNumber || "",
+        accountName: currentBankInfo.accountName || "",
+        bankCode: currentBankInfo.bankCode || "",
+        bankName: currentBankInfo.bankName || "",
+      });
+    } else {
+      setFormData({
+        accountNumber: "",
+        accountName: "",
+        bankCode: "",
+        bankName: "",
       });
     }
-  }, [user]);
+  }, [currentBankInfo, isOpen]);
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    // If bank code changes, update bank name
+    if (name === "bankCode") {
+      const selectedBank = banks.find((bank) => bank.code === value);
+      setFormData((prev) => ({
+        ...prev,
+        bankCode: value,
+        bankName: selectedBank?.name || "",
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+
     setError(null);
   };
 
@@ -72,24 +89,27 @@ const EditProfileModal = ({
 
     try {
       // Validate
-      if (!formData.name.trim()) {
-        throw new Error("Name is required");
+      if (!formData.accountNumber.trim()) {
+        throw new Error("Account number is required");
       }
-      if (!formData.phone.trim()) {
-        throw new Error("Phone number is required");
+      if (!formData.accountName.trim()) {
+        throw new Error("Account name is required");
+      }
+      if (!formData.bankCode) {
+        throw new Error("Please select a bank");
       }
 
-      console.log("📝 Updating profile info:", formData);
+      console.log("💳 Updating bank info:", formData);
 
       // Call API
-      await profileApi.updateUserProfile({
-        name: formData.name.trim(),
-        phone: formData.phone.trim(),
-        gender: formData.gender as "male" | "female" | "other",
-        dateOfBirth: formData.dateOfBirth || undefined,
+      await profileApi.updateBankInfo({
+        accountNumber: formData.accountNumber.trim(),
+        accountName: formData.accountName.trim().toUpperCase(),
+        bankCode: formData.bankCode,
+        bankName: formData.bankName,
       });
 
-      console.log("✅ Profile updated successfully");
+      console.log("✅ Bank info updated successfully");
 
       setSuccess(true);
 
@@ -101,8 +121,8 @@ const EditProfileModal = ({
         onClose();
       }, 1500);
     } catch (err: any) {
-      console.error("❌ Update profile failed:", err);
-      setError(err.message || "Failed to update profile");
+      console.error("❌ Update bank info failed:", err);
+      setError(err.message || "Failed to update bank information");
     } finally {
       setIsSubmitting(false);
     }
@@ -126,10 +146,10 @@ const EditProfileModal = ({
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden"
             >
               {/* Header */}
-              <div className="relative bg-gradient-to-br from-gray-800 via-gray-700 to-black px-8 py-6 flex items-center justify-between sticky top-0 z-10">
+              <div className="relative bg-gradient-to-br from-blue-800 via-blue-700 to-blue-900 px-8 py-6 flex items-center justify-between">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
 
                 <div className="relative flex items-center space-x-3">
@@ -139,14 +159,14 @@ const EditProfileModal = ({
                     transition={{ delay: 0.2, type: "spring" }}
                     className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm"
                   >
-                    <User className="w-6 h-6 text-white" />
+                    <CreditCard className="w-6 h-6 text-white" />
                   </motion.div>
                   <div>
                     <h2 className="text-2xl font-bold text-white">
-                      Edit Profile
+                      {currentBankInfo ? "Update" : "Add"} Bank Account
                     </h2>
                     <p className="text-sm text-gray-200">
-                      Update your information
+                      For refunds and withdrawals
                     </p>
                   </div>
                 </div>
@@ -174,7 +194,7 @@ const EditProfileModal = ({
                     <div className="flex items-center space-x-3">
                       <CheckCircle className="w-5 h-5 text-green-600" />
                       <p className="text-sm text-green-800">
-                        Profile updated successfully!
+                        Bank information updated successfully!
                       </p>
                     </div>
                   </motion.div>
@@ -194,97 +214,69 @@ const EditProfileModal = ({
                   </motion.div>
                 )}
 
-                {/* Email (Read-only) */}
+                {/* Bank Selection */}
                 <div className="mb-6">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email Address
+                    Bank <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="email"
-                      value={user.email}
-                      disabled
-                      className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl bg-gray-100 text-gray-500 cursor-not-allowed"
-                    />
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <select
+                      name="bankCode"
+                      value={formData.bankCode}
+                      onChange={handleChange}
+                      disabled={isSubmitting}
+                      className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed appearance-none"
+                    >
+                      <option value="">Select your bank</option>
+                      {banks.map((bank) => (
+                        <option key={bank.code} value={bank.code}>
+                          {bank.name} ({bank.code})
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Email cannot be changed
-                  </p>
                 </div>
 
-                {/* Name */}
+                {/* Account Number */}
                 <div className="mb-6">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Full Name <span className="text-red-500">*</span>
+                    Account Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      name="accountNumber"
+                      value={formData.accountNumber}
+                      onChange={handleChange}
+                      placeholder="Enter account number"
+                      disabled={isSubmitting}
+                      className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                {/* Account Name */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Account Name <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                       type="text"
-                      name="name"
-                      value={formData.name}
+                      name="accountName"
+                      value={formData.accountName}
                       onChange={handleChange}
-                      placeholder="Enter your full name"
+                      placeholder="NGUYEN VAN A"
                       disabled={isSubmitting}
-                      className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:border-black focus:outline-none transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed uppercase"
                     />
                   </div>
-                </div>
-
-                {/* Phone */}
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Phone Number <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="Enter your phone number"
-                      disabled={isSubmitting}
-                      className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:border-black focus:outline-none transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-
-                {/* Gender */}
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Gender <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-black focus:outline-none transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-
-                {/* Date of Birth */}
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Date of Birth
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="date"
-                      name="dateOfBirth"
-                      value={formData.dateOfBirth}
-                      onChange={handleChange}
-                      disabled={isSubmitting}
-                      className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:border-black focus:outline-none transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter exactly as shown on your bank account
+                  </p>
                 </div>
 
                 {/* Buttons */}
@@ -304,7 +296,7 @@ const EditProfileModal = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     disabled={isSubmitting || success}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-gray-800 to-black text-white rounded-xl font-medium hover:from-gray-900 hover:to-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg"
                   >
                     {isSubmitting ? (
                       <>
@@ -317,7 +309,7 @@ const EditProfileModal = ({
                         <span>Saved!</span>
                       </>
                     ) : (
-                      <span>Save Changes</span>
+                      <span>Save Bank Account</span>
                     )}
                   </motion.button>
                 </div>
@@ -335,4 +327,4 @@ const EditProfileModal = ({
   );
 };
 
-export default EditProfileModal;
+export default BankAccountModal;
