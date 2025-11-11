@@ -112,7 +112,10 @@ const AllRouter = () => {
         <Route path="/admin/vehicles" element={<VehiclesManagement />} />
         <Route path="/admin/stations" element={<StationManagementAdmin />} />
         <Route path="/admin/users" element={<ListUserManagement />} />
-        <Route path="/admin/users/verification" element={<UserVerification />} />
+        <Route
+          path="/admin/users/verification"
+          element={<UserVerification />}
+        />
         <Route path="/admin/transactions" element={<TransactionHistory />} />
         {/* <Route path="/admin/reports" element={<ReportsAndAI />} /> */}
       </Route>
