@@ -12,6 +12,7 @@ import {
   getVehiclesPaginated,
   type Vehicle as APIVehicle,
   getPhotoUrls,
+  getMaintenanceRequestsPaginated,
 } from "../../../../service/apiAdmin/apiVehicles/API";
 import {
   getDeletionRequestsPaginated,
@@ -26,6 +27,7 @@ import TransferVehicleModal from "./components/TransferVehicleModal";
 import ReportMaintenanceModal from "./components/ReportMaintenanceModal";
 import RequestDeletionModal from "./components/RequestDeletionModal";
 import DeletionRequestDetailModal from "./components/RequestsTab/DeletionRequestDetailModal";
+import MaintenanceRequestDetailModal from "./components/RequestsTab/MaintenanceRequestDetailModal";
 import ConfirmDeleteVehicleModal from "./components/ConfirmDeleteVehicleModal";
 import IosSuccessModal from "./components/IosSuccessModal";
 import { deleteVehicle } from "../../../../service/apiAdmin/apiVehicles/API";
@@ -62,7 +64,7 @@ const VehiclesManagement: React.FC = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   console.log("🔍 Current searchLoading state:", searchLoading);
   const [error, setError] = useState<string | null>(null);
-  const [maintenanceRequests] = useState<any[]>([]);
+  const [maintenanceRequests, setMaintenanceRequests] = useState<any[]>([]);
   const [deletionRequests, setDeletionRequests] = useState<any[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsPage, setRequestsPage] = useState(1);
@@ -144,6 +146,9 @@ const VehiclesManagement: React.FC = () => {
   };
 
   const mapDeletionRequest = (item: any) => {
+    const vehicleStation = item.vehicle?.station;
+    const stationFromItem = item.station ?? vehicleStation;
+
     return {
       _id: item._id,
       vehicleId: item.vehicle?._id || item.vehicleId,
@@ -152,6 +157,8 @@ const VehiclesManagement: React.FC = () => {
         plateNumber: item.vehicle?.plateNumber || item.plateNumber || "",
         brand: item.vehicle?.brand || "",
         model: item.vehicle?.model || "",
+        station: stationFromItem,
+        status: item.vehicle?.status,
       },
       reason: item.reason || item.reportText || "",
       requestedBy:
@@ -185,9 +192,51 @@ const VehiclesManagement: React.FC = () => {
     }
   };
 
+  const mapMaintenanceRequest = (item: any) => {
+    const stationFromItem = item.station ?? item.vehicle?.station;
+    return {
+      _id: item._id,
+      vehicle: item.vehicle
+        ? {
+            _id: item.vehicle._id,
+            plateNumber: item.vehicle.plateNumber,
+            brand: item.vehicle.brand,
+            model: item.vehicle.model,
+            status: item.vehicle.status,
+          }
+        : null,
+      description: item.description,
+      urgency: item.urgency,
+      evidencePhotos: item.evidencePhotos || [],
+      status: item.status,
+      station: stationFromItem,
+      reportedBy: item.reportedBy,
+      reportedAt: item.createdAt,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
+  };
+
+  const fetchMaintenanceRequestsData = async (page = requestsPage) => {
+    setRequestsLoading(true);
+    try {
+      const { items, pagination } = await getMaintenanceRequestsPaginated(page, requestsLimit);
+      setMaintenanceRequests((items || []).map(mapMaintenanceRequest));
+      if (pagination) {
+        setRequestsPage(pagination.page || 1);
+        setRequestsTotalPages(pagination.totalPages || 1);
+      }
+    } catch (e) {
+      console.error("Fetch maintenance requests error:", e);
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchVehicles(1);
     fetchDeletionRequestsData();
+    fetchMaintenanceRequestsData();
   }, []);
 
   const handleEdit = (vehicle: UIVehicle) => {
@@ -252,6 +301,9 @@ const VehiclesManagement: React.FC = () => {
 
   const handleAddSubmit = async () => {
     try {
+      // Wait a moment to ensure backend has fully processed the new vehicle
+      // This ensures valuation and other fields are available when we fetch
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await fetchVehicles();
       setIsAddModalOpen(false);
     } catch (e) {
@@ -344,7 +396,7 @@ const VehiclesManagement: React.FC = () => {
           </h2>
           <p className="text-red-600 mb-4">{error}</p>
           <button
-            onClick={fetchVehicles}
+            onClick={() => fetchVehicles()}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Try Again
@@ -443,7 +495,7 @@ const VehiclesManagement: React.FC = () => {
               <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
                 <p className="text-sm text-red-600 mb-2">{error}</p>
                 <button
-                  onClick={fetchVehicles}
+                  onClick={() => fetchVehicles()}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
                 >
                   Try Again
@@ -596,6 +648,13 @@ const VehiclesManagement: React.FC = () => {
           setIsDeletionDetailOpen(false);
           setSelectedDeletionRequest(null);
         }}
+        getStationName={getStationName}
+      />
+
+      <MaintenanceRequestDetailModal
+        request={maintenanceRequests}
+        isOpen={isMaintenanceModalOpen}
+        onClose={() => { setIsMaintenanceModalOpen(false); setSelectedVehicle(null); }}
         getStationName={getStationName}
       />
 

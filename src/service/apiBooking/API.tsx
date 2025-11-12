@@ -844,12 +844,11 @@ export const getAdminTransactions = async (
   params: {
     provider?: string;
     status?: AdminTransactionStatus | "--";
-    companyId?: string;
-    renterId?: string;
-    vehicleId?: string;
-    search?: string;
-    from?: string;
-    to?: string;
+    renterPhone?: string;
+    plateNumber?: string;
+    search?: string; // orderCode or paymentLinkId
+    from?: string; // ISO date string
+    to?: string; // ISO date string
     dateField?: "createdAt" | "updatedAt";
     page?: number;
     limit?: number;
@@ -859,9 +858,8 @@ export const getAdminTransactions = async (
     const {
       provider,
       status,
-      companyId,
-      renterId,
-      vehicleId,
+      renterPhone,
+      plateNumber,
       search,
       from,
       to,
@@ -878,9 +876,8 @@ export const getAdminTransactions = async (
           limit,
           ...(provider && { provider }),
           ...(status && status !== "--" && { status }),
-          ...(companyId && { companyId }),
-          ...(renterId && { renterId }),
-          ...(vehicleId && { vehicleId }),
+          ...(renterPhone && { renterPhone }),
+          ...(plateNumber && { plateNumber }),
           ...(search && { search }),
           ...(from && { from }),
           ...(to && { to }),
