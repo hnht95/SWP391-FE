@@ -1,4 +1,3 @@
-// service/apiAdmin/apiStation/API.tsx
 import { AxiosError } from "axios";
 import api from "../../Utils";
 
@@ -47,12 +46,23 @@ export interface DeleteStationResponse {
   message?: string;
 }
 
+/**
+ * API Response wrapper type
+ */
+interface ApiResponse<T> {
+  success?: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
 // ============================================
 // ✅ ERROR HANDLER
 // ============================================
 
-const handleError = (error: unknown) => {
-  const err = error as AxiosError;
+const handleError = (error: unknown): never => {
+  const err = error as AxiosError<ApiResponse<unknown>>;
+
   console.error("Station API Error:", {
     status: err?.response?.status,
     data: err?.response?.data,
@@ -60,8 +70,9 @@ const handleError = (error: unknown) => {
   });
 
   let errorMessage = err?.message || "Unknown error";
+
   if (err?.response?.data) {
-    const responseData: any = err.response.data;
+    const responseData = err.response.data;
     if (responseData.error) {
       errorMessage = responseData.error;
     } else if (responseData.message) {
@@ -85,25 +96,31 @@ export const getAllStations = async (
   limit: number = 20
 ): Promise<Station[]> => {
   try {
-    const response = await api.get<Station[]>("/stations", {
-      params: { page, limit },
-    });
+    const response = await api.get<Station[] | ApiResponse<Station[]>>(
+      "/stations",
+      {
+        params: { page, limit },
+      }
+    );
 
     if (Array.isArray(response.data)) {
       return response.data;
     }
 
+    // Handle wrapped response
     if (
-      (response.data as any).success &&
-      Array.isArray((response.data as any).data)
+      typeof response.data === "object" &&
+      response.data !== null &&
+      "success" in response.data &&
+      "data" in response.data &&
+      Array.isArray(response.data.data)
     ) {
-      return (response.data as any).data;
+      return response.data.data;
     }
 
     throw new Error("Invalid API response format");
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
@@ -113,18 +130,32 @@ export const getAllStations = async (
  */
 export const getStationById = async (id: string): Promise<Station> => {
   try {
-    const response = await api.get<Station>(`/stations/${id}`);
+    const response = await api.get<Station | ApiResponse<Station>>(
+      `/stations/${id}`
+    );
 
     console.log("Get station by ID response:", response.data);
 
-    if (response.data && response.data._id) {
-      return response.data;
+    // Handle direct station response
+    if (response.data && "_id" in response.data) {
+      return response.data as Station;
+    }
+
+    // Handle wrapped response
+    if (
+      typeof response.data === "object" &&
+      response.data !== null &&
+      "data" in response.data &&
+      response.data.data &&
+      typeof response.data.data === "object" &&
+      "_id" in response.data.data
+    ) {
+      return response.data.data as Station;
     }
 
     throw new Error("Station not found");
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
@@ -134,6 +165,7 @@ export const getStationById = async (id: string): Promise<Station> => {
  *
  * Backend expects FormData with fields:
  * - name: string (required)
+ * - province: string (optional)
  * - address: string (required)
  * - lat: number (required)
  * - lng: number (required)
@@ -162,15 +194,32 @@ export const createStation = async (
       }
     }
 
-    // ✅ DO NOT set Content-Type header - browser sets it automatically with boundary
-    const response = await api.post<Station>("/stations", stationData);
+    const response = await api.post<Station | ApiResponse<Station>>(
+      "/stations",
+      stationData
+    );
 
     console.log("✅ API: Create station response:", response.data);
-    return response.data;
+
+    // Handle direct station response
+    if (response.data && "_id" in response.data) {
+      return response.data as Station;
+    }
+
+    // Handle wrapped response
+    if (
+      typeof response.data === "object" &&
+      response.data !== null &&
+      "data" in response.data &&
+      response.data.data
+    ) {
+      return response.data.data as Station;
+    }
+
+    return response.data as Station;
   } catch (error) {
     console.error("❌ API: Error creating station:", error);
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
@@ -181,15 +230,14 @@ export const createStation = async (
  * Backend expects FormData with fields:
  * - name: string (required)
  * - code: string (optional)
+ * - province: string (optional)
  * - address: string (required)
  * - lat: number (required)
  * - lng: number (required)
  * - note: string (optional)
  * - isActive: boolean/string (required)
- * - imgStation: string (optional - "" or "null" to remove image, Media._id to set existing)
+ * - imgStation: string (optional - "" or "null" to remove image)
  * - coverFile: File (optional - new file upload)
- *
- * Backend parses isActive: "true", "1", "yes" → true; "false", "0", "no" → false
  */
 export const updateStation = async (
   id: string,
@@ -212,19 +260,31 @@ export const updateStation = async (
       }
     }
 
-    // ✅ Don't set Content-Type for FormData
-    const response = await api.put<Station>(`/stations/${id}`, stationData);
+    const response = await api.put<Station | ApiResponse<Station>>(
+      `/stations/${id}`,
+      stationData
+    );
 
     console.log("✅ Update station response:", response.data);
 
-    if (response.data && response.data._id) {
-      return response.data;
+    // Handle direct station response
+    if (response.data && "_id" in response.data) {
+      return response.data as Station;
+    }
+
+    // Handle wrapped response
+    if (
+      typeof response.data === "object" &&
+      response.data !== null &&
+      "data" in response.data &&
+      response.data.data
+    ) {
+      return response.data.data as Station;
     }
 
     throw new Error("Failed to update station");
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
@@ -245,25 +305,30 @@ export const deleteStation = async (
   reason?: string
 ): Promise<DeleteStationResponse> => {
   try {
-    const payload: any = {};
+    const payload: Record<string, string> = {};
     if (transferToStationId) payload.transferToStationId = transferToStationId;
     if (reason) payload.reason = reason;
 
-    const response = await api.delete(`/stations/${id}`, {
+    const response = await api.delete<
+      DeleteStationResponse | ApiResponse<DeleteStationResponse>
+    >(`/stations/${id}`, {
       data: payload,
     });
 
     console.log("Delete station response:", response.data);
 
-    // Backend returns { success: true, ...result }
-    if (response.data) {
+    // Handle response
+    if (response.data && typeof response.data === "object") {
+      // If it has 'data' property, unwrap it
+      if ("data" in response.data && response.data.data) {
+        return response.data.data as DeleteStationResponse;
+      }
       return response.data as DeleteStationResponse;
     }
 
     return { success: true };
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
@@ -279,13 +344,12 @@ export const getActiveStations = async (): Promise<Station[]> => {
     const allStations = await getAllStations();
     return allStations.filter((station) => station.isActive === true);
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
 /**
- * Search stations by name, code, or address
+ * Search stations by name, code, province, or address
  */
 export const searchStations = async (
   searchTerm: string
@@ -298,11 +362,13 @@ export const searchStations = async (
       (station) =>
         station.name.toLowerCase().includes(lowerSearchTerm) ||
         station.location.address.toLowerCase().includes(lowerSearchTerm) ||
-        station.code?.toLowerCase().includes(lowerSearchTerm)
+        (station.code &&
+          station.code.toLowerCase().includes(lowerSearchTerm)) ||
+        (station.province &&
+          station.province.toLowerCase().includes(lowerSearchTerm))
     );
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
@@ -316,8 +382,7 @@ export const getStationByCode = async (
     const allStations = await getAllStations();
     return allStations.find((station) => station.code === code) || null;
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
@@ -335,7 +400,8 @@ export const getStationByCode = async (
 export function buildCreateStationFormData(
   data: {
     name: string;
-    code?: string; // Optional - if not provided, backend auto-generates
+    code?: string;
+    province?: string;
     address: string;
     lat: number;
     lng: number;
@@ -347,12 +413,17 @@ export function buildCreateStationFormData(
 
   formData.append("name", data.name.trim());
 
-  // ✅ Only append code if provided and not empty (backend auto-generates if omitted)
+  // Only append code if provided and not empty (backend auto-generates if omitted)
   if (data.code && data.code.trim()) {
     formData.append("code", data.code.trim());
   }
 
-  // ✅ Backend expects FLAT fields, not JSON string
+  // Add province field
+  if (data.province && data.province.trim()) {
+    formData.append("province", data.province.trim());
+  }
+
+  // Backend expects FLAT fields, not JSON string
   formData.append("address", data.address.trim());
   formData.append("lat", data.lat.toString());
   formData.append("lng", data.lng.toString());
@@ -381,6 +452,7 @@ export const buildUpdateStationFormData = (
   data: {
     name: string;
     code?: string;
+    province?: string;
     address: string;
     lat: number;
     lng: number;
@@ -392,14 +464,19 @@ export const buildUpdateStationFormData = (
 ): FormData => {
   const formData = new FormData();
 
-  // ✅ Backend expects flat fields
+  // Backend expects flat fields
   formData.append("name", data.name.trim());
 
   if (data.code && data.code.trim()) {
     formData.append("code", data.code.trim());
   }
 
-  // ✅ Backend expects FLAT fields for update too
+  // Add province field
+  if (data.province && data.province.trim()) {
+    formData.append("province", data.province.trim());
+  }
+
+  // Backend expects FLAT fields for update too
   formData.append("address", data.address.trim());
   formData.append("lat", data.lat.toString());
   formData.append("lng", data.lng.toString());
@@ -408,16 +485,16 @@ export const buildUpdateStationFormData = (
     formData.append("note", data.note.trim());
   }
 
-  // ✅ isActive as string (backend parses it)
+  // isActive as string (backend parses it)
   formData.append("isActive", data.isActive ? "true" : "false");
 
-  // ✅ Handle image removal (send "" or "null")
+  // Handle image removal (send "" or "null")
   if (removeImage) {
     formData.append("imgStation", "");
     console.log("🗑️ Marked image for removal");
   }
 
-  // ✅ Add new cover file if provided
+  // Add new cover file if provided
   if (coverFile) {
     formData.append("coverFile", coverFile);
     console.log("✅ coverFile added to FormData:", coverFile.name);

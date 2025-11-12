@@ -15,7 +15,7 @@ import StaffUser from "../landing/staff/homepageStaffComponent/StaffUser";
 import LayoutAdmin from "../landing/admin/LayoutAdmin";
 import DashboardAdmin from "../landing/admin/homepageAdminComponent/DashboardAdmin";
 import VehiclesManagement from "../landing/admin/homepageAdminComponent/VehicleManagementComponent";
-import StationManagementAdmin from "../landing/admin/homepageAdminComponent/StationManagementAdmin";
+// import StationManagementAdmin from "../landing/admin/homepageAdminComponent/StationManagementAdmin";
 import ListUserManagement from "../landing/admin/homepageAdminComponent/UserManagerComponent/ListUserManagement";
 import UserVerification from "../landing/admin/homepageAdminComponent/UserManagerComponent/UserVerification";
 import TransactionHistory from "../landing/admin/homepageAdminComponent/BookingManagementComponent";
@@ -32,10 +32,8 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import BookingPage from "../landing/user/component/BookingPage";
 import PaymentPage from "../landing/user/component/bookingComponent/PaymentPage";
 import BookingSuccessPage from "../landing/user/component/bookingComponent/BookingSuccessPage";
-import {
-  StationDetailPage,
-  StationsListPage,
-} from "../landing/user/component/index";
+import StationManagement from "../landing/admin/homepageAdminComponent/StationManagementAdmin/StationManagement";
+import { StationDetailPage, StationsListPage } from "../landing/user/component";
 
 const AllRouter = () => {
   return (
@@ -118,7 +116,7 @@ const AllRouter = () => {
         <Route path="/admin" element={<DashboardAdmin />} />
         <Route path="/admin/dashboard" element={<DashboardAdmin />} />
         <Route path="/admin/vehicles" element={<VehiclesManagement />} />
-        <Route path="/admin/stations" element={<StationManagementAdmin />} />
+        <Route path="/admin/stations" element={<StationManagement />} />
         <Route path="/admin/users" element={<ListUserManagement />} />
         <Route
           path="/admin/users/verification"

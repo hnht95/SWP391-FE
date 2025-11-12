@@ -216,7 +216,7 @@ const Vehicles: React.FC = () => {
     return ["All", ...new Set(brands)];
   }, [vehicles]);
 
-  // ✅ Get unique stations from vehicles (xử lý cả string và object)
+  // ✅ Get unique stations from vehicles
   const allStations = useMemo(() => {
     if (stations.length === 0) return ["All"];
 
@@ -238,6 +238,9 @@ const Vehicles: React.FC = () => {
   // ✅ Filter logic - sửa lại station filter
   const filterCars = () => {
     return vehicles.filter((car) => {
+      // ✅ Chỉ lấy xe có status "available"
+      if (car.status !== "available") return false;
+
       // Search by brand + model + plate number
       let matchesSearchTerm = true;
       if (searchTerm.trim()) {
@@ -252,22 +255,16 @@ const Vehicles: React.FC = () => {
           car.model.toLowerCase().includes(lowerSearchTerm);
       }
 
-      // Status filter
-      const matchesStatus =
-        selectedStatus === "All" || car.status === selectedStatus;
-
       // Brand filter
       const matchesBrand =
         selectedBrand === "All" || car.brand === selectedBrand;
 
-      // ✅ Station filter - xử lý cả string và object populated
+      // ✅ Station filter
       const matchesStation =
         selectedStation === "All" ||
         getStationId(car.station) === selectedStation;
 
-      return (
-        matchesSearchTerm && matchesStatus && matchesBrand && matchesStation
-      );
+      return matchesSearchTerm && matchesBrand && matchesStation;
     });
   };
 
