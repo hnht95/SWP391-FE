@@ -17,8 +17,10 @@ interface RequestsTabProps {
   onApproveDeletion: (requestId: string) => Promise<void>;
   onRejectDeletion: (requestId: string) => Promise<void>;
   onViewDeletionRequest?: (request: any) => void;
+  onViewMaintenanceRequest?: (request: any) => void;
   pagination?: { page: number; totalPages: number };
   onPageChange?: (page: number) => void;
+  getStationName?: (stationIdOrObject: any) => string;
 }
 
 const RequestsTab: React.FC<RequestsTabProps> = ({
@@ -31,8 +33,10 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
   onApproveDeletion,
   onRejectDeletion,
   onViewDeletionRequest,
+  onViewMaintenanceRequest,
   pagination,
   onPageChange,
+  getStationName,
 }) => {
   const [activeTab, setActiveTab] = useState<"maintenance" | "deletion" | "transfers">("deletion");
 
@@ -114,8 +118,12 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
                           Vehicle
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Description
+                          Station
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Urgency
+                        </th>
+                        
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Reported By
                         </th>
@@ -134,9 +142,11 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
                       {maintenanceRequests.map((request) => (
                         <MaintenanceRequestRow
                           key={request._id}
-                          request={request}
+                          request={request as any}
                           onApprove={() => onApproveMaintenance(request._id)}
                           onReject={() => onRejectMaintenance(request._id)}
+                          getStationName={getStationName}
+                          onView={(r) => onViewMaintenanceRequest?.(r)}
                         />
                       ))}
                     </tbody>

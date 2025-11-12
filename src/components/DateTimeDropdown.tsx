@@ -60,7 +60,7 @@ const DateTimeDropdown: React.FC<DateTimeDropdownProps> = ({ label, value, onCha
       {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
       <button
         type="button"
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 flex items-center justify-between transition-all duration-200 hover:border-gray-400 focus:outline-none focus:ring-1 focus:ring-black focus:border-black bg-white"
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 flex items-center justify-between transition-all duration-200 hover:border-gray-400 focus:outline-none focus:ring-1 focus:ring-black focus:border-black bg-white cursor-pointer"
         onClick={() => setOpen((o) => !o)}
       >
         <span className={`text-left truncate ${value ? "text-gray-900" : "text-gray-500"}`}>{display()}</span>

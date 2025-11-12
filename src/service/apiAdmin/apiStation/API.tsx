@@ -355,20 +355,33 @@ export const searchStations = async (
   searchTerm: string
 ): Promise<Station[]> => {
   try {
-    const allStations = await getAllStations();
-    const lowerSearchTerm = searchTerm.toLowerCase();
+    if (!searchTerm || typeof searchTerm !== "string") {
+      return [];
+    }
 
-    return allStations.filter(
-      (station) =>
-        station.name.toLowerCase().includes(lowerSearchTerm) ||
-        station.location.address.toLowerCase().includes(lowerSearchTerm) ||
-        (station.code &&
-          station.code.toLowerCase().includes(lowerSearchTerm)) ||
-        (station.province &&
-          station.province.toLowerCase().includes(lowerSearchTerm))
-    );
+    const allStations = await getAllStations();
+    const lowerSearchTerm = searchTerm.toLowerCase().trim();
+
+    if (!lowerSearchTerm) {
+      return allStations;
+    }
+
+    return allStations.filter((station) => {
+      // Safe checks for each field
+      const nameMatch = station.name?.toLowerCase().includes(lowerSearchTerm);
+      const addressMatch = station.location?.address
+        ?.toLowerCase()
+        .includes(lowerSearchTerm);
+      const codeMatch = station.code?.toLowerCase().includes(lowerSearchTerm);
+      const provinceMatch = station.province
+        ?.toLowerCase()
+        .includes(lowerSearchTerm);
+
+      return nameMatch || addressMatch || codeMatch || provinceMatch;
+    });
   } catch (error) {
-    return handleError(error);
+    console.error("Search stations error:", error);
+    return []; // Return empty array instead of throwing
   }
 };
 
