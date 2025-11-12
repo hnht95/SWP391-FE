@@ -9,17 +9,20 @@ import {
   MdNotes,
   MdImage,
   MdSearch,
+  MdLocationCity,
 } from "react-icons/md";
 import {
   updateStation,
   buildUpdateStationFormData,
   type Station,
 } from "../../../../service/apiAdmin/apiStation/API";
+import { getProvinceNames } from "../../../../data/provinceData";
 
-// ✅ Form data interface
+// ✅ Form data interface - Added province
 interface FormData {
   name: string;
   code: string;
+  province: string; // ✅ Added province field
   location: {
     address: string;
     latitude: number;
@@ -53,6 +56,7 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
   const [formData, setFormData] = useState<FormData>({
     name: "",
     code: "",
+    province: "", // ✅ Initialize province
     location: {
       address: "",
       latitude: 0,
@@ -78,6 +82,9 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
   const [searchingAddress, setSearchingAddress] = useState(false);
   const [searchTimer, setSearchTimer] = useState<NodeJS.Timeout | null>(null);
 
+  // ✅ Get province list
+  const provinceList = getProvinceNames();
+
   // Load station data when modal opens
   useEffect(() => {
     if (station && isOpen) {
@@ -85,6 +92,7 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
       setFormData({
         name: station.name,
         code: station.code || "",
+        province: station.province || "", // ✅ Load province from station
         location: {
           address: station.location.address,
           latitude: station.location.lat,
@@ -247,6 +255,11 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
       newErrors.name = "Station name is required";
     }
 
+    // ✅ Validate province
+    if (!formData.province) {
+      newErrors.province = "Province is required";
+    }
+
     if (!formData.location.address.trim()) {
       newErrors.address = "Address is required";
     }
@@ -276,10 +289,12 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
 
     setLoading(true);
     try {
+      // ✅ Include province in form data
       const formDataToSend = buildUpdateStationFormData(
         {
           name: formData.name,
           code: formData.code,
+          province: formData.province, // ✅ Include province
           address: formData.location.address,
           lat: formData.location.latitude,
           lng: formData.location.longitude,
@@ -290,7 +305,7 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
         removeExistingImage
       );
 
-      console.log("📤 Updating station...");
+      console.log("📤 Updating station with province:", formData.province);
       await updateStation(station._id, formDataToSend);
 
       onUpdated();
@@ -402,6 +417,45 @@ const EditStationModal: React.FC<EditStationModalProps> = ({
                     </div>
                     {errors.name && (
                       <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+                    )}
+                  </div>
+
+                  {/* ✅ Province Dropdown */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Province / City <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <MdLocationCity className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                      <select
+                        value={formData.province}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            province: e.target.value,
+                          });
+                          if (errors.province)
+                            setErrors({ ...errors, province: "" });
+                        }}
+                        className={`w-full pl-10 pr-3 py-2 text-sm border ${
+                          errors.province
+                            ? "border-red-300 bg-red-50/30"
+                            : "border-gray-200 bg-gray-50/50"
+                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 appearance-none cursor-pointer`}
+                        disabled={loading}
+                      >
+                        <option value="">Select province...</option>
+                        {provinceList.map((province) => (
+                          <option key={province} value={province}>
+                            {province}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {errors.province && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.province}
+                      </p>
                     )}
                   </div>
 
