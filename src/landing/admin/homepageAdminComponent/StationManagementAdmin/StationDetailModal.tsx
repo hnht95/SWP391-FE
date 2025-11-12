@@ -12,6 +12,7 @@ import {
   MdImage,
   MdCalendarToday,
   MdUpdate,
+  MdLocationCity,
 } from "react-icons/md";
 import type { Station } from "../../../../service/apiAdmin/apiStation/API";
 
@@ -150,6 +151,19 @@ const StationDetailModal: React.FC<StationDetailModalProps> = ({
                     </div>
                     <p className="text-base font-mono font-semibold text-gray-900">
                       {station.code || "-"}
+                    </p>
+                  </div>
+
+                  {/* ✅ Province Field */}
+                  <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-xl p-4 md:col-span-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MdLocationCity className="w-5 h-5 text-green-600" />
+                      <span className="text-xs font-medium text-gray-600 uppercase">
+                        Province / City
+                      </span>
+                    </div>
+                    <p className="text-base font-semibold text-gray-900">
+                      {station.province || "-"}
                     </p>
                   </div>
                 </div>
