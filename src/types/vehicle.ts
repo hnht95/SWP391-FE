@@ -114,7 +114,12 @@ export interface Vehicle {
   model: string;
   year: number;
   color: string;
-  status: "available" | "reserved" | "rented" | "maintenance";
+  status:
+    | "available"
+    | "reserved"
+    | "rented"
+    | "pending_maintenance"
+    | "pending_deletion";
   batteryLevel: number;
   batteryCapacity: number;
   mileage: number;
@@ -139,7 +144,12 @@ export interface Vehicle {
 }
 
 // Status-related types
-export type VehicleStatus = "available" | "reserved" | "rented" | "maintenance";
+export type VehicleStatus =
+  | "available"
+  | "reserved"
+  | "rented"
+  | "pending_maintenance"
+  | "pending_deletion";
 export type VehicleType = "scooter" | "sport" | "standard";
 
 // Filter types

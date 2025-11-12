@@ -1,13 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import VehiclesCard from "./vehiclesComponent/VehiclesCard";
-import {
-  FaSearch,
-  FaMapMarkerAlt,
-  FaUsers,
-  FaChevronDown,
-  FaCar,
-} from "react-icons/fa";
+import { FaSearch, FaMapMarkerAlt, FaChevronDown, FaCar } from "react-icons/fa";
 import {
   getAllVehicles,
   type Vehicle,
@@ -26,9 +20,8 @@ const Vehicles: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
 
-  // ✅ Filter states
+  // ✅ Filter states (removed selectedStatus)
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedBrand, setSelectedBrand] = useState("All");
   const [selectedStation, setSelectedStation] = useState("All");
 
@@ -95,7 +88,7 @@ const Vehicles: React.FC = () => {
     return ["All", ...new Set(brands)];
   }, [vehicles]);
 
-  // ✅ Get unique stations from vehicles (xử lý cả string và object)
+  // ✅ Get unique stations from vehicles
   const allStations = useMemo(() => {
     if (stations.length === 0) return ["All"];
 
@@ -114,18 +107,12 @@ const Vehicles: React.FC = () => {
     return ["All", ...stationsWithVehicles];
   }, [vehicles, stations]);
 
-  // ✅ Get status options
-  const statusOptions = [
-    "All",
-    "available",
-    "reserved",
-    "rented",
-    "maintenance",
-  ];
-
-  // ✅ Filter logic - sửa lại station filter
+  // ✅ Filter logic - chỉ lấy xe có status "available"
   const filterCars = () => {
     return vehicles.filter((car) => {
+      // ✅ Chỉ lấy xe có status "available"
+      if (car.status !== "available") return false;
+
       // Search by brand + model + plate number
       let matchesSearchTerm = true;
       if (searchTerm.trim()) {
@@ -140,22 +127,16 @@ const Vehicles: React.FC = () => {
           car.model.toLowerCase().includes(lowerSearchTerm);
       }
 
-      // Status filter
-      const matchesStatus =
-        selectedStatus === "All" || car.status === selectedStatus;
-
       // Brand filter
       const matchesBrand =
         selectedBrand === "All" || car.brand === selectedBrand;
 
-      // ✅ Station filter - xử lý cả string và object populated
+      // ✅ Station filter
       const matchesStation =
         selectedStation === "All" ||
         getStationId(car.station) === selectedStation;
 
-      return (
-        matchesSearchTerm && matchesStatus && matchesBrand && matchesStation
-      );
+      return matchesSearchTerm && matchesBrand && matchesStation;
     });
   };
 
@@ -255,25 +236,6 @@ const Vehicles: React.FC = () => {
           </select>
           <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
-
-        {/* Status Dropdown */}
-        <div className="relative w-full md:w-48">
-          <FaUsers className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <select
-            className="w-full pl-12 pr-10 py-3 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-black cursor-pointer bg-white"
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-          >
-            {statusOptions.map((status, index) => (
-              <option key={index} value={status}>
-                {status === "All"
-                  ? "All Status"
-                  : status.charAt(0).toUpperCase() + status.slice(1)}
-              </option>
-            ))}
-          </select>
-          <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
       </div>
 
       {/* Vehicle Grid */}
@@ -285,8 +247,8 @@ const Vehicles: React.FC = () => {
               car={car}
               station={
                 typeof car.station === "object" && car.station !== null
-                  ? car.station // ✅ Truyền trực tiếp object station đã populate
-                  : stationMap[car.station as string] // ✅ Lookup từ map nếu là string
+                  ? car.station
+                  : stationMap[car.station as string]
               }
             />
           ))}

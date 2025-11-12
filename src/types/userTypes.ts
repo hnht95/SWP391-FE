@@ -79,7 +79,6 @@ export interface User {
   station: UserStation | null;
   kyc: UserKyc;
   defaultRefundWallet: string | null;
-  cccd?: string;
   rentalCount?: number;
   revenue?: number;
   feedback?: string;

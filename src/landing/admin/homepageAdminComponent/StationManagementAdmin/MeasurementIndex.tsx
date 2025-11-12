@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { MdLocationOn } from 'react-icons/md';
+import React from "react";
+import { motion } from "framer-motion";
+import { MdLocationOn } from "react-icons/md";
 
 interface MeasurementIndexProps {
   totalStations: number;
@@ -14,48 +14,48 @@ const MeasurementIndex: React.FC<MeasurementIndexProps> = ({
   inactiveStations,
 }) => {
   // Calculate activity percentage
-  const activityPercentage = totalStations > 0 
-    ? Math.round((activeStations / totalStations) * 100) 
-    : 0;
+  const activityPercentage =
+    totalStations > 0 ? Math.round((activeStations / totalStations) * 100) : 0;
 
   // Determine color based on percentage
   const getPerformanceColor = (percentage: number) => {
-    if (percentage >= 80) return { text: 'text-green-600', stroke: '#10b981' };
-    if (percentage >= 60) return { text: 'text-blue-600', stroke: '#3b82f6' };
-    if (percentage >= 40) return { text: 'text-yellow-600', stroke: '#f59e0b' };
-    return { text: 'text-red-600', stroke: '#ef4444' };
+    if (percentage >= 80) return { text: "text-green-600", stroke: "#10b981" };
+    if (percentage >= 60) return { text: "text-blue-600", stroke: "#3b82f6" };
+    if (percentage >= 40) return { text: "text-yellow-600", stroke: "#f59e0b" };
+    return { text: "text-red-600", stroke: "#ef4444" };
   };
 
   const performanceColor = getPerformanceColor(activityPercentage);
 
   // Calculate stroke dash offset for circular progress
   const circumference = 2 * Math.PI * 58;
-  const strokeDashoffset = circumference - (activityPercentage / 100) * circumference;
+  const strokeDashoffset =
+    circumference - (activityPercentage / 100) * circumference;
 
   const stats = [
     {
-      label: 'Total Stations',
+      label: "Total Stations",
       value: totalStations,
-      icon: '📍',
-      color: 'bg-blue-500',
+      icon: "📍",
+      color: "bg-blue-500",
     },
     {
-      label: 'Active',
+      label: "Active",
       value: activeStations,
-      icon: '✓',
-      color: 'bg-green-500',
+      icon: "✓",
+      color: "bg-green-500",
     },
     {
-      label: 'Inactive',
+      label: "Inactive",
       value: inactiveStations,
-      icon: '✕',
-      color: 'bg-red-500',
+      icon: "✕",
+      color: "bg-red-500",
     },
     {
-      label: 'Activity Rate',
+      label: "Activity Rate",
       value: `${activityPercentage}%`,
-      icon: '📊',
-      color: 'bg-purple-500',
+      icon: "📊",
+      color: "bg-purple-500",
     },
   ];
 
@@ -99,14 +99,21 @@ const MeasurementIndex: React.FC<MeasurementIndexProps> = ({
               <div className={`text-3xl font-bold ${performanceColor.text}`}>
                 {activityPercentage}%
               </div>
-              <div className="text-xs text-gray-500 font-medium mt-1">Activity</div>
+              <div className="text-xs text-gray-500 font-medium mt-1">
+                Activity
+              </div>
               <div className="flex items-center gap-1 mt-1">
-                <div className={`w-2 h-2 rounded-full ${
-                  activityPercentage >= 80 ? 'bg-green-500' : 
-                  activityPercentage >= 60 ? 'bg-blue-500' : 
-                  activityPercentage >= 40 ? 'bg-yellow-500' : 
-                  'bg-red-500'
-                } animate-pulse`} />
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    activityPercentage >= 80
+                      ? "bg-green-500"
+                      : activityPercentage >= 60
+                      ? "bg-blue-500"
+                      : activityPercentage >= 40
+                      ? "bg-yellow-500"
+                      : "bg-red-500"
+                  } animate-pulse`}
+                />
                 <span className="text-xs text-gray-400">Live</span>
               </div>
             </div>
@@ -133,7 +140,9 @@ const MeasurementIndex: React.FC<MeasurementIndexProps> = ({
                       {stat.value}
                     </p>
                   </div>
-                  <div className={`${stat.color} w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm`}>
+                  <div
+                    className={`${stat.color} w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm`}
+                  >
                     {stat.icon}
                   </div>
                 </div>
@@ -144,17 +153,25 @@ const MeasurementIndex: React.FC<MeasurementIndexProps> = ({
           {/* Performance indicator */}
           <div className="mt-4 flex items-center justify-between px-2 py-2 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex items-center gap-2">
-              <MdLocationOn className={`w-4 h-4 ${
-                activityPercentage >= 80 ? 'text-green-600' : 
-                activityPercentage >= 60 ? 'text-blue-600' : 
-                activityPercentage >= 40 ? 'text-yellow-600' : 
-                'text-red-600'
-              }`} />
+              <MdLocationOn
+                className={`w-4 h-4 ${
+                  activityPercentage >= 80
+                    ? "text-green-600"
+                    : activityPercentage >= 60
+                    ? "text-blue-600"
+                    : activityPercentage >= 40
+                    ? "text-yellow-600"
+                    : "text-red-600"
+                }`}
+              />
               <span className="text-sm text-gray-700 font-medium">
-                {activityPercentage >= 80 ? 'Excellent Performance' : 
-                 activityPercentage >= 60 ? 'Good Performance' : 
-                 activityPercentage >= 40 ? 'Fair Performance' : 
-                 'Needs Attention'}
+                {activityPercentage >= 80
+                  ? "Excellent Performance"
+                  : activityPercentage >= 60
+                  ? "Good Performance"
+                  : activityPercentage >= 40
+                  ? "Fair Performance"
+                  : "Needs Attention"}
               </span>
             </div>
             <span className="text-xs text-gray-500">

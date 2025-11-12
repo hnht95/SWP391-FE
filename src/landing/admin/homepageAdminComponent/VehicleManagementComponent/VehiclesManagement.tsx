@@ -12,9 +12,17 @@ import {
   getVehiclesPaginated,
   type Vehicle as APIVehicle,
   getPhotoUrls,
+  getMaintenanceRequestsPaginated,
 } from "../../../../service/apiAdmin/apiVehicles/API";
-import { getDeletionRequestsPaginated, approveDeletionRequest, rejectDeletionRequest, getMaintenanceRequestsPaginated, approveMaintenanceRequest, rejectMaintenanceRequest } from "../../../../service/apiAdmin/apiVehicles/API";
-import { getAllStations, type Station } from "../../../../service/apiAdmin/apiStation/API";
+import {
+  getDeletionRequestsPaginated,
+  approveDeletionRequest,
+  rejectDeletionRequest,
+} from "../../../../service/apiAdmin/apiVehicles/API";
+import {
+  getAllStations,
+  type Station,
+} from "../../../../service/apiAdmin/apiStation/API";
 import TransferVehicleModal from "./components/TransferVehicleModal";
 import ReportMaintenanceModal from "./components/ReportMaintenanceModal";
 import RequestDeletionModal from "./components/RequestDeletionModal";
@@ -26,12 +34,16 @@ import { deleteVehicle } from "../../../../service/apiAdmin/apiVehicles/API";
 
 const VehiclesManagement: React.FC = () => {
   console.log("🚀 VehiclesManagement component rendering...");
-  
+
   // State management
-  const [activeTab, setActiveTab] = useState<"vehicles" | "requests">("vehicles");
+  const [activeTab, setActiveTab] = useState<"vehicles" | "requests">(
+    "vehicles"
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedVehicle, setSelectedVehicle] = useState<APIVehicle | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<APIVehicle | null>(
+    null
+  );
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -39,10 +51,12 @@ const VehiclesManagement: React.FC = () => {
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
   const [isDeletionModalOpen, setIsDeletionModalOpen] = useState(false);
   const [isDeletionDetailOpen, setIsDeletionDetailOpen] = useState(false);
-  const [selectedDeletionRequest, setSelectedDeletionRequest] = useState<any | null>(null);
-  const [selectedMaintenanceRequest, setSelectedMaintenanceRequest] = useState<any | null>(null);
-  const [isMaintenanceDetailOpen, setIsMaintenanceDetailOpen] = useState(false);
-  const [vehicleToUpdate, setVehicleToUpdate] = useState<APIVehicle | null>(null);
+  const [selectedDeletionRequest, setSelectedDeletionRequest] = useState<
+    any | null
+  >(null);
+  const [vehicleToUpdate, setVehicleToUpdate] = useState<APIVehicle | null>(
+    null
+  );
   const [vehicles, setVehicles] = useState<UIVehicle[]>([]);
   const [apiVehicles, setApiVehicles] = useState<APIVehicle[]>([]);
   const [allStations, setAllStations] = useState<Station[]>([]);
@@ -67,9 +81,14 @@ const VehiclesManagement: React.FC = () => {
   // ✅ Get station name by ID
   const getStationName = (stationIdOrObject: any): string => {
     if (!(stationIdOrObject as any)) return "";
-    if (typeof stationIdOrObject === 'string') {
-      const station = allStations.find(s => s._id === stationIdOrObject);
-      console.log("Looking for station:", stationIdOrObject, "Found:", station?.name);
+    if (typeof stationIdOrObject === "string") {
+      const station = allStations.find((s) => s._id === stationIdOrObject);
+      console.log(
+        "Looking for station:",
+        stationIdOrObject,
+        "Found:",
+        station?.name
+      );
       return station?.name || stationIdOrObject; // Fallback to ID if station not found
     } else {
       return stationIdOrObject?.name || (stationIdOrObject as any)?._id || "";
@@ -78,20 +97,16 @@ const VehiclesManagement: React.FC = () => {
 
   // ✅ Map API Vehicle to UI Vehicle
   const mapApiToUi = (v: APIVehicle): UIVehicle => {
-    const stationData = typeof v.station === 'object' ? v.station : null;
+    const stationData = typeof v.station === "object" ? v.station : null;
     return {
       id: (v as any).id || v._id || "",
       brand: v.brand,
       model: v.model,
       licensePlate: v.plateNumber,
-      status: v.status as
-        | "available"
-        | "rented"
-        | "maintenance"
-        | "reserved"
-        | "pending_deletion"
-        | "pending_maintenance",
-      location: stationData?.name || getStationName(typeof v.station === 'string' ? v.station : ""),
+      status: v.status as "available" | "rented" | "maintenance" | "reserved",
+      location:
+        stationData?.name ||
+        getStationName(typeof v.station === "string" ? v.station : ""),
       dailyRate: v.pricePerDay,
       lastService: v.updatedAt || v.createdAt || "",
       batteryCapacity: v.batteryCapacity,
@@ -146,12 +161,12 @@ const VehiclesManagement: React.FC = () => {
         status: item.vehicle?.status,
       },
       reason: item.reason || item.reportText || "",
-      reportText: item.reportText,
-      evidencePhotos: item.evidencePhotos || [],
-      reportedBy: item.reportedBy,
-      station: stationFromItem,
-      requestedBy: typeof item.requestedBy === "string" ? item.requestedBy : (item.reportedBy?.name || item.reportedBy?.email || ""),
-      requestedAt: item.requestedAt || item.createdAt || new Date().toISOString(),
+      requestedBy:
+        typeof item.requestedBy === "string"
+          ? item.requestedBy
+          : item.reportedBy?.name || item.reportedBy?.email || "",
+      requestedAt:
+        item.requestedAt || item.createdAt || new Date().toISOString(),
       status: item.status,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
@@ -161,7 +176,10 @@ const VehiclesManagement: React.FC = () => {
   const fetchDeletionRequestsData = async (page = requestsPage) => {
     setRequestsLoading(true);
     try {
-      const { items, pagination } = await getDeletionRequestsPaginated(page, requestsLimit);
+      const { items, pagination } = await getDeletionRequestsPaginated(
+        page,
+        requestsLimit
+      );
       setDeletionRequests((items || []).map(mapDeletionRequest));
       if (pagination) {
         setRequestsPage(pagination.page || 1);
@@ -223,7 +241,9 @@ const VehiclesManagement: React.FC = () => {
 
   const handleEdit = (vehicle: UIVehicle) => {
     // Show detail modal first
-    const apiVehicle = apiVehicles.find(v => (((v as any).id) || v._id) === (vehicle as any).id);
+    const apiVehicle = apiVehicles.find(
+      (v) => ((v as any).id || v._id) === (vehicle as any).id
+    );
     if (apiVehicle) {
       setSelectedVehicle(apiVehicle);
       setIsDetailModalOpen(true);
@@ -234,7 +254,7 @@ const VehiclesManagement: React.FC = () => {
     // Close detail modal and open update modal
     setIsDetailModalOpen(false);
     setSelectedVehicle(null);
-    
+
     setVehicleToUpdate(vehicle);
     setIsUpdateModalOpen(true);
   };
@@ -371,10 +391,12 @@ const VehiclesManagement: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Vehicles</h2>
+          <h2 className="text-lg font-semibold text-red-800 mb-2">
+            Error Loading Vehicles
+          </h2>
           <p className="text-red-600 mb-4">{error}</p>
           <button
-            onClick={fetchVehicles}
+            onClick={() => fetchVehicles()}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Try Again
@@ -429,11 +451,13 @@ const VehiclesManagement: React.FC = () => {
             >
               {tab.label}
               {tab.count > 0 && (
-                <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  activeTab === tab.id
-                    ? "bg-blue-100 text-blue-600"
-                    : "bg-gray-100 text-gray-600"
-                }`}>
+                <span
+                  className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    activeTab === tab.id
+                      ? "bg-blue-100 text-blue-600"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
                   {tab.count}
                 </span>
               )}
@@ -442,124 +466,117 @@ const VehiclesManagement: React.FC = () => {
         </nav>
       </div>
 
-        {activeTab === "vehicles" ? (
-          <>
-            <FadeIn delay={0.5} duration={0.6} direction="up">
-              <VehicleFilters
-                searchTerm={searchTerm}
-                onSearchChange={handleSearchChange}
-                selectedStatus={selectedStatus}
-                onStatusChange={handleStatusChange}
-                isLoading={searchLoading}
-                page={vehPage}
-                totalPages={vehTotalPages}
-                total={vehTotal}
-              />
-            </FadeIn>
-
-            <FadeIn delay={0.7} duration={0.7} direction="up">
-              {loading || searchLoading ? (
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-sm text-gray-600">
-                {searchLoading ? "Searching vehicles..." : "Loading vehicles..."}
-              </p>
-            </div>
-          ) : error ? (
-            <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
-              <p className="text-sm text-red-600 mb-2">{error}</p>
-              <button
-                onClick={fetchVehicles}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-              >
-                Try Again
-              </button>
-            </div>
-          ) : filteredVehicles.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8 text-center">
-              <MdDirectionsCar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600">No vehicles found</p>
-            </div>
-          ) : (
-            <VehicleTable
-              vehicles={filteredVehicles}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onTransfer={(vehicle) => {
-                const apiVehicle = apiVehicles.find(v => ((v as any).id || v._id) === (vehicle as any).id);
-                if (apiVehicle) handleTransfer(apiVehicle);
-              }}
-              onMarkMaintenance={(vehicle) => {
-                const apiVehicle = apiVehicles.find(v => ((v as any).id || v._id) === (vehicle as any).id);
-                if (apiVehicle) handleReportMaintenance(apiVehicle);
-              }}
-              onRowClick={(vehicle) => {
-                const apiVehicle = apiVehicles.find(v => ((v as any).id || v._id) === (vehicle as any).id);
-                if (apiVehicle) {
-                  setSelectedVehicle(apiVehicle);
-                  setIsDetailModalOpen(true);
-                }
-              }}
+      {activeTab === "vehicles" ? (
+        <>
+          <FadeIn delay={0.5} duration={0.6} direction="up">
+            <VehicleFilters
+              searchTerm={searchTerm}
+              onSearchChange={handleSearchChange}
+              selectedStatus={selectedStatus}
+              onStatusChange={handleStatusChange}
+              isLoading={searchLoading}
               page={vehPage}
-              limit={vehLimit}
-              total={vehTotal}
               totalPages={vehTotalPages}
-              onPageChange={(p) => fetchVehicles(p)}
+              total={vehTotal}
+            />
+          </FadeIn>
+
+          <FadeIn delay={0.7} duration={0.7} direction="up">
+            {loading || searchLoading ? (
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-sm text-gray-600">
+                  {searchLoading
+                    ? "Searching vehicles..."
+                    : "Loading vehicles..."}
+                </p>
+              </div>
+            ) : error ? (
+              <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
+                <p className="text-sm text-red-600 mb-2">{error}</p>
+                <button
+                  onClick={() => fetchVehicles()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : filteredVehicles.length === 0 ? (
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8 text-center">
+                <MdDirectionsCar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600">No vehicles found</p>
+              </div>
+            ) : (
+              <VehicleTable
+                vehicles={filteredVehicles}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onTransfer={(vehicle) => {
+                  const apiVehicle = apiVehicles.find(
+                    (v) => ((v as any).id || v._id) === (vehicle as any).id
+                  );
+                  if (apiVehicle) handleTransfer(apiVehicle);
+                }}
+                onMarkMaintenance={(vehicle) => {
+                  const apiVehicle = apiVehicles.find(
+                    (v) => ((v as any).id || v._id) === (vehicle as any).id
+                  );
+                  if (apiVehicle) handleReportMaintenance(apiVehicle);
+                }}
+                onRowClick={(vehicle) => {
+                  const apiVehicle = apiVehicles.find(
+                    (v) => ((v as any).id || v._id) === (vehicle as any).id
+                  );
+                  if (apiVehicle) {
+                    setSelectedVehicle(apiVehicle);
+                    setIsDetailModalOpen(true);
+                  }
+                }}
+                page={vehPage}
+                limit={vehLimit}
+                total={vehTotal}
+                totalPages={vehTotalPages}
+                onPageChange={(p) => fetchVehicles(p)}
               />
             )}
-            </FadeIn>
-          </>
-        ) : (
-          <RequestsTab
-            maintenanceRequests={maintenanceRequests as any}
-            deletionRequests={deletionRequests as any}
-            transferLogs={[]}
-            isLoading={requestsLoading}
-            pagination={{ page: requestsPage, totalPages: requestsTotalPages }}
-            onPageChange={(p) => { fetchDeletionRequestsData(p); fetchMaintenanceRequestsData(p); }}
-            onApproveMaintenance={async (id) => {
-              try {
-                await approveMaintenanceRequest(id);
-                await fetchMaintenanceRequestsData();
-              } catch (e) {
-                console.error("Approve maintenance error:", e);
-              }
-            }}
-            onRejectMaintenance={async (id) => {
-              try {
-                await rejectMaintenanceRequest(id);
-                await fetchMaintenanceRequestsData();
-              } catch (e) {
-                console.error("Reject maintenance error:", e);
-              }
-            }}
-            onApproveDeletion={async (id) => {
-              try {
-                await approveDeletionRequest(id);
-                await fetchDeletionRequestsData();
-              } catch (e) {
-                console.error("Approve deletion error:", e);
-              }
-            }}
-            onRejectDeletion={async (id) => {
-              try {
-                await rejectDeletionRequest(id);
-                await fetchDeletionRequestsData();
-              } catch (e) {
-                console.error("Reject deletion error:", e);
-              }
-            }}
-            onViewDeletionRequest={(req) => {
-              setSelectedDeletionRequest(req);
-              setIsDeletionDetailOpen(true);
-            }}
-            onViewMaintenanceRequest={(req) => {
-              setSelectedMaintenanceRequest(req);
-              setIsMaintenanceDetailOpen(true);
-            }}
-            getStationName={getStationName}
-          />
-        )}
+          </FadeIn>
+        </>
+      ) : (
+        <RequestsTab
+          maintenanceRequests={[]}
+          deletionRequests={deletionRequests as any}
+          transferLogs={[]}
+          isLoading={requestsLoading}
+          pagination={{ page: requestsPage, totalPages: requestsTotalPages }}
+          onPageChange={(p) => fetchDeletionRequestsData(p)}
+          onApproveMaintenance={async (id) => {
+            console.log("Approve maintenance:", id);
+          }}
+          onRejectMaintenance={async (id) => {
+            console.log("Reject maintenance:", id);
+          }}
+          onApproveDeletion={async (id) => {
+            try {
+              await approveDeletionRequest(id);
+              await fetchDeletionRequestsData();
+            } catch (e) {
+              console.error("Approve deletion error:", e);
+            }
+          }}
+          onRejectDeletion={async (id) => {
+            try {
+              await rejectDeletionRequest(id);
+              await fetchDeletionRequestsData();
+            } catch (e) {
+              console.error("Reject deletion error:", e);
+            }
+          }}
+          onViewDeletionRequest={(req) => {
+            setSelectedDeletionRequest(req);
+            setIsDeletionDetailOpen(true);
+          }}
+        />
+      )}
 
       {/* Modals */}
       <VehicleDetailModal
@@ -635,9 +652,9 @@ const VehiclesManagement: React.FC = () => {
       />
 
       <MaintenanceRequestDetailModal
-        request={selectedMaintenanceRequest}
-        isOpen={isMaintenanceDetailOpen}
-        onClose={() => { setIsMaintenanceDetailOpen(false); setSelectedMaintenanceRequest(null); }}
+        request={maintenanceRequests}
+        isOpen={isMaintenanceModalOpen}
+        onClose={() => { setIsMaintenanceModalOpen(false); setSelectedVehicle(null); }}
         getStationName={getStationName}
       />
 

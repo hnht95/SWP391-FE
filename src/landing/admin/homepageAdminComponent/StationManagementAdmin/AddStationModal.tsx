@@ -9,14 +9,17 @@ import {
   MdNotes,
   MdImage,
   MdSearch,
+  MdLocationCity,
 } from "react-icons/md";
 import {
   buildCreateStationFormData,
   createStation,
 } from "../../../../service/apiAdmin/apiStation/API";
+import { getProvinceNames } from "../../../../data/provinceData";
 
 interface FormData {
   name: string;
+  province: string; // ✅ Added province
   location: {
     address: string;
     latitude: number;
@@ -46,6 +49,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
+    province: "", // ✅ Initialize province
     location: {
       address: "",
       latitude: 0,
@@ -67,6 +71,9 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchingAddress, setSearchingAddress] = useState(false);
   const [searchTimer, setSearchTimer] = useState<NodeJS.Timeout | null>(null);
+
+  // ✅ Get province list
+  const provinceList = getProvinceNames();
 
   const searchAddress = async (query: string) => {
     if (query.trim().length < 3) {
@@ -202,6 +209,11 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       newErrors.name = "Station name must be at least 2 characters";
     }
 
+    // ✅ Validate province
+    if (!formData.province) {
+      newErrors.province = "Province is required";
+    }
+
     if (!formData.location.address.trim()) {
       newErrors.address = "Address is required";
     } else if (formData.location.address.trim().length < 5) {
@@ -243,45 +255,13 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
     setLoading(true);
 
     try {
-      console.log("\n");
-      console.log("═══════════════════════════════════════════════════════");
-      console.log("📤 STARTING STATION CREATION");
-      console.log("═══════════════════════════════════════════════════════");
+      console.log("📤 Creating station with province:", formData.province);
 
-      // Step 1: Log form data
-      console.log("\n📋 Form Data:");
-
-      console.log("  name:", formData.name);
-      console.log("  location:");
-      console.log("    address:", formData.location.address);
-      console.log("    lat:", formData.location.latitude);
-      console.log("    lng:", formData.location.longitude);
-      console.log("  note:", formData.note || "");
-      console.log("  isActive:", formData.isActive);
-
-      // Step 2: Log image info
-      console.log("\n📸 Cover Image:");
-      if (coverImage) {
-        console.log("  ✅ Image attached");
-        console.log("    name:", coverImage.name);
-        console.log("    type:", coverImage.type);
-        console.log(
-          "    size:",
-          `${(coverImage.size / 1024).toFixed(2)} KB (${coverImage.size} bytes)`
-        );
-        console.log(
-          "    lastModified:",
-          new Date(coverImage.lastModified).toISOString()
-        );
-      } else {
-        console.log("  ⚠️ No image attached");
-      }
-
-      // Step 3: Build FormData
-      console.log("\n🔨 Building FormData...");
+      // ✅ Build FormData with province
       const formDataToSend = buildCreateStationFormData(
         {
           name: formData.name,
+          province: formData.province, // ✅ Include province
           address: formData.location.address,
           lat: formData.location.latitude,
           lng: formData.location.longitude,
@@ -290,151 +270,13 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
         coverImage || undefined
       );
 
-      // Step 4: Log FormData contents
-      console.log("\n📦 FormData Contents (will be sent to backend):");
-      console.log("═══════════════════════════════════════════════════════");
-      let hasImage = false;
-      const formDataEntries: Record<string, string> = {};
-
-      for (const [key, value] of formDataToSend.entries()) {
-        if (value instanceof File) {
-          hasImage = true;
-          const fileInfo = {
-            name: value.name,
-            type: value.type,
-            size: value.size,
-            sizeKB: `${(value.size / 1024).toFixed(2)} KB`,
-            lastModified: new Date(value.lastModified).toISOString(),
-          };
-          console.log(`  ${key}: [File Object]`);
-          console.log(`    - name: ${fileInfo.name}`);
-          console.log(`    - type: ${fileInfo.type}`);
-          console.log(
-            `    - size: ${fileInfo.sizeKB} (${fileInfo.size} bytes)`
-          );
-          console.log(`    - lastModified: ${fileInfo.lastModified}`);
-          formDataEntries[key] = `[File: ${fileInfo.name}]`;
-        } else {
-          console.log(`  ${key}: ${value}`);
-          formDataEntries[key] = value as string;
-
-          // Parse location JSON to show structure
-          if (key === "location") {
-            try {
-              const locationObj = JSON.parse(value as string);
-              console.log(`    ↳ Parsed location object:`);
-              console.log(`      - address: ${locationObj.address}`);
-              console.log(`      - lat: ${locationObj.lat}`);
-              console.log(`      - lng: ${locationObj.lng}`);
-            } catch {
-              console.warn(`    ⚠️ Could not parse location JSON`);
-            }
-          }
-        }
-      }
-
-      console.log("\n🔍 Complete FormData Summary:");
-      console.log(JSON.stringify(formDataEntries, null, 2));
-      console.log("═══════════════════════════════════════════════════════");
-
-      if (!hasImage && coverImage) {
-        console.warn("\n⚠️ WARNING: Image selected but not found in FormData!");
-      }
-
-      if (hasImage) {
-        console.log("\n✅ Image file is attached to FormData as 'coverFile'");
-      }
-
-      // Step 5: Call API
-      console.log("\n🚀 Sending POST request to backend...");
-      console.log("  Endpoint: POST /api/stations");
-      console.log("  Content-Type: multipart/form-data (auto-set by browser)");
-
       const response = await createStation(formDataToSend);
-
-      // Step 6: Log response matching backend structure
-      console.log("\n✅ SUCCESS - Station Created!");
-      console.log("═══════════════════════════════════════════════════════");
-      console.log("\n📥 Backend Response (Station Object):");
-      console.log(JSON.stringify(response, null, 2));
-
-      console.log("\n📊 Response Breakdown:");
-      console.log("  _id:", response._id);
-      console.log("  name:", response.name);
-      console.log("  code:", response.code);
-
-      console.log("  location:");
-      console.log("    address:", response.location.address);
-      console.log("    lat:", response.location.lat);
-      console.log("    lng:", response.location.lng);
-
-      console.log("  note:", response.note || "(empty)");
-      console.log("  isActive:", response.isActive);
-
-      if (response.imgStation) {
-        console.log("  imgStation: ✅ Image uploaded successfully");
-        console.log("    _id:", response.imgStation._id);
-        console.log("    url:", response.imgStation.url);
-        console.log("    publicId:", response.imgStation.publicId);
-        console.log("    type:", response.imgStation.type);
-        console.log("    provider:", response.imgStation.provider);
-        console.log("    tags:", response.imgStation.tags);
-        console.log("    uploadedBy:", response.imgStation.uploadedBy);
-        console.log("    createdAt:", response.imgStation.createdAt);
-        console.log("    updatedAt:", response.imgStation.updatedAt);
-        console.log("    __v:", response.imgStation);
-      } else {
-        console.log(
-          "  imgStation: ❌ No image (field not present in response)"
-        );
-      }
-
-      console.log("  createdAt:", response.createdAt);
-      console.log("  updatedAt:", response.updatedAt);
-      console.log("  __v:", response.__v);
-
-      console.log("\n🔍 Validation Checks:");
-      console.log("  ✓ Has _id:", !!response._id);
-      console.log("  ✓ Has name:", !!response.name);
-      console.log("  ✓ Has code:", !!response.code);
-      console.log("  ✓ Has location:", !!response.location);
-      console.log("  ✓ Has location.address:", !!response.location?.address);
-      console.log(
-        "  ✓ Has location.lat:",
-        response.location?.lat !== undefined
-      );
-      console.log(
-        "  ✓ Has location.lng:",
-        response.location?.lng !== undefined
-      );
-      console.log("  ✓ Has imgStation:", !!response.imgStation);
-      if (coverImage) {
-        console.log(
-          coverImage && !response.imgStation
-            ? "  ⚠️ WARNING: Image was sent but not in response!"
-            : "  ✓ Image processed correctly"
-        );
-      }
-
-      console.log("═══════════════════════════════════════════════════════\n");
+      console.log("✅ Station created:", response);
 
       handleClose();
       onCreated();
     } catch (error) {
-      console.error("\n❌ ERROR - Station Creation Failed!");
-      console.error("═══════════════════════════════════════════════════════");
-      console.error("Error Object:", error);
-
-      if (error instanceof Error) {
-        console.error("  message:", error.message);
-        console.error("  name:", error.name);
-        console.error("  stack:", error.stack);
-      }
-
-      console.error(
-        "═══════════════════════════════════════════════════════\n"
-      );
-
+      console.error("❌ Error creating station:", error);
       setSubmitError(
         error instanceof Error
           ? error.message
@@ -450,6 +292,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       console.log("🔄 Resetting form...");
       setFormData({
         name: "",
+        province: "",
         location: { address: "", latitude: 0, longitude: 0 },
         note: "",
         isActive: true,
@@ -542,6 +385,42 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                   </div>
                   {errors.name && (
                     <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+                  )}
+                </div>
+
+                {/* ✅ Province Dropdown */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Province / City <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <MdLocationCity className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                    <select
+                      value={formData.province}
+                      onChange={(e) => {
+                        setFormData({ ...formData, province: e.target.value });
+                        if (errors.province)
+                          setErrors({ ...errors, province: "" });
+                      }}
+                      className={`w-full pl-10 pr-3 py-2 text-sm border ${
+                        errors.province
+                          ? "border-red-300 bg-red-50/30"
+                          : "border-gray-200 bg-gray-50/50"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 appearance-none cursor-pointer`}
+                      disabled={loading}
+                    >
+                      <option value="">Select province...</option>
+                      {provinceList.map((province) => (
+                        <option key={province} value={province}>
+                          {province}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {errors.province && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.province}
+                    </p>
                   )}
                 </div>
 
