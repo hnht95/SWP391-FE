@@ -1,7 +1,7 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { MdClose, MdEdit, MdEmail, MdPhone, MdLocationOn, MdBadge, MdPerson, MdWork } from "react-icons/md";
+import { MdClose, MdEdit, MdEmail, MdPhone, MdLocationOn, MdBadge, MdPerson, MdWork, MdDelete } from "react-icons/md";
 
 // Combined interface for unified user/staff management
 interface CombinedUser {
@@ -31,9 +31,12 @@ interface UserDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onEdit: (user: CombinedUser) => void;
+  onDelete?: (user: CombinedUser) => void;
 }
 
-const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, isOpen, onClose, onEdit }) => {
+const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, isOpen, onClose, onEdit, onDelete }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -45,7 +48,29 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, isOpen, onClose
     };
   }, [isOpen]);
 
+  // Reset delete confirm when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setShowDeleteConfirm(false);
+    }
+  }, [isOpen]);
+
   if (!user || !isOpen) return null;
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (onDelete && user.type === "staff") {
+      onDelete(user);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("vi-VN", {
@@ -288,23 +313,97 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, isOpen, onClose
               </div>
 
               {/* Footer Actions */}
-              <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
-                <button
-                  onClick={onClose}
-                  className="px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => onEdit(user)}
-                  className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-white bg-gray-900 border border-transparent rounded-xl hover:bg-gray-800 transition-all duration-200 shadow-sm hover:shadow-md"
-                >
-                  <MdEdit className="w-4 h-4" />
-                  <span>Edit</span>
-                </button>
+              <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+                {/* Delete button - only for staff */}
+                {user.type === "staff" && onDelete && (
+                  <button
+                    onClick={handleDeleteClick}
+                    className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-white bg-red-600 border border-transparent rounded-xl hover:bg-red-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    <MdDelete className="w-4 h-4" />
+                    <span>Delete Staff</span>
+                  </button>
+                )}
+                {(!onDelete || user.type !== "staff") && <div />}
+
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={onClose}
+                    className="px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => onEdit(user)}
+                    className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-white bg-gray-900 border border-transparent rounded-xl hover:bg-gray-800 transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    <MdEdit className="w-4 h-4" />
+                    <span>Edit</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
+
+          {/* Delete Confirmation Modal */}
+          <AnimatePresence>
+            {showDeleteConfirm && (
+              <motion.div
+                className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="fixed inset-0 bg-black/60" onClick={handleCancelDelete} />
+                <motion.div
+                  className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                      <MdDelete className="w-6 h-6 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Delete Staff</h3>
+                      <p className="text-sm text-gray-500">This action cannot be undone</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-gray-700">
+                      Are you sure you want to delete <span className="font-semibold">{user.name}</span>?
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Email: {user.email}
+                    </p>
+                    {user.station && (
+                      <p className="text-xs text-gray-500">
+                        Station: {user.station}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-end space-x-3">
+                    <button
+                      onClick={handleCancelDelete}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleConfirmDelete}
+                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
     </AnimatePresence>,

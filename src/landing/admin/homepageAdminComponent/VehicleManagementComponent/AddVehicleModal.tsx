@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MdClose, MdDirectionsCar } from "react-icons/md";
-import { createVehicle, type CreateVehicleData } from "../../../../service/apiAdmin/apiVehicles/API";
+import { createVehicle, getVehicleById, type CreateVehicleData } from "../../../../service/apiAdmin/apiVehicles/API";
 import { getAllStations, type Station } from "../../../../service/apiAdmin/apiStation/API";
 import UploadCarPhotos from "./UploadCarPhotos";
 
@@ -215,7 +215,23 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
       };
 
       console.log("Creating vehicle with data:", vehicleData);
-      await createVehicle(vehicleData);
+      const createdVehicle = await createVehicle(vehicleData);
+      
+      // Fetch the vehicle again to ensure we have complete data including valuation
+      // Sometimes the create response might not include all fields
+      let fullVehicleData = createdVehicle;
+      if (createdVehicle._id) {
+        try {
+          // Wait a moment for backend to fully process the vehicle
+          await new Promise(resolve => setTimeout(resolve, 500));
+          // Fetch the complete vehicle data
+          fullVehicleData = await getVehicleById(createdVehicle._id);
+          console.log("✅ Fetched complete vehicle data:", fullVehicleData);
+          console.log("✅ Valuation in fetched data:", fullVehicleData.valuation);
+        } catch (fetchError) {
+          console.warn("⚠️ Could not fetch vehicle details, using create response:", fetchError);
+        }
+      }
       
       setShowSuccessModal(true);
       setTimeout(() => {

@@ -41,7 +41,7 @@ export interface Vehicle {
   mileage: number;
   pricePerDay: number;
   pricePerHour: number;
-  status: "available" | "reserved" | "rented" | "maintenance";
+  status: "available" | "reserved" | "rented" | "maintenance" | "pending_deletion" | "pending_maintenance";
   station: string | StationData;
   defaultPhotos: {
     exterior: (string | VehiclePhoto)[];
@@ -348,7 +348,10 @@ export const createVehicle = async (
       if (vehicleData.pricePerHour) formData.append('pricePerHour', vehicleData.pricePerHour.toString());
       if (vehicleData.status) formData.append('status', vehicleData.status);
       if (vehicleData.station) formData.append('station', vehicleData.station);
-      if (vehicleData.valuation) formData.append('valuation', JSON.stringify(vehicleData.valuation));
+      // Send valuation - backend should parse JSON string from FormData
+      if (vehicleData.valuation && vehicleData.valuation.valueVND !== undefined) {
+        formData.append('valuation', JSON.stringify(vehicleData.valuation));
+      }
       
       // Append files
       if (vehicleData.exteriorFiles) {
@@ -827,6 +830,44 @@ export const rejectMaintenanceRequest = async (requestId: string): Promise<any> 
     }
     
     throw new Error("Failed to reject maintenance request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Paginated maintenance requests (admin)
+export const getMaintenanceRequestsPaginated = async (
+  page = 1,
+  limit = 20
+): Promise<{ items: any[]; pagination: PaginationMeta }> => {
+  try {
+    const response = await api.get<{ success?: boolean; items?: any[]; data?: any[]; pagination?: PaginationMeta }>(
+      "/vehicles/maintenance-requests",
+      { params: { page, limit } }
+    );
+
+    if (Array.isArray(response.data?.items)) {
+      return {
+        items: response.data.items || [],
+        pagination: response.data.pagination || { page, limit, total: response.data.items?.length || 0, totalPages: 1 },
+      };
+    }
+
+    if (Array.isArray(response.data?.data)) {
+      const items = response.data.data || [];
+      return {
+        items,
+        pagination: { page, limit, total: items.length, totalPages: 1 },
+      };
+    }
+
+    if (Array.isArray((response as any).data)) {
+      const items = (response as any).data as any[];
+      return { items, pagination: { page, limit, total: items.length, totalPages: 1 } };
+    }
+
+    return { items: [], pagination: { page, limit, total: 0, totalPages: 1 } };
   } catch (error) {
     handleError(error);
     throw error;

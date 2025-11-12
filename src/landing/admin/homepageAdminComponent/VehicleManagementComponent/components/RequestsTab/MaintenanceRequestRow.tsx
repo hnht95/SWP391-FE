@@ -1,22 +1,27 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { MdCheck, MdClose } from "react-icons/md";
+import { MdCheck, MdClose, MdRemoveRedEye } from "react-icons/md";
 import { GrHostMaintenance } from "react-icons/gr";
 import type { MaintenanceRequest } from "../../../../../../types/vehicle";
 
 interface MaintenanceRequestRowProps {
-  request: MaintenanceRequest;
+  request: MaintenanceRequest & { station?: any; urgency?: string; evidencePhotos?: Array<string | { _id: string; url?: string }>; reportedBy?: any };
   onApprove: () => Promise<void>;
   onReject: () => Promise<void>;
+  getStationName?: (stationIdOrObject: any) => string;
+  onView?: (req: any) => void;
 }
 
 const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
   request,
   onApprove,
   onReject,
+  getStationName,
+  onView,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [action, setAction] = useState<"approve" | "reject" | null>(null);
+  const [showActions, setShowActions] = useState(false);
 
   const handleAction = async (actionType: "approve" | "reject") => {
     setIsLoading(true);
@@ -63,10 +68,11 @@ const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
 
   return (
     <motion.tr
-      className="hover:bg-gray-50"
+      className="hover:bg-gray-50 cursor-pointer"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
+      onClick={() => { if (!showActions) onView?.(request); }}
     >
       {/* Vehicle */}
       <td className="px-6 py-4 whitespace-nowrap">
@@ -78,25 +84,42 @@ const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
           </div>
           <div className="ml-4">
             <div className="text-sm font-medium text-gray-900">
-              {request.vehicle.brand} {request.vehicle.model}
+              {request.vehicle ? (
+                <>
+                  {request.vehicle.brand} {request.vehicle.model}
+                </>
+              ) : (
+                <span className="text-gray-500">Unknown vehicle</span>
+              )}
             </div>
             <div className="text-sm text-gray-500">
-              {request.vehicle.plateNumber}
+              {request.vehicle?.plateNumber || "—"}
             </div>
           </div>
         </div>
       </td>
 
-      {/* Description */}
-      <td className="px-6 py-4">
-        <div className="text-sm text-gray-900 max-w-xs truncate" title={request.description}>
-          {request.description}
-        </div>
+      
+
+      {/* Station */}
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+        {getStationName ? getStationName(request.station) : (request.station?.name || request.station || "")}
       </td>
+
+      {/* Urgency */}
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          request.urgency === 'high' ? 'bg-red-100 text-red-700' : request.urgency === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'
+        }`}>
+          {(request.urgency || 'medium').charAt(0).toUpperCase() + (request.urgency || 'medium').slice(1)}
+        </span>
+      </td>
+
+      
 
       {/* Reported By */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900">{request.reportedBy}</div>
+        <div className="text-sm text-gray-900">{(request as any).reportedBy?.name || request.reportedBy}</div>
       </td>
 
       {/* Date */}
@@ -114,13 +137,20 @@ const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
       {/* Actions */}
       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
         <div className="flex items-center space-x-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowActions((v) => !v); }}
+            className="p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+            title="Review request"
+          >
+            <MdRemoveRedEye className="w-4 h-4" />
+          </button>
           <motion.button
             whileHover={{ scale: isActionDisabled ? 1 : 1.1 }}
             whileTap={{ scale: isActionDisabled ? 1 : 0.95 }}
             onClick={() => handleAction("approve")}
-            disabled={isActionDisabled}
+            disabled={isActionDisabled || !showActions}
             className={`flex items-center space-x-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              isActionDisabled
+              isActionDisabled || !showActions
                 ? "text-gray-400 bg-gray-100 cursor-not-allowed"
                 : "text-green-700 bg-green-100 hover:bg-green-200"
             }`}
@@ -137,9 +167,9 @@ const MaintenanceRequestRow: React.FC<MaintenanceRequestRowProps> = ({
             whileHover={{ scale: isActionDisabled ? 1 : 1.1 }}
             whileTap={{ scale: isActionDisabled ? 1 : 0.95 }}
             onClick={() => handleAction("reject")}
-            disabled={isActionDisabled}
+            disabled={isActionDisabled || !showActions}
             className={`flex items-center space-x-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              isActionDisabled
+              isActionDisabled || !showActions
                 ? "text-gray-400 bg-gray-100 cursor-not-allowed"
                 : "text-red-700 bg-red-100 hover:bg-red-200"
             }`}

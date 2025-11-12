@@ -182,13 +182,25 @@ export const updateStaff = async (
 
 /**
  * DELETE /admin/staffs/:id - Delete staff (admin only)
- * Backend returns: { success: true, message: string }
+ * Backend returns: { success: true, message: string, deletedStaff: { id, name, email, role, station } }
  */
-export const deleteStaff = async (staffId: string): Promise<void> => {
+export interface DeleteStaffResponse {
+  success: boolean;
+  message: string;
+  deletedStaff: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    station: string;
+  };
+}
+
+export const deleteStaff = async (staffId: string): Promise<DeleteStaffResponse> => {
   try {
     console.log("Deleting staff with id:", staffId);
 
-    const response = await api.delete<{ success: boolean; message: string }>(
+    const response = await api.delete<DeleteStaffResponse>(
       `/admin/staffs/${staffId}`
     );
 
@@ -197,6 +209,8 @@ export const deleteStaff = async (staffId: string): Promise<void> => {
     if (!response.data.success) {
       throw new Error("Failed to delete staff");
     }
+
+    return response.data;
   } catch (error) {
     handleError(error);
     throw error;
