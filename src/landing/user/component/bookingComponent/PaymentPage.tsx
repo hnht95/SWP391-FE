@@ -19,17 +19,52 @@ import {
   getPaymentStatus,
   type Booking,
 } from "../../../../service/apiBooking/API";
+import { getVehicleById } from "../../../../service/apiAdmin/apiVehicles/API";
 import type { Vehicle } from "../../../../types/vehicle";
+
+const PAYMENT_TIMEOUT_MINUTES = 15;
+const PAYMENT_TIMEOUT_SECONDS = PAYMENT_TIMEOUT_MINUTES * 60;
+
+interface PaymentTimer {
+  bookingId: string;
+  expiryTime: number;
+}
+
+const getPaymentTimerKey = (bookingId: string) => `payment_timer_${bookingId}`;
+
+const savePaymentTimer = (bookingId: string, expiryTime: number) => {
+  const timer: PaymentTimer = { bookingId, expiryTime };
+  localStorage.setItem(getPaymentTimerKey(bookingId), JSON.stringify(timer));
+};
+
+const getPaymentTimer = (bookingId: string): PaymentTimer | null => {
+  const saved = localStorage.getItem(getPaymentTimerKey(bookingId));
+  if (!saved) return null;
+  try {
+    return JSON.parse(saved);
+  } catch {
+    return null;
+  }
+};
+
+const clearPaymentTimer = (bookingId: string) => {
+  localStorage.removeItem(getPaymentTimerKey(bookingId));
+};
+
+const calculateRemainingTime = (expiryTime: number): number => {
+  const now = Date.now();
+  const remaining = Math.floor((expiryTime - now) / 1000);
+  return Math.max(0, remaining);
+};
 
 const PaymentPage: React.FC = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // ✅ Get passed data from BookingPage
-  const { booking, vehicle, calculatedTotals } = location.state as {
-    booking: Booking;
-    vehicle: Vehicle;
+  const locationState = location.state as {
+    booking?: Booking;
+    vehicle?: Vehicle;
     calculatedTotals?: {
       dailyRate: number;
       duration: number;
@@ -37,33 +72,175 @@ const PaymentPage: React.FC = () => {
       deposit: number;
       total: number;
     };
-  };
+  } | null;
+
+  const [booking, setBooking] = useState<Booking | null>(
+    locationState?.booking || null
+  );
+  const [vehicle, setVehicle] = useState<Vehicle | null>(
+    locationState?.vehicle || null
+  );
+  const [calculatedTotals, setCalculatedTotals] = useState(
+    locationState?.calculatedTotals || null
+  );
 
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
-  const [paymentStatus, setPaymentStatus] = useState<string>(
-    booking?.deposit?.status || "pending"
-  );
+  const [paymentStatus, setPaymentStatus] = useState<string>("pending");
   const [polling, setPolling] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(15 * 60);
+  const [timeLeft, setTimeLeft] = useState(PAYMENT_TIMEOUT_SECONDS);
   const [isExpired, setIsExpired] = useState(false);
+  const [loading, setLoading] = useState(!booking);
+  const [error, setError] = useState<string | null>(null);
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timerInitializedRef = useRef(false);
 
-  // ✅ Use passed calculations or fallback to booking data
-  const calculateTotals = () => {
-    if (calculatedTotals) {
-      return calculatedTotals;
+  // Initialize or restore payment timer
+  useEffect(() => {
+    if (!bookingId || timerInitializedRef.current) return;
+
+    const savedTimer = getPaymentTimer(bookingId);
+
+    if (savedTimer) {
+      const remaining = calculateRemainingTime(savedTimer.expiryTime);
+      console.log(
+        `⏰ Restored timer: ${Math.floor(remaining / 60)}:${remaining % 60}`
+      );
+
+      if (remaining <= 0) {
+        setTimeLeft(0);
+        setIsExpired(true);
+        setPolling(false);
+        clearPaymentTimer(bookingId);
+      } else {
+        setTimeLeft(remaining);
+      }
+    } else {
+      const expiryTime = Date.now() + PAYMENT_TIMEOUT_SECONDS * 1000;
+      savePaymentTimer(bookingId, expiryTime);
+      console.log(
+        `⏰ Created timer: expires at ${new Date(
+          expiryTime
+        ).toLocaleTimeString()}`
+      );
     }
 
-    // Fallback calculation from booking
-    const deposit = booking.deposit?.amount || 0;
-    const total = booking.amountEstimated || 0;
-    const rentalCost = total - deposit;
+    timerInitializedRef.current = true;
+  }, [bookingId]);
+
+  // Fetch booking data if not provided
+  useEffect(() => {
+    const fetchBookingData = async () => {
+      if (!bookingId || booking) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const bookingResponse = await getPaymentStatus(bookingId);
+
+        if (!bookingResponse || !bookingResponse.current) {
+          throw new Error("Invalid booking response");
+        }
+
+        const fetchedBooking = bookingResponse.current;
+        setBooking(fetchedBooking);
+
+        const status = fetchedBooking.deposit?.status || "pending";
+        setPaymentStatus(status);
+
+        if (status === "captured") {
+          clearPaymentTimer(bookingId);
+          setPolling(false);
+        }
+
+        if (fetchedBooking.vehicle) {
+          const vehicleId =
+            typeof fetchedBooking.vehicle === "string"
+              ? fetchedBooking.vehicle
+              : fetchedBooking.vehicle._id;
+
+          const fetchedVehicle = await getVehicleById(vehicleId);
+          setVehicle(fetchedVehicle);
+        }
+      } catch (err) {
+        console.error("❌ Failed to fetch booking:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load booking data"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookingData();
+  }, [bookingId, booking]);
+
+  // ✅ FIXED: Calculate totals with correct fields
+  const calculateTotals = () => {
+    if (calculatedTotals) return calculatedTotals;
+
+    if (!booking) {
+      return {
+        dailyRate: 0,
+        duration: "0d",
+        rentalCost: 0,
+        deposit: 0,
+        total: 0,
+      };
+    }
+
+    // Get vehicle valuation for deposit calculation
+    let vehicleValue = 0;
+    if (typeof booking.vehicle === "object" && booking.vehicle !== null) {
+      const vehicle = booking.vehicle as any;
+      vehicleValue = vehicle.valuation?.valueVND || 0;
+    }
+
+    // Calculate deposit: 1.5% of vehicle value
+    const deposit = Math.round(vehicleValue * 0.015);
+
+    // Get rental cost from pricingSnapshot.basePrice
+    const pricingSnapshot = booking.pricingSnapshot as any;
+    const rentalCost =
+      pricingSnapshot?.basePrice || booking.amounts?.rentalEstimated || 0;
+
+    // Total = rental + deposit
+    const total = rentalCost + deposit;
+
+    // ✅ FIX: Duration - check both days and hours
+    const days = pricingSnapshot?.days || 0;
+    const hours = pricingSnapshot?.hours || 0;
+
+    let durationText: string;
+    if (days > 0 && hours > 0) {
+      durationText = `${days}d ${hours}h`;
+    } else if (days > 0) {
+      durationText = `${days}d`;
+    } else if (hours > 0) {
+      durationText = `${hours}h`;
+    } else {
+      durationText = "0d";
+    }
+
+    // Daily rate
+    const dailyRate = pricingSnapshot?.unitPriceDay || 0;
+
+    console.log("💰 Payment breakdown:", {
+      vehicleValue: vehicleValue.toLocaleString(),
+      deposit: deposit.toLocaleString(),
+      rentalCost: rentalCost.toLocaleString(),
+      total: total.toLocaleString(),
+      days,
+      hours,
+      durationText,
+      dailyRate: dailyRate.toLocaleString(),
+      pricingSnapshot, // ✅ Debug full object
+    });
 
     return {
-      dailyRate: booking.pricingSnapshot?.basePrice || 0,
-      duration: booking.pricingSnapshot?.computedQty || 0,
+      dailyRate,
+      duration: durationText,
       rentalCost,
       deposit,
       total,
@@ -72,36 +249,55 @@ const PaymentPage: React.FC = () => {
 
   const totals = calculateTotals();
 
-  // ✅ Generate QR Code
+  // Generate QR Code
   useEffect(() => {
-    if (booking?.qrCode) {
-      QRCode.toDataURL(booking.qrCode, { width: 300 })
-        .then((url) => {
-          setQrCodeUrl(url);
-        })
-        .catch((err) => {
-          console.error("QR Code generation error:", err);
-        });
-    }
-  }, [booking?.qrCode]);
+    const generateQR = async () => {
+      if (!booking?.deposit?.payos?.qrCode) {
+        console.warn("⚠️ No QR code in booking");
+        return;
+      }
 
-  // ✅ Countdown timer
+      try {
+        const qrData = booking.deposit.payos.qrCode;
+        const url = await QRCode.toDataURL(qrData, {
+          width: 300,
+          margin: 2,
+          color: { dark: "#000000", light: "#FFFFFF" },
+        });
+        setQrCodeUrl(url);
+        console.log("✅ QR Code generated");
+      } catch (err) {
+        console.error("❌ QR generation error:", err);
+      }
+    };
+
+    generateQR();
+  }, [booking?.deposit?.payos?.qrCode]);
+
+  // Countdown timer
   useEffect(() => {
-    if (isExpired || paymentStatus === "captured") return;
+    if (!bookingId || isExpired || paymentStatus === "captured") return;
 
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
+        const savedTimer = getPaymentTimer(bookingId);
+        if (!savedTimer) return 0;
+
+        const remaining = calculateRemainingTime(savedTimer.expiryTime);
+
+        if (remaining <= 0) {
           setIsExpired(true);
           setPolling(false);
+          clearPaymentTimer(bookingId);
           return 0;
         }
-        return prev - 1;
+
+        return remaining;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isExpired, paymentStatus]);
+  }, [bookingId, isExpired, paymentStatus]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -111,32 +307,26 @@ const PaymentPage: React.FC = () => {
       .padStart(2, "0")}`;
   };
 
-  // ✅ Poll payment status
+  // Poll payment status
   useEffect(() => {
     if (!bookingId || !polling || isExpired) return;
 
     const checkPayment = async () => {
       try {
         const response = await getPaymentStatus(bookingId);
-        console.log("Payment status check:", response);
-
         const status =
-          response.current?.depositStatus ||
+          response.current?.deposit?.status ||
           response.deposit?.status ||
           "pending";
 
-        console.log("Extracted status:", status);
         setPaymentStatus(status);
 
-        if (status === "captured" || status === "PAID") {
-          console.log("✅ Payment successful!");
+        if (status === "captured") {
           setPolling(false);
+          clearPaymentTimer(bookingId);
 
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
-          }
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
           }
 
           setTimeout(() => {
@@ -144,11 +334,12 @@ const PaymentPage: React.FC = () => {
               state: { booking, vehicle },
             });
           }, 2000);
-        } else if (status === "failed" || status === "CANCELLED") {
+        } else if (status === "failed") {
           setPolling(false);
+          clearPaymentTimer(bookingId);
         }
       } catch (err) {
-        console.error("Failed to check payment status:", err);
+        console.error("Failed to check payment:", err);
       }
     };
 
@@ -160,33 +351,47 @@ const PaymentPage: React.FC = () => {
         clearInterval(pollingIntervalRef.current);
       }
     };
-  }, [bookingId, polling, isExpired, navigate]);
+  }, [bookingId, polling, isExpired, navigate, booking, vehicle]);
 
-  // ✅ Cleanup
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
       }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
     };
   }, []);
 
   const handlePaymentRedirect = () => {
-    if (booking?.checkoutUrl) {
-      window.open(booking.checkoutUrl, "_blank");
+    if (booking?.deposit?.payos?.checkoutUrl) {
+      window.open(booking.deposit.payos.checkoutUrl, "_blank");
     }
   };
 
   const handleExpired = () => {
+    if (bookingId) clearPaymentTimer(bookingId);
     navigate("/vehicles");
   };
 
-  if (!booking || !bookingId) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white relative z-10">
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center"
+        >
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-300 border-t-gray-900 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Loading Payment...
+          </h2>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (error || !booking || !bookingId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -196,14 +401,15 @@ const PaymentPage: React.FC = () => {
             <FaExclamationTriangle className="text-red-600 text-3xl" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Booking Not Found
+            {error || "Booking Not Found"}
           </h1>
           <p className="text-gray-600 mb-6">
-            We couldn't find the booking you're looking for
+            {error ||
+              "We couldn't find the booking or there was an error loading payment information"}
           </p>
           <button
             onClick={() => navigate("/vehicles")}
-            className="bg-gray-900 text-white px-6 py-3 rounded-xl hover:bg-gray-800 inline-flex items-center gap-2 font-semibold transition-all"
+            className="bg-gray-900 text-white px-6 py-3 rounded-xl hover:bg-gray-800 inline-flex items-center gap-2 font-semibold"
           >
             <FaArrowLeft />
             Back to Vehicles
@@ -213,9 +419,17 @@ const PaymentPage: React.FC = () => {
     );
   }
 
+  const vehicleInfo =
+    typeof booking.vehicle === "object" && booking.vehicle !== null
+      ? {
+          brand: (booking.vehicle as any).brand || "Unknown",
+          model: (booking.vehicle as any).model || "Vehicle",
+          licensePlate: (booking.vehicle as any).plateNumber || "N/A",
+        }
+      : vehicle || { brand: "Unknown", model: "Vehicle", licensePlate: "N/A" };
+
   return (
-    <div className="min-h-screen ">
-      {/* Hero Header */}
+    <div className="min-h-screen">
       <div className="bg-gradient-to-br from-black/80 via-black/50 to-black/10 text-white py-16">
         <div className="max-w-5xl mx-auto px-6">
           <motion.div
@@ -233,7 +447,6 @@ const PaymentPage: React.FC = () => {
       <div className="max-w-5xl mx-auto px-6 -mt-6 relative z-0">
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="p-6 md:p-8">
-            {/* Timer Warning */}
             <AnimatePresence>
               {!isExpired && paymentStatus === "pending" && (
                 <motion.div
@@ -269,7 +482,6 @@ const PaymentPage: React.FC = () => {
               )}
             </AnimatePresence>
 
-            {/* Payment Status */}
             <AnimatePresence mode="wait">
               {isExpired && (
                 <motion.div
@@ -288,11 +500,11 @@ const PaymentPage: React.FC = () => {
                       </h3>
                       <p className="text-sm text-red-700 mb-4">
                         Your payment session has timed out. Please create a new
-                        booking to continue.
+                        booking.
                       </p>
                       <button
                         onClick={handleExpired}
-                        className="bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition-all inline-flex items-center gap-2"
+                        className="bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 inline-flex items-center gap-2"
                       >
                         <FaArrowLeft />
                         Back to Vehicles
@@ -326,7 +538,7 @@ const PaymentPage: React.FC = () => {
                 </motion.div>
               )}
 
-              {(paymentStatus === "captured" || paymentStatus === "PAID") && (
+              {paymentStatus === "captured" && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -342,16 +554,14 @@ const PaymentPage: React.FC = () => {
                         Payment Successful!
                       </h3>
                       <p className="text-sm text-green-700">
-                        Your booking has been confirmed. Redirecting to
-                        confirmation page...
+                        Your booking has been confirmed. Redirecting...
                       </p>
                     </div>
                   </div>
                 </motion.div>
               )}
 
-              {(paymentStatus === "failed" ||
-                paymentStatus === "CANCELLED") && (
+              {paymentStatus === "failed" && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -367,8 +577,7 @@ const PaymentPage: React.FC = () => {
                         Payment Failed
                       </h3>
                       <p className="text-sm text-red-700">
-                        The payment could not be processed. Please try again or
-                        contact support for assistance.
+                        The payment could not be processed. Please try again.
                       </p>
                     </div>
                   </div>
@@ -377,7 +586,6 @@ const PaymentPage: React.FC = () => {
             </AnimatePresence>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* QR Code Section */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -398,7 +606,7 @@ const PaymentPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-2xl p-6 shadow-lg inline-block w-full">
+                  <div className="bg-white rounded-2xl p-6 shadow-lg">
                     <div className="flex items-center justify-center">
                       {qrCodeUrl && !isExpired ? (
                         <motion.div
@@ -418,9 +626,6 @@ const PaymentPage: React.FC = () => {
                           <p className="text-gray-500 font-semibold">
                             QR Code Expired
                           </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Session timed out
-                          </p>
                         </div>
                       ) : (
                         <div className="w-72 h-72 flex flex-col items-center justify-center bg-gray-100 rounded-xl">
@@ -436,21 +641,18 @@ const PaymentPage: React.FC = () => {
                   <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <p className="text-sm text-blue-900 font-medium text-center flex items-center justify-center gap-2">
                       <FaLightbulb className="text-blue-600" />
-                      Open your banking app and scan this code to complete
-                      payment
+                      Open your banking app and scan this code
                     </p>
                   </div>
                 </div>
               </motion.div>
 
-              {/* Booking Summary */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
               >
                 <div className="space-y-6">
-                  {/* Vehicle Info Card */}
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
@@ -461,7 +663,7 @@ const PaymentPage: React.FC = () => {
                           Booking Summary
                         </h3>
                         <p className="text-xs text-gray-600">
-                          Review your booking details
+                          Review your details
                         </p>
                       </div>
                     </div>
@@ -470,23 +672,23 @@ const PaymentPage: React.FC = () => {
                       <div className="flex items-center justify-between py-2 border-b border-gray-200">
                         <span className="text-sm text-gray-600">Vehicle</span>
                         <span className="font-semibold text-gray-900">
-                          {vehicle.brand} {vehicle.model}
+                          {vehicleInfo.brand} {vehicleInfo.model}
                         </span>
                       </div>
-                      {vehicle.licensePlate && (
-                        <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                          <span className="text-sm text-gray-600">
-                            License Plate
-                          </span>
-                          <span className="font-semibold text-gray-900 font-mono">
-                            {vehicle.licensePlate}
-                          </span>
-                        </div>
-                      )}
+                      {vehicleInfo.licensePlate &&
+                        vehicleInfo.licensePlate !== "N/A" && (
+                          <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                            <span className="text-sm text-gray-600">
+                              License Plate
+                            </span>
+                            <span className="font-semibold text-gray-900 font-mono">
+                              {vehicleInfo.licensePlate}
+                            </span>
+                          </div>
+                        )}
                     </div>
                   </div>
 
-                  {/* Cost Breakdown */}
                   <div className="bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl p-6 text-black">
                     <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                       <FaMoneyBillWave className="text-black" />
@@ -502,10 +704,7 @@ const PaymentPage: React.FC = () => {
                       </div>
                       <div className="flex justify-between items-center pb-3 border-b border-black/10">
                         <span className="text-black/70">Duration</span>
-                        <span className="font-semibold">
-                          {totals.duration} day
-                          {totals.duration !== 1 ? "s" : ""}
-                        </span>
+                        <span className="font-semibold">{totals.duration}</span>
                       </div>
                       <div className="flex justify-between items-center pb-3 border-b border-black/10">
                         <span className="text-black/70">Rental Cost</span>
@@ -514,11 +713,7 @@ const PaymentPage: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex justify-between items-center pb-3 border-b border-black/10">
-                        <span className="text-black/70">Duration</span>
-                        <span className="font-semibold">
-                          {totals.duration} day
-                          {totals.duration !== 1 ? "s" : ""}
-                        </span>
+                        <span className="text-black/70">Deposit (1.5%)</span>
                         <span className="font-semibold">
                           {totals.deposit.toLocaleString()}đ
                         </span>
@@ -533,7 +728,6 @@ const PaymentPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
                   {!isExpired && (
                     <div className="space-y-3">
                       <button
@@ -571,8 +765,6 @@ const PaymentPage: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Bottom Spacing */}
         <div className="h-20"></div>
       </div>
     </div>

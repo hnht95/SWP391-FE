@@ -1,5 +1,5 @@
 // service/apiBooking/API.tsx
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import api from "../Utils";
 
 // ============ TYPE DEFINITIONS ============
@@ -26,7 +26,7 @@ export type Renter = {
   email: string;
   phone: string;
   avatar?: string;
-  id?: string; // Backend sometimes returns this
+  id?: string;
 };
 
 // ✅ Vehicle info (populated)
@@ -58,6 +58,15 @@ export type StationInfo = {
   };
 };
 
+// ✅ PayOS Last Webhook
+export type PayOSLastWebhook = {
+  code: string;
+  desc: string;
+  success: boolean;
+  data: Record<string, unknown>;
+  signature: string;
+};
+
 // ✅ Deposit info with PayOS details
 export type DepositInfo = {
   amount: number;
@@ -70,15 +79,9 @@ export type DepositInfo = {
     paymentLinkId: string;
     checkoutUrl: string;
     qrCode: string;
-    amountCaptured: number;
+    amountCaptured?: number;
     paidAt?: string;
-    lastWebhook?: {
-      code: string;
-      desc: string;
-      success: boolean;
-      data: any;
-      signature: string;
-    };
+    lastWebhook?: PayOSLastWebhook;
   };
 };
 
@@ -101,6 +104,12 @@ export type BookingAmounts = {
   tax: number;
   grandTotal: number;
   totalPaid: number;
+};
+
+// ✅ Cancellation policy
+export type CancellationPolicy = {
+  windows: Array<Record<string, unknown>>;
+  specialCases: Array<Record<string, unknown>>;
 };
 
 // ✅ Main Booking interface
@@ -130,10 +139,7 @@ export type Booking = {
     exteriorAfter: string[];
     interiorAfter: string[];
   };
-  cancellationPolicySnapshot: {
-    windows: any[];
-    specialCases: any[];
-  };
+  cancellationPolicySnapshot: CancellationPolicy;
   amounts: BookingAmounts;
   amountEstimated?: number;
   pricingSnapshot?: PricingSnapshot;
@@ -168,6 +174,21 @@ export type PaginatedBookingsResponse = {
   items: Booking[];
 };
 
+// ✅ Payment status response
+export type PaymentStatusResponse = {
+  success?: boolean;
+  current: Booking;
+  deposit?: DepositInfo;
+};
+
+// ✅ Generic API response wrapper
+type ApiResponseWrapper<T> = {
+  success?: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+};
+
 // ==== Admin Transactions types ====
 export type AdminTransactionStatus =
   | "none"
@@ -182,7 +203,7 @@ export type AdminTransactionItem = {
   vehicle: string | null;
   station: string | null;
   company: string | null;
-  status: BookingStatus; // booking status from sample
+  status: BookingStatus;
   deposit: {
     amount: number;
     currency: string;
@@ -202,9 +223,12 @@ export type AdminTransactionItem = {
   bookingId: string;
   _dateSort?: string;
   renterInfo?: { _id: string; name: string; email: string; phone: string };
-  vehicleInfo?:
-    | null
-    | { _id: string; plateNumber: string; brand: string; model: string };
+  vehicleInfo?: null | {
+    _id: string;
+    plateNumber: string;
+    brand: string;
+    model: string;
+  };
   stationInfo?: null | { _id: string; name: string };
   companyInfo?: null | { _id: string; name: string };
 };
@@ -229,7 +253,7 @@ export type BookingQueryParams = {
 
 // ============ ERROR HANDLER ============
 
-const handleError = (error: unknown, context: string) => {
+const handleError = (error: unknown, context: string): never => {
   if (axios.isAxiosError(error)) {
     console.error(`Booking API Error [${context}]:`, {
       status: error.response?.status,
@@ -240,7 +264,7 @@ const handleError = (error: unknown, context: string) => {
     let errorMessage = error.message || "Unknown error";
 
     if (error.response?.data) {
-      const responseData = error.response.data as any;
+      const responseData = error.response.data as ApiResponseWrapper<unknown>;
       if (responseData.message) {
         errorMessage = responseData.message;
       } else if (responseData.error) {
@@ -255,6 +279,303 @@ const handleError = (error: unknown, context: string) => {
   }
 };
 
+// ============ HELPER FUNCTIONS FOR NORMALIZATION ============
+
+/**
+ * Type guard to check if object has a property
+ */
+const hasProperty = <T extends object, K extends PropertyKey>(
+  obj: T,
+  key: K
+): obj is T & Record<K, unknown> => {
+  return key in obj;
+};
+
+/**
+ * Normalize deposit info from various response formats
+ */
+const normalizeDepositInfo = (deposit: unknown): DepositInfo => {
+  if (!deposit || typeof deposit !== "object") {
+    return {
+      amount: 0,
+      currency: "VND",
+      provider: "payos",
+      providerRef: null,
+      status: "none",
+    };
+  }
+
+  const dep = deposit as Record<string, unknown>;
+
+  return {
+    amount: typeof dep.amount === "number" ? dep.amount : 0,
+    currency: typeof dep.currency === "string" ? dep.currency : "VND",
+    provider: typeof dep.provider === "string" ? dep.provider : "payos",
+    providerRef: typeof dep.providerRef === "string" ? dep.providerRef : null,
+    status:
+      typeof dep.status === "string" ? (dep.status as DepositStatus) : "none",
+    payos:
+      dep.payos && typeof dep.payos === "object"
+        ? {
+            orderCode:
+              typeof (dep.payos as Record<string, unknown>).orderCode ===
+              "number"
+                ? ((dep.payos as Record<string, unknown>).orderCode as number)
+                : 0,
+            paymentLinkId:
+              typeof (dep.payos as Record<string, unknown>).paymentLinkId ===
+              "string"
+                ? ((dep.payos as Record<string, unknown>)
+                    .paymentLinkId as string)
+                : "",
+            checkoutUrl:
+              typeof (dep.payos as Record<string, unknown>).checkoutUrl ===
+              "string"
+                ? ((dep.payos as Record<string, unknown>).checkoutUrl as string)
+                : "",
+            qrCode:
+              typeof (dep.payos as Record<string, unknown>).qrCode === "string"
+                ? ((dep.payos as Record<string, unknown>).qrCode as string)
+                : "",
+            amountCaptured:
+              typeof (dep.payos as Record<string, unknown>).amountCaptured ===
+              "number"
+                ? ((dep.payos as Record<string, unknown>)
+                    .amountCaptured as number)
+                : undefined,
+            paidAt:
+              typeof (dep.payos as Record<string, unknown>).paidAt === "string"
+                ? ((dep.payos as Record<string, unknown>).paidAt as string)
+                : undefined,
+            lastWebhook: (dep.payos as Record<string, unknown>).lastWebhook as
+              | PayOSLastWebhook
+              | undefined,
+          }
+        : undefined,
+  };
+};
+
+/**
+ * Normalize booking amounts
+ */
+const normalizeAmounts = (
+  amounts: unknown,
+  amountEstimated?: number
+): BookingAmounts => {
+  if (!amounts || typeof amounts !== "object") {
+    return {
+      rentalEstimated: amountEstimated || 0,
+      overKmFee: 0,
+      lateFee: 0,
+      batteryFee: 0,
+      damageCharge: 0,
+      discounts: 0,
+      subtotal: amountEstimated || 0,
+      tax: 0,
+      grandTotal: amountEstimated || 0,
+      totalPaid: 0,
+    };
+  }
+
+  const amt = amounts as Record<string, unknown>;
+
+  return {
+    rentalEstimated:
+      typeof amt.rentalEstimated === "number"
+        ? amt.rentalEstimated
+        : amountEstimated || 0,
+    overKmFee: typeof amt.overKmFee === "number" ? amt.overKmFee : 0,
+    lateFee: typeof amt.lateFee === "number" ? amt.lateFee : 0,
+    batteryFee: typeof amt.batteryFee === "number" ? amt.batteryFee : 0,
+    damageCharge: typeof amt.damageCharge === "number" ? amt.damageCharge : 0,
+    discounts: typeof amt.discounts === "number" ? amt.discounts : 0,
+    subtotal:
+      typeof amt.subtotal === "number" ? amt.subtotal : amountEstimated || 0,
+    tax: typeof amt.tax === "number" ? amt.tax : 0,
+    grandTotal:
+      typeof amt.grandTotal === "number"
+        ? amt.grandTotal
+        : amountEstimated || 0,
+    totalPaid: typeof amt.totalPaid === "number" ? amt.totalPaid : 0,
+  };
+};
+
+/**
+ * Normalize pricing snapshot
+ */
+const normalizePricingSnapshot = (
+  pricingSnapshot: unknown
+): PricingSnapshot => {
+  if (!pricingSnapshot || typeof pricingSnapshot !== "object") {
+    return {
+      baseUnit: "day",
+      basePrice: 0,
+    };
+  }
+
+  const ps = pricingSnapshot as Record<string, unknown>;
+
+  return {
+    baseUnit:
+      ps.baseUnit === "hour" || ps.baseUnit === "day" ? ps.baseUnit : "day",
+    basePrice: typeof ps.basePrice === "number" ? ps.basePrice : 0,
+    computedQty:
+      typeof ps.computedQty === "number" ? ps.computedQty : undefined,
+  };
+};
+
+/**
+ * Normalize full booking object
+ */
+const normalizeBooking = (data: unknown): Booking => {
+  if (!data || typeof data !== "object") {
+    throw new Error("Invalid booking data: not an object");
+  }
+
+  const booking = data as Record<string, unknown>;
+  const bookingId =
+    typeof booking.bookingId === "string"
+      ? booking.bookingId
+      : typeof booking._id === "string"
+      ? booking._id
+      : typeof booking.id === "string"
+      ? booking.id
+      : "";
+
+  if (!bookingId) {
+    throw new Error("Invalid booking response: missing ID");
+  }
+
+  return {
+    _id: bookingId,
+    renter: booking.renter || "",
+    vehicle: booking.vehicle || "",
+    station: booking.station || "",
+    company: typeof booking.company === "string" ? booking.company : null,
+    startTime: typeof booking.startTime === "string" ? booking.startTime : "",
+    endTime: typeof booking.endTime === "string" ? booking.endTime : "",
+    status:
+      typeof booking.status === "string"
+        ? (booking.status as BookingStatus)
+        : "pending",
+    deposit: normalizeDepositInfo(booking.deposit),
+    holdExpiresAt:
+      typeof booking.holdExpiresAt === "string" ? booking.holdExpiresAt : null,
+    checkoutUrl:
+      typeof booking.checkoutUrl === "string"
+        ? booking.checkoutUrl
+        : booking.deposit &&
+          typeof booking.deposit === "object" &&
+          hasProperty(booking.deposit, "payos") &&
+          typeof booking.deposit.payos === "object" &&
+          hasProperty(booking.deposit.payos, "checkoutUrl") &&
+          typeof booking.deposit.payos.checkoutUrl === "string"
+        ? booking.deposit.payos.checkoutUrl
+        : "",
+    qrCode:
+      typeof booking.qrCode === "string"
+        ? booking.qrCode
+        : booking.deposit &&
+          typeof booking.deposit === "object" &&
+          hasProperty(booking.deposit, "payos") &&
+          typeof booking.deposit.payos === "object" &&
+          hasProperty(booking.deposit.payos, "qrCode") &&
+          typeof booking.deposit.payos.qrCode === "string"
+        ? booking.deposit.payos.qrCode
+        : "",
+    counterCheck:
+      booking.counterCheck &&
+      typeof booking.counterCheck === "object" &&
+      hasProperty(booking.counterCheck, "licenseSnapshot") &&
+      Array.isArray(booking.counterCheck.licenseSnapshot) &&
+      hasProperty(booking.counterCheck, "contractPhotos") &&
+      Array.isArray(booking.counterCheck.contractPhotos)
+        ? {
+            licenseSnapshot: booking.counterCheck.licenseSnapshot as string[],
+            contractPhotos: booking.counterCheck.contractPhotos as string[],
+          }
+        : {
+            licenseSnapshot: [],
+            contractPhotos: [],
+          },
+    handoverPhotos:
+      booking.handoverPhotos && typeof booking.handoverPhotos === "object"
+        ? {
+            exteriorBefore: Array.isArray(
+              (booking.handoverPhotos as Record<string, unknown>).exteriorBefore
+            )
+              ? ((booking.handoverPhotos as Record<string, unknown>)
+                  .exteriorBefore as string[])
+              : [],
+            interiorBefore: Array.isArray(
+              (booking.handoverPhotos as Record<string, unknown>).interiorBefore
+            )
+              ? ((booking.handoverPhotos as Record<string, unknown>)
+                  .interiorBefore as string[])
+              : [],
+            exteriorAfter: Array.isArray(
+              (booking.handoverPhotos as Record<string, unknown>).exteriorAfter
+            )
+              ? ((booking.handoverPhotos as Record<string, unknown>)
+                  .exteriorAfter as string[])
+              : [],
+            interiorAfter: Array.isArray(
+              (booking.handoverPhotos as Record<string, unknown>).interiorAfter
+            )
+              ? ((booking.handoverPhotos as Record<string, unknown>)
+                  .interiorAfter as string[])
+              : [],
+          }
+        : {
+            exteriorBefore: [],
+            interiorBefore: [],
+            exteriorAfter: [],
+            interiorAfter: [],
+          },
+    cancellationPolicySnapshot:
+      booking.cancellationPolicySnapshot &&
+      typeof booking.cancellationPolicySnapshot === "object"
+        ? {
+            windows: Array.isArray(
+              (booking.cancellationPolicySnapshot as Record<string, unknown>)
+                .windows
+            )
+              ? ((booking.cancellationPolicySnapshot as Record<string, unknown>)
+                  .windows as Array<Record<string, unknown>>)
+              : [],
+            specialCases: Array.isArray(
+              (booking.cancellationPolicySnapshot as Record<string, unknown>)
+                .specialCases
+            )
+              ? ((booking.cancellationPolicySnapshot as Record<string, unknown>)
+                  .specialCases as Array<Record<string, unknown>>)
+              : [],
+          }
+        : {
+            windows: [],
+            specialCases: [],
+          },
+    amounts: normalizeAmounts(
+      booking.amounts,
+      typeof booking.amountEstimated === "number"
+        ? booking.amountEstimated
+        : undefined
+    ),
+    amountEstimated:
+      typeof booking.amountEstimated === "number" ? booking.amountEstimated : 0,
+    pricingSnapshot: normalizePricingSnapshot(booking.pricingSnapshot),
+    createdAt:
+      typeof booking.createdAt === "string"
+        ? booking.createdAt
+        : new Date().toISOString(),
+    updatedAt:
+      typeof booking.updatedAt === "string"
+        ? booking.updatedAt
+        : new Date().toISOString(),
+    __v: typeof booking.__v === "number" ? booking.__v : undefined,
+  };
+};
+
 // ============ API FUNCTIONS ============
 
 /**
@@ -267,93 +588,24 @@ export const createBooking = async (
   try {
     console.log("🔄 Creating booking with data:", data);
 
-    const response = await api.post<any>("/bookings", data);
+    const response = await api.post<
+      ApiResponseWrapper<Record<string, unknown>>
+    >("/bookings", data);
 
     console.log("✅ Create booking raw response:", response.data);
 
-    // ✅ Backend returns different format - normalize it
-    if (response.data) {
-      // Check if wrapped in success/data
-      const bookingData = response.data.data || response.data;
-
-      // ✅ Backend returns "bookingId" instead of "_id"
-      const normalizedResponse: CreateBookingResponse = {
-        _id: bookingData.bookingId || bookingData._id || "",
-        renter: bookingData.renter || "",
-        vehicle: bookingData.vehicle || "",
-        station: bookingData.station || "",
-        company: bookingData.company || null,
-        startTime: bookingData.startTime || "",
-        endTime: bookingData.endTime || "",
-        status: bookingData.status || "pending",
-        deposit: bookingData.deposit || {
-          amount: 0,
-          currency: "VND",
-          provider: "payos",
-          providerRef: null,
-          status: "none",
-        },
-        holdExpiresAt: bookingData.holdExpiresAt || null,
-
-        // ✅ Extract payment URLs from multiple possible locations
-        checkoutUrl:
-          bookingData.checkoutUrl ||
-          bookingData.deposit?.payos?.checkoutUrl ||
-          "",
-        qrCode: bookingData.qrCode || bookingData.deposit?.payos?.qrCode || "",
-
-        counterCheck: bookingData.counterCheck || {
-          licenseSnapshot: [],
-          contractPhotos: [],
-        },
-        handoverPhotos: bookingData.handoverPhotos || {
-          exteriorBefore: [],
-          interiorBefore: [],
-          exteriorAfter: [],
-          interiorAfter: [],
-        },
-        cancellationPolicySnapshot: bookingData.cancellationPolicySnapshot || {
-          windows: [],
-          specialCases: [],
-        },
-        amounts: bookingData.amounts || {
-          rentalEstimated: bookingData.amountEstimated || 0,
-          overKmFee: 0,
-          lateFee: 0,
-          batteryFee: 0,
-          damageCharge: 0,
-          discounts: 0,
-          subtotal: bookingData.amountEstimated || 0,
-          tax: 0,
-          grandTotal: bookingData.amountEstimated || 0,
-          totalPaid: 0,
-        },
-        amountEstimated: bookingData.amountEstimated || 0,
-        pricingSnapshot: bookingData.pricingSnapshot || {
-          baseUnit: "day",
-          basePrice: 0,
-        },
-        createdAt: bookingData.createdAt || new Date().toISOString(),
-        updatedAt: bookingData.updatedAt || new Date().toISOString(),
-      };
-
-      console.log("✅ Normalized booking response:", normalizedResponse);
-
-      // ✅ Validate we have at least an ID
-      if (!normalizedResponse._id) {
-        console.error("❌ Missing ID in response:", bookingData);
-        throw new Error(
-          "Invalid booking response: missing both _id and bookingId"
-        );
-      }
-
-      return normalizedResponse;
+    if (!response.data) {
+      throw new Error("Invalid booking response: empty data");
     }
 
-    throw new Error("Invalid booking response: empty data");
+    const bookingData = response.data.data || response.data;
+    const normalized = normalizeBooking(bookingData);
+
+    console.log("✅ Normalized booking response:", normalized);
+
+    return normalized as CreateBookingResponse;
   } catch (error) {
-    handleError(error, "createBooking");
-    throw error;
+    return handleError(error, "createBooking");
   }
 };
 
@@ -377,7 +629,16 @@ export const getUserBookings = async (
 
     console.log("Fetching user bookings with params:", params);
 
-    const response = await api.get<any>("/bookings/mine", {
+    const response = await api.get<
+      ApiResponseWrapper<{
+        success: boolean;
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        items: Booking[];
+      }>
+    >("/bookings/mine", {
       params: {
         page,
         limit,
@@ -391,22 +652,29 @@ export const getUserBookings = async (
 
     console.log("✅ Get bookings raw response:", response.data);
 
-    // ✅ Backend returns: { success, page, limit, total, totalPages, items }
-    if (response.data.success && response.data.items) {
+    const data = response.data.data || response.data;
+
+    if (
+      typeof data === "object" &&
+      data &&
+      "success" in data &&
+      data.success &&
+      "items" in data &&
+      Array.isArray(data.items)
+    ) {
       return {
-        success: response.data.success,
-        page: response.data.page,
-        limit: response.data.limit,
-        total: response.data.total,
-        totalPages: response.data.totalPages,
-        items: response.data.items, // ✅ Use "items" not "data"
+        success: data.success,
+        page: typeof data.page === "number" ? data.page : page,
+        limit: typeof data.limit === "number" ? data.limit : limit,
+        total: typeof data.total === "number" ? data.total : 0,
+        totalPages: typeof data.totalPages === "number" ? data.totalPages : 0,
+        items: data.items,
       };
     }
 
     throw new Error("Invalid bookings response format");
   } catch (error) {
-    handleError(error, "getUserBookings");
-    throw error;
+    return handleError(error, "getUserBookings");
   }
 };
 
@@ -418,24 +686,35 @@ export const getBookingById = async (bookingId: string): Promise<Booking> => {
   try {
     console.log("Fetching booking:", bookingId);
 
-    const response = await api.get(`/bookings/${bookingId}`);
+    const response = await api.get<ApiResponseWrapper<Record<string, unknown>>>(
+      `/bookings/${bookingId}`
+    );
 
     console.log("✅ Get booking response:", response.data);
 
-    // ✅ Handle different response formats
-    if (response.data.success && response.data.data) {
-      return response.data.data;
+    let bookingData: unknown;
+
+    if (
+      response.data &&
+      typeof response.data === "object" &&
+      "success" in response.data &&
+      response.data.success &&
+      "data" in response.data
+    ) {
+      bookingData = response.data.data;
+    } else if (
+      response.data &&
+      typeof response.data === "object" &&
+      "_id" in response.data
+    ) {
+      bookingData = response.data;
+    } else {
+      throw new Error("Booking not found");
     }
 
-    // Direct booking object
-    if (response.data._id) {
-      return response.data;
-    }
-
-    throw new Error("Booking not found");
+    return normalizeBooking(bookingData);
   } catch (error) {
-    handleError(error, "getBookingById");
-    throw error;
+    return handleError(error, "getBookingById");
   }
 };
 
@@ -449,48 +728,59 @@ export const createPaymentLink = async (
   try {
     console.log("Creating payment link for:", bookingId);
 
-    const response = await api.post<{
-      checkoutUrl: string;
-      qrCode: string;
-      data?: { checkoutUrl: string; qrCode: string };
-    }>(`/bookings/${bookingId}/payment/link`);
+    const response = await api.post<
+      ApiResponseWrapper<{ checkoutUrl: string; qrCode: string }>
+    >(`/bookings/${bookingId}/payment/link`);
 
     console.log("✅ Payment link response:", response.data);
 
     const data = response.data.data || response.data;
 
-    if (data.checkoutUrl && data.qrCode) {
-      return {
-        checkoutUrl: data.checkoutUrl,
-        qrCode: data.qrCode,
-      };
+    if (
+      !data ||
+      typeof data !== "object" ||
+      !("checkoutUrl" in data) ||
+      !("qrCode" in data) ||
+      typeof data.checkoutUrl !== "string" ||
+      typeof data.qrCode !== "string"
+    ) {
+      throw new Error("Invalid payment link response: missing URLs");
     }
 
-    throw new Error("Invalid payment link response");
+    return {
+      checkoutUrl: data.checkoutUrl,
+      qrCode: data.qrCode,
+    };
   } catch (error) {
-    handleError(error, "createPaymentLink");
-    throw error;
+    return handleError(error, "createPaymentLink");
   }
 };
 
 /**
  * GET /api/bookings/{id}/payment
- * Get payment status for booking
+ * Get payment status for booking - THEN fetch full booking
  */
 export const getPaymentStatus = async (
   bookingId: string
-): Promise<{ current: { depositStatus: DepositStatus }; deposit?: any }> => {
+): Promise<PaymentStatusResponse> => {
   try {
-    console.log("Fetching payment status for:", bookingId);
+    console.log("📡 Fetching full booking for payment status:", bookingId);
 
-    const response = await api.get(`/bookings/${bookingId}/payment`);
+    // ✅ SIMPLE: Just get full booking - it has everything!
+    const fullBooking = await getBookingById(bookingId);
 
-    console.log("✅ Payment status response:", response.data);
+    console.log("✅ Full booking with QR code:", {
+      hasQrCode: !!fullBooking.deposit?.payos?.qrCode,
+      qrCode: fullBooking.deposit?.payos?.qrCode,
+    });
 
-    return response.data;
+    return {
+      success: true,
+      current: fullBooking,
+      deposit: fullBooking.deposit,
+    };
   } catch (error) {
-    handleError(error, "getPaymentStatus");
-    throw error;
+    return handleError(error, "getPaymentStatus");
   }
 };
 
@@ -512,10 +802,12 @@ export const cancelBooking = async (
 
     console.log("✅ Cancel booking response:", response.data);
 
-    return response.data;
+    return {
+      success: response.data.success !== false,
+      message: response.data.message || "Booking cancelled successfully",
+    };
   } catch (error) {
-    handleError(error, "cancelBooking");
-    throw error;
+    return handleError(error, "cancelBooking");
   }
 };
 
@@ -535,10 +827,12 @@ export const refundBooking = async (
 
     console.log("✅ Refund booking response:", response.data);
 
-    return response.data;
+    return {
+      success: response.data.success !== false,
+      message: response.data.message || "Refund processed successfully",
+    };
   } catch (error) {
-    handleError(error, "refundBooking");
-    throw error;
+    return handleError(error, "refundBooking");
   }
 };
 
@@ -553,9 +847,9 @@ export const getAdminTransactions = async (
     companyId?: string;
     renterId?: string;
     vehicleId?: string;
-    search?: string; // orderCode or paymentLinkId
-    from?: string; // ISO date string
-    to?: string; // ISO date string
+    search?: string;
+    from?: string;
+    to?: string;
     dateField?: "createdAt" | "updatedAt";
     page?: number;
     limit?: number;
@@ -597,8 +891,7 @@ export const getAdminTransactions = async (
 
     return response.data;
   } catch (error) {
-    handleError(error, "getAdminTransactions");
-    throw error;
+    return handleError(error, "getAdminTransactions");
   }
 };
 
@@ -623,7 +916,7 @@ export const getBookingStatusLabel = (status: BookingStatus): string => {
     reserved: "Reserved",
     active: "Active",
     completed: "Completed",
-    cancelled: "Cancled",
+    cancelled: "Cancelled",
     expired: "Expired",
   };
 

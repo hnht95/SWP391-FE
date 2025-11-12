@@ -67,9 +67,9 @@ const StationDetailPage: React.FC = () => {
   const imageUrl = station.imgStation?.url || "/placeholder-station.png";
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen mt-20 bg-gray-50">
       {/* Header with Back Button */}
-      <div className="bg-white shadow-sm">
+      {/* <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <button
             onClick={() => navigate(-1)}
@@ -79,7 +79,7 @@ const StationDetailPage: React.FC = () => {
             <span>Back</span>
           </button>
         </div>
-      </div>
+      </div> */}
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
