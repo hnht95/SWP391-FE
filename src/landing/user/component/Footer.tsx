@@ -12,7 +12,6 @@ import {
 import { Link } from "react-router-dom";
 
 const Footer = () => {
-
   return (
     <footer className="bg-gradient-to-r from-black via-black to-gray-950 text-white py-12 px-4 relative overflow-hidden">
       {/* Light reflection effects */}
@@ -86,28 +85,36 @@ const Footer = () => {
                 <div className="space-y-2">
                   <Link
                     to="/"
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    onClick={() =>
+                      window.scrollTo({ top: 0, behavior: "smooth" })
+                    }
                     className="block text-gray-300 hover:text-gray-200 transition-colors duration-300"
                   >
                     Home
                   </Link>
                   <Link
                     to="/vehicles"
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    onClick={() =>
+                      window.scrollTo({ top: 0, behavior: "smooth" })
+                    }
                     className="block text-gray-300 hover:text-gray-200 transition-colors duration-300"
                   >
                     Electric Vehicles
                   </Link>
                   <Link
                     to="/aboutus"
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    onClick={() =>
+                      window.scrollTo({ top: 0, behavior: "smooth" })
+                    }
                     className="block text-gray-300 hover:text-gray-200 transition-colors duration-300"
                   >
                     About Us
                   </Link>
                   <Link
                     to="/contactus"
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    onClick={() =>
+                      window.scrollTo({ top: 0, behavior: "smooth" })
+                    }
                     className="block text-gray-300 hover:text-gray-200 transition-colors duration-300"
                   >
                     Contact Us
@@ -186,7 +193,7 @@ const Footer = () => {
               <div className="text-center md:text-left">
                 <p>&copy; 2024 ZaMi. All rights reserved.</p>
               </div>
-              
+
               {/* Center: Empty space where back to top button was */}
               <div className="flex justify-center">
                 {/* Back to top button moved to global component */}
@@ -216,4 +223,3 @@ const Footer = () => {
 };
 
 export default Footer;
-

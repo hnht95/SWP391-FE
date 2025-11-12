@@ -8,6 +8,12 @@ import {
   logout as logoutApi,
   getCurrentUser,
 } from "../service/apiUser/auth/API";
+import type {
+  RawApiUser,
+  UserAvatar,
+  UserStation,
+  UserKyc,
+} from "../types/userTypes";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -43,35 +49,37 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const fetchCurrentUser = async () => {
     try {
       const response = await getCurrentUser();
-
-      console.log("✅ Fetch current user response:", response);
-
       if (response.success && response.data) {
-        const userData = response.data;
+        const raw = response.data as RawApiUser;
 
-        // ✅ Extract avatar URL from avatarUrl object
-        let avatarUrl: string | undefined;
-        if (userData.avatarUrl) {
-          if (
-            typeof userData.avatarUrl === "object" &&
-            "url" in userData.avatarUrl
-          ) {
-            avatarUrl = userData.avatarUrl.url;
-          } else if (typeof userData.avatarUrl === "string") {
-            avatarUrl = userData.avatarUrl;
-          }
-        }
+        // Normalize avatarUrl: can be string or object
+        const normalizedAvatar: string | UserAvatar | null =
+          typeof (raw as unknown as { avatarUrl?: unknown }).avatarUrl ===
+          "string"
+            ? ((raw as unknown as { avatarUrl?: string }).avatarUrl as string)
+            : (raw.avatarUrl as unknown as UserAvatar | null) || null;
 
         const updatedUser: User = {
-          id: userData._id || userData.id,
-          name: userData.name,
-          email: userData.email,
-          role: userData.role,
-          avatar: avatarUrl || userData.avatar,
-          phone: userData.phone,
+          _id: raw._id,
+          name: raw.name,
+          email: raw.email,
+          role: raw.role as User["role"],
+          phone: raw.phone,
+          gender: raw.gender as User["gender"],
+          avatarUrl: normalizedAvatar,
+          station: (raw.station as unknown as UserStation) || null,
+          kyc: raw.kyc as UserKyc,
+          isActive: raw.isActive,
+          defaultRefundWallet: raw.defaultRefundWallet,
+          createdAt: raw.createdAt,
+          updatedAt: raw.updatedAt,
+          __v: (raw as unknown as { __v?: number }).__v ?? 0,
+          // Optional fields
+          cccd: (raw as unknown as { cccd?: string }).cccd,
+          rentalCount: (raw as unknown as { rentalCount?: number }).rentalCount,
+          revenue: (raw as unknown as { revenue?: number }).revenue,
+          feedback: (raw as unknown as { feedback?: string }).feedback,
         };
-
-        console.log("✅ Updated user with avatar:", updatedUser);
 
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));

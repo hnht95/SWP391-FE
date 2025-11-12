@@ -33,6 +33,7 @@ import BookingPage from "../landing/user/component/BookingPage";
 import PaymentPage from "../landing/user/component/bookingComponent/PaymentPage";
 import BookingSuccessPage from "../landing/user/component/bookingComponent/BookingSuccessPage";
 import StationManagement from "../landing/admin/homepageAdminComponent/StationManagementAdmin/StationManagement";
+import { StationDetailPage, StationsListPage } from "../landing/user/component";
 
 const AllRouter = () => {
   return (
@@ -53,6 +54,8 @@ const AllRouter = () => {
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/vehicles/:id" element={<VehiclesDetail />} />
+        <Route path="/stations" element={<StationsListPage />} />
+        <Route path="/stations/:id" element={<StationDetailPage />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -70,6 +73,8 @@ const AllRouter = () => {
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/vehicles/:id" element={<VehiclesDetail />} />
+        <Route path="/stations" element={<StationsListPage />} />
+        <Route path="/stations/:id" element={<StationDetailPage />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />

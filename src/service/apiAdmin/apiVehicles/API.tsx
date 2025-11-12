@@ -1,3 +1,4 @@
+/* eslint-disable */
 // service/apiVehicles/API.tsx
 import { AxiosError } from "axios";
 import api from "../../Utils";
@@ -307,6 +308,76 @@ export const getVehiclesPaginated = async (
   }
 };
 
+// Paginated with filters
+export interface VehiclesFilterParams {
+  station?: string;
+  status?: "available" | "reserved" | "rented" | "maintenance";
+  brand?: string;
+}
+
+export const getVehiclesPaginatedWithFilters = async (
+  page = 1,
+  limit = 10,
+  filters: VehiclesFilterParams = {}
+): Promise<{ items: Vehicle[]; pagination: VehiclesPaginationMeta }> => {
+  try {
+    const params: Record<string, string | number> = { page, limit };
+    if (filters.station) params.station = filters.station;
+    if (filters.status) params.status = filters.status;
+    if (filters.brand) params.brand = filters.brand;
+
+    type RawResponse = {
+      success?: boolean;
+      items?: Vehicle[];
+      data?: Vehicle[];
+      page?: number;
+      limit?: number;
+      total?: number;
+      totalPages?: number;
+      pagination?: VehiclesPaginationMeta;
+    };
+
+    const response = await api.get<RawResponse>("/vehicles", { params });
+
+    const buildPagination = (
+      base: RawResponse,
+      fallbackItems: Vehicle[]
+    ): VehiclesPaginationMeta => ({
+      page: base.page || base.pagination?.page || page,
+      limit: base.limit || base.pagination?.limit || limit,
+      total: base.total || base.pagination?.total || fallbackItems.length || 0,
+      totalPages: base.totalPages || base.pagination?.totalPages || 1,
+    });
+
+    if (Array.isArray(response.data?.items)) {
+      return {
+        items: response.data.items,
+        pagination: buildPagination(response.data, response.data.items),
+      };
+    }
+
+    if (Array.isArray(response.data?.data)) {
+      return {
+        items: response.data.data,
+        pagination: buildPagination(response.data, response.data.data),
+      };
+    }
+
+    if (Array.isArray(response.data)) {
+      const items = response.data as Vehicle[];
+      return {
+        items,
+        pagination: buildPagination({}, items),
+      };
+    }
+
+    return { items: [], pagination: { page, limit, total: 0, totalPages: 1 } };
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
 /**
  * GET /api/vehicles/:id
  */
@@ -322,8 +393,12 @@ export const getVehicleById = async (id: string): Promise<Vehicle> => {
     }
 
     // ✅ Case 2: Direct vehicle object
-    if ((response.data as any)._id) {
-      return response.data as any;
+    if (
+      typeof response.data === "object" &&
+      response.data &&
+      (response.data as { _id?: string })._id
+    ) {
+      return response.data as unknown as Vehicle;
     }
 
     throw new Error("Vehicle not found");
@@ -344,8 +419,8 @@ export const createVehicle = async (
     const hasFiles =
       vehicleData.exteriorFiles?.length || vehicleData.interiorFiles?.length;
 
-    let payload: any;
-    let headers: any = {};
+    let payload: FormData | CreateVehicleData;
+    let headers: Record<string, string> = {};
 
     if (hasFiles) {
       // Create FormData for file upload
@@ -404,8 +479,12 @@ export const createVehicle = async (
       return response.data.data;
     }
 
-    if ((response.data as any)._id) {
-      return response.data as any;
+    if (
+      typeof response.data === "object" &&
+      response.data &&
+      (response.data as { _id?: string })._id
+    ) {
+      return response.data as unknown as Vehicle;
     }
 
     throw new Error("Failed to create vehicle");
@@ -426,8 +505,15 @@ export const updateVehicle = async (
     console.log("🔄 Updating vehicle with data:", vehicleData);
 
     // Separate files and photos from other data to avoid backend transaction requirements
-    const { exteriorFiles, interiorFiles, defaultPhotos, ...restData } =
-      vehicleData as any;
+    const {
+      exteriorFiles,
+      interiorFiles,
+      defaultPhotos: _unusedPhotos,
+      ...restData
+    } = vehicleData as UpdateVehicleData & {
+      exteriorFiles?: File[];
+      interiorFiles?: File[];
+    };
 
     // Normalize station to ID string if object provided
     let normalizedStation: string | undefined = undefined;
@@ -435,7 +521,7 @@ export const updateVehicle = async (
       normalizedStation = getStationId(restData.station);
     }
 
-    const basePayload: any = { ...restData };
+    const basePayload: Record<string, unknown> = { ...restData };
     if (typeof normalizedStation !== "undefined" && normalizedStation) {
       basePayload.station = normalizedStation;
     } else if (typeof restData.station !== "undefined") {
@@ -463,10 +549,14 @@ export const updateVehicle = async (
         `/vehicles/${id}`,
         basePayload
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorObj = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       const msg = (
-        err?.response?.data?.message ||
-        err?.message ||
+        errorObj?.response?.data?.message ||
+        errorObj?.message ||
         ""
       ).toString();
       const needRetry = /action|type|source/i.test(msg);
@@ -474,7 +564,7 @@ export const updateVehicle = async (
         throw err;
       }
       // Retry once with ultra-minimal payload to avoid transaction plugin requirements
-      const minimalPayload: any = {
+      const minimalPayload: Record<string, unknown> = {
         plateNumber: basePayload.plateNumber,
         brand: basePayload.brand,
         model: basePayload.model,
@@ -498,8 +588,12 @@ export const updateVehicle = async (
     let updatedVehicle: Vehicle;
     if (response.data.success && response.data.data) {
       updatedVehicle = response.data.data;
-    } else if ((response.data as any)._id) {
-      updatedVehicle = response.data as any;
+    } else if (
+      typeof response.data === "object" &&
+      response.data &&
+      (response.data as { _id?: string })._id
+    ) {
+      updatedVehicle = response.data as unknown as Vehicle;
     } else {
       throw new Error("Failed to update vehicle");
     }
@@ -606,8 +700,12 @@ export const transferVehicleStation = async (
       return response.data.data;
     }
 
-    if ((response.data as any)._id) {
-      return response.data as any;
+    if (
+      typeof response.data === "object" &&
+      response.data &&
+      (response.data as { _id?: string })._id
+    ) {
+      return response.data as unknown as Vehicle;
     }
 
     throw new Error("Failed to transfer vehicle");
@@ -667,9 +765,9 @@ export const getVehicleTransferLogs = async (
 export const reportMaintenance = async (
   id: string,
   body: { description: string }
-): Promise<any> => {
+): Promise<Vehicle> => {
   try {
-    const response = await api.post<{ success: boolean; data: any }>(
+    const response = await api.post<{ success: boolean; data: Vehicle }>(
       `/vehicles/${id}/report-maintenance`,
       body
     );
@@ -688,9 +786,9 @@ export const reportMaintenance = async (
 export const createDeletionRequest = async (
   id: string,
   body: { reason: string }
-): Promise<any> => {
+): Promise<Vehicle> => {
   try {
-    const response = await api.post<{ success: boolean; data: any }>(
+    const response = await api.post<{ success: boolean; data: Vehicle }>(
       `/vehicles/${id}/deletion-requests`,
       body
     );

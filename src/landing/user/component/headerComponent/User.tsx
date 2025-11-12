@@ -27,7 +27,13 @@ const User: React.FC<UserProps> = ({
   const navigationPaths = getNavigationPaths();
 
   // ✅ Get avatar from useAuth if not provided via props
-  const displayAvatar = userAvatar || user?.avatar;
+  const avatarValue = userAvatar || user?.avatarUrl;
+  const displayAvatar =
+    typeof avatarValue === "string"
+      ? avatarValue
+      : avatarValue && typeof avatarValue === "object" && "url" in avatarValue
+      ? avatarValue.url
+      : null;
   const displayName = userName || user?.name || "Guest User";
 
   // Get role display text

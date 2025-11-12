@@ -103,9 +103,6 @@ export const getAllStations = async (
       }
     );
 
-    console.log("Get all stations response:", response.data);
-
-    // Handle direct array response
     if (Array.isArray(response.data)) {
       return response.data;
     }

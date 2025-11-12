@@ -9,7 +9,7 @@ export interface User {
   role: "renter" | "staff" | "admin" | "regular" | "vip";
   phone: string;
   gender: "male" | "female" | "other";
-  avatarUrl?: UserAvatar | string | null; // Can be populated object, ID string, or null
+  avatarUrl?: UserAvatar | string | null;
   station?: UserStation | null;
   kyc: UserKyc;
   isActive: boolean;
