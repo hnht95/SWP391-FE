@@ -7,7 +7,14 @@ import {
   FaClock,
   FaTimesCircle,
   FaExclamationTriangle,
+  FaArrowLeft,
+  FaQrcode,
+  FaExternalLinkAlt,
+  FaCarSide,
+  FaMoneyBillWave,
+  FaLightbulb,
 } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   getPaymentStatus,
   type Booking,
@@ -179,227 +186,394 @@ const PaymentPage: React.FC = () => {
 
   if (!booking || !bookingId) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">
+      <div className="min-h-screen flex items-center justify-center bg-white relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FaExclamationTriangle className="text-red-600 text-3xl" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Booking Not Found
           </h1>
+          <p className="text-gray-600 mb-6">
+            We couldn't find the booking you're looking for
+          </p>
           <button
             onClick={() => navigate("/vehicles")}
-            className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800"
+            className="bg-gray-900 text-white px-6 py-3 rounded-xl hover:bg-gray-800 inline-flex items-center gap-2 font-semibold transition-all"
           >
+            <FaArrowLeft />
             Back to Vehicles
           </button>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-20">
-      <div className="max-w-3xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+    <div className="min-h-screen ">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-br from-black/80 via-black/50 to-black/10 text-white py-16">
+        <div className="max-w-5xl mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">
               Complete Your Payment
             </h1>
-            <p className="text-gray-600">
-              Booking ID: <span className="font-mono">{bookingId}</span>
-            </p>
-          </div>
+          </motion.div>
+        </div>
+      </div>
 
-          {/* Timer Warning */}
-          {!isExpired && paymentStatus === "pending" && (
-            <div className="mb-6 bg-yellow-50 border border-yellow-300 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <FaClock className="text-yellow-600 text-xl" />
-                  <span className="text-sm text-yellow-800">
-                    Time remaining to complete payment:
-                  </span>
-                </div>
-                <span className="text-2xl font-bold text-yellow-600 font-mono">
-                  {formatTime(timeLeft)}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Payment Status */}
-          <div className="mb-8">
-            {isExpired && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-                <FaExclamationTriangle className="text-red-600 text-2xl" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-red-800">
-                    Payment Expired
-                  </h3>
-                  <p className="text-sm text-red-700">
-                    Your payment session has expired. Please create a new
-                    booking.
-                  </p>
-                </div>
-                <button
-                  onClick={handleExpired}
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700"
+      <div className="max-w-5xl mx-auto px-6 -mt-6 relative z-0">
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+          <div className="p-6 md:p-8">
+            {/* Timer Warning */}
+            <AnimatePresence>
+              {!isExpired && paymentStatus === "pending" && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl p-5"
                 >
-                  Back to Vehicles
-                </button>
-              </div>
-            )}
-
-            {!isExpired && paymentStatus === "pending" && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-3">
-                <FaClock className="text-yellow-600 text-2xl" />
-                <div>
-                  <h3 className="font-semibold text-yellow-800">
-                    Waiting for Payment
-                  </h3>
-                  <p className="text-sm text-yellow-700">
-                    Please scan the QR code or click the button below to
-                    complete payment
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {(paymentStatus === "captured" || paymentStatus === "PAID") && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-                <FaCheckCircle className="text-green-600 text-2xl" />
-                <div>
-                  <h3 className="font-semibold text-green-800">
-                    Payment Successful!
-                  </h3>
-                  <p className="text-sm text-green-700">
-                    Your booking has been confirmed. Redirecting...
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {(paymentStatus === "failed" || paymentStatus === "CANCELLED") && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-                <FaTimesCircle className="text-red-600 text-2xl" />
-                <div>
-                  <h3 className="font-semibold text-red-800">Payment Failed</h3>
-                  <p className="text-sm text-red-700">
-                    Please try again or contact support
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* QR Code */}
-            <div className="text-center">
-              <h2 className="text-xl font-semibold mb-4">Scan QR Code</h2>
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-4 inline-block">
-                {qrCodeUrl && !isExpired ? (
-                  <img
-                    src={qrCodeUrl}
-                    alt="Payment QR Code"
-                    className="w-64 h-64"
-                  />
-                ) : isExpired ? (
-                  <div className="w-64 h-64 flex items-center justify-center bg-gray-100">
-                    <p className="text-gray-500 text-center">QR Code Expired</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center animate-pulse">
+                        <FaClock className="text-white text-lg" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-amber-900">
+                          Payment Timer
+                        </p>
+                        <p className="text-xs text-amber-700">
+                          Complete payment before time runs out
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-3xl font-bold text-amber-600 font-mono">
+                        {formatTime(timeLeft)}
+                      </div>
+                      <p className="text-xs text-amber-600">
+                        minutes remaining
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="w-64 h-64 flex items-center justify-center bg-gray-100">
-                    <p className="text-gray-500">Generating QR Code...</p>
-                  </div>
-                )}
-              </div>
-              <p className="text-sm text-gray-600 mt-4">
-                Use your banking app to scan and pay
-              </p>
-            </div>
-
-            {/* Booking Summary */}
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Booking Summary</h2>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600">Vehicle</p>
-                  <p className="font-semibold">
-                    {vehicle.brand} {vehicle.model}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Plate Number</p>
-                  <p className="font-semibold">{vehicle.plateNumber}</p>
-                </div>
-
-                {/* ✅ Breakdown from BookingPage */}
-                <div className="pt-3 border-t">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-gray-600">Daily Rate:</span>
-                    <span className="font-medium">
-                      {totals.dailyRate.toLocaleString()}đ
-                    </span>
-                  </div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-gray-600">Duration:</span>
-                    <span className="font-medium">
-                      {totals.duration} day(s)
-                    </span>
-                  </div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-gray-600">Rental Cost:</span>
-                    <span className="font-medium">
-                      {totals.rentalCost.toLocaleString()}đ
-                    </span>
-                  </div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-orange-600">
-                      Deposit (1.5%):
-                    </span>
-                    <span className="font-medium text-orange-600">
-                      {totals.deposit.toLocaleString()}đ
-                    </span>
-                  </div>
-                </div>
-
-                <hr className="my-3" />
-
-                <div className="flex justify-between items-center">
-                  <span className="text-base font-semibold text-gray-900">
-                    Total Amount
-                  </span>
-                  <span className="text-2xl font-bold text-green-600">
-                    {totals.total.toLocaleString()}đ
-                  </span>
-                </div>
-              </div>
-
-              {/* Payment Buttons */}
-              {!isExpired && (
-                <>
-                  <button
-                    onClick={handlePaymentRedirect}
-                    disabled={paymentStatus === "captured"}
-                    className={`w-full mt-6 py-3 rounded-lg font-medium transition-colors ${
-                      paymentStatus === "captured"
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
-                    }`}
-                  >
-                    Pay via PayOS Website
-                  </button>
-
-                  <button
-                    onClick={() => navigate("/profile")}
-                    className="w-full mt-3 bg-gray-200 text-gray-800 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-                  >
-                    View My Bookings
-                  </button>
-                </>
+                </motion.div>
               )}
+            </AnimatePresence>
+
+            {/* Payment Status */}
+            <AnimatePresence mode="wait">
+              {isExpired && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="mb-6 bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-300 rounded-2xl p-6"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <FaExclamationTriangle className="text-white text-xl" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-red-900 text-lg mb-1">
+                        Payment Session Expired
+                      </h3>
+                      <p className="text-sm text-red-700 mb-4">
+                        Your payment session has timed out. Please create a new
+                        booking to continue.
+                      </p>
+                      <button
+                        onClick={handleExpired}
+                        className="bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition-all inline-flex items-center gap-2"
+                      >
+                        <FaArrowLeft />
+                        Back to Vehicles
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {!isExpired && paymentStatus === "pending" && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-2xl p-6"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 animate-pulse">
+                      <FaClock className="text-white text-xl" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-blue-900 text-lg mb-1">
+                        Awaiting Payment
+                      </h3>
+                      <p className="text-sm text-blue-700">
+                        Scan the QR code with your banking app or use the
+                        payment button below
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {(paymentStatus === "captured" || paymentStatus === "PAID") && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="mb-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-6"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <FaCheckCircle className="text-white text-xl" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-green-900 text-lg mb-1">
+                        Payment Successful!
+                      </h3>
+                      <p className="text-sm text-green-700">
+                        Your booking has been confirmed. Redirecting to
+                        confirmation page...
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {(paymentStatus === "failed" ||
+                paymentStatus === "CANCELLED") && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="mb-6 bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-300 rounded-2xl p-6"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <FaTimesCircle className="text-white text-xl" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-red-900 text-lg mb-1">
+                        Payment Failed
+                      </h3>
+                      <p className="text-sm text-red-700">
+                        The payment could not be processed. Please try again or
+                        contact support for assistance.
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* QR Code Section */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
+                      <FaQrcode className="text-white text-lg" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">
+                        Scan to Pay
+                      </h2>
+                      <p className="text-xs text-gray-600">
+                        Use your banking app
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-6 shadow-lg inline-block w-full">
+                    <div className="flex items-center justify-center">
+                      {qrCodeUrl && !isExpired ? (
+                        <motion.div
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <img
+                            src={qrCodeUrl}
+                            alt="Payment QR Code"
+                            className="w-72 h-72 rounded-xl"
+                          />
+                        </motion.div>
+                      ) : isExpired ? (
+                        <div className="w-72 h-72 flex flex-col items-center justify-center bg-gray-100 rounded-xl">
+                          <FaExclamationTriangle className="text-gray-400 text-4xl mb-3" />
+                          <p className="text-gray-500 font-semibold">
+                            QR Code Expired
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Session timed out
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="w-72 h-72 flex flex-col items-center justify-center bg-gray-100 rounded-xl">
+                          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-gray-900 mb-3"></div>
+                          <p className="text-gray-600 font-medium">
+                            Generating QR Code...
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p className="text-sm text-blue-900 font-medium text-center flex items-center justify-center gap-2">
+                      <FaLightbulb className="text-blue-600" />
+                      Open your banking app and scan this code to complete
+                      payment
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Booking Summary */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <div className="space-y-6">
+                  {/* Vehicle Info Card */}
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
+                        <FaCarSide className="text-white text-xl" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">
+                          Booking Summary
+                        </h3>
+                        <p className="text-xs text-gray-600">
+                          Review your booking details
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                        <span className="text-sm text-gray-600">Vehicle</span>
+                        <span className="font-semibold text-gray-900">
+                          {vehicle.brand} {vehicle.model}
+                        </span>
+                      </div>
+                      {vehicle.licensePlate && (
+                        <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                          <span className="text-sm text-gray-600">
+                            License Plate
+                          </span>
+                          <span className="font-semibold text-gray-900 font-mono">
+                            {vehicle.licensePlate}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Cost Breakdown */}
+                  <div className="bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl p-6 text-black">
+                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                      <FaMoneyBillWave className="text-black" />
+                      Payment Breakdown
+                    </h3>
+
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between items-center pb-3 border-b border-black/10">
+                        <span className="text-black/70">Daily Rate</span>
+                        <span className="font-semibold">
+                          {totals.dailyRate.toLocaleString()}đ
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pb-3 border-b border-black/10">
+                        <span className="text-black/70">Duration</span>
+                        <span className="font-semibold">
+                          {totals.duration} day
+                          {totals.duration !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pb-3 border-b border-black/10">
+                        <span className="text-black/70">Rental Cost</span>
+                        <span className="font-semibold">
+                          {totals.rentalCost.toLocaleString()}đ
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pb-3 border-b border-black/10">
+                        <span className="text-black/70">Duration</span>
+                        <span className="font-semibold">
+                          {totals.duration} day
+                          {totals.duration !== 1 ? "s" : ""}
+                        </span>
+                        <span className="font-semibold">
+                          {totals.deposit.toLocaleString()}đ
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-3">
+                        <span className="text-lg font-bold">Total Amount</span>
+                        <span className="text-3xl font-bold text-green-400">
+                          {totals.total.toLocaleString()}đ
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  {!isExpired && (
+                    <div className="space-y-3">
+                      <button
+                        onClick={handlePaymentRedirect}
+                        disabled={paymentStatus === "captured"}
+                        className={`w-full py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
+                          paymentStatus === "captured"
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                        }`}
+                      >
+                        {paymentStatus === "captured" ? (
+                          <>
+                            <FaCheckCircle />
+                            Payment Completed
+                          </>
+                        ) : (
+                          <>
+                            <FaExternalLinkAlt />
+                            Pay via PayOS Website
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => navigate("/profile")}
+                        className="w-full bg-gray-100 text-gray-700 py-4 rounded-xl font-semibold hover:bg-gray-200 transition-all"
+                      >
+                        View My Bookings
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
             </div>
           </div>
         </div>
+
+        {/* Bottom Spacing */}
+        <div className="h-20"></div>
       </div>
     </div>
   );

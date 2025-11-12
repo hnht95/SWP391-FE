@@ -94,7 +94,6 @@ export const staffAPI = {
   getVehicleById: async (id: string): Promise<RawApiVehicle> => {
     try {
       const response = await api.get(`/vehicles/${id}`);
-      // If response has a 'data' wrapper, unwrap it
       return response.data.data || response.data;
     } catch (error) {
       handleError(error);
@@ -157,8 +156,8 @@ export const staffAPI = {
   getAdminBookingTransactions: async (params?: {
     page?: number;
     limit?: number;
-    provider?: string; // e.g. 'payos'
-    status?: string; // payment status: none | pending | captured | refunded
+    provider?: string;
+    status?: string;
     dateField?: string; // createdAt | updatedAt
     from?: string;
     to?: string;
@@ -222,7 +221,9 @@ export const staffAPI = {
       if (params?.limit) queryParams.append("limit", params.limit.toString());
       queryParams.append("sort", "-createdAt");
 
-      const response = await api.get(`/users/search?${queryParams.toString()}`);
+      const response = await api.get(
+        `/users/renters?${queryParams.toString()}`
+      );
       return response.data;
     } catch (error) {
       handleError(error);

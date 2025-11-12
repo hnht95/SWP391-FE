@@ -13,6 +13,7 @@ export interface Station {
   _id: string;
   name: string;
   code?: string;
+  province?: string;
   location: {
     address: string;
     lat: number;
@@ -87,8 +88,6 @@ export const getAllStations = async (
     const response = await api.get<Station[]>("/stations", {
       params: { page, limit },
     });
-
-    console.log("Get all stations response:", response.data);
 
     if (Array.isArray(response.data)) {
       return response.data;

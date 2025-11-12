@@ -3,20 +3,14 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import type { Vehicle } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { Station } from "../../../../../service/apiAdmin/apiStation/API";
-import {
-  FaBatteryFull,
-  FaCar,
-  FaStar,
-  FaMapMarkerAlt,
-  FaCamera,
-} from "react-icons/fa";
+import { FaBatteryFull, FaCar, FaStar, FaCamera } from "react-icons/fa";
 
 interface VehiclesCardProps {
   car: Vehicle;
   station?: Station;
 }
 
-const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
+const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
   const navigate = useNavigate();
 
   const handleViewDetails = () => {
@@ -56,7 +50,7 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
     (car.defaultPhotos?.interior?.length || 0);
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+    <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 shadow border-slate-100">
       {/* ✅ Image Section - Tăng height và width */}
       <div className="relative h-64 bg-gray-200 overflow-hidden group">
         {vehicleImage ? (
@@ -127,21 +121,6 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
           {car.plateNumber} • {car.year}
         </p>
 
-        {/* ✅ Station Location */}
-        {station && (
-          <div className="flex items-start gap-2 mb-4 p-3 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
-            <FaMapMarkerAlt className="text-red-500 mt-1 flex-shrink-0 text-sm" />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 text-sm truncate">
-                {station.name}
-              </p>
-              <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
-                {station.location.address}
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Features */}
         <div className="flex items-center justify-between mb-4 text-gray-700 text-sm">
           <div className="flex items-center gap-1.5 bg-green-50 px-2 py-1 rounded">
@@ -188,7 +167,7 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
 
           <button
             onClick={handleViewDetails}
-            className="bg-black text-white px-5 py-2.5 rounded-lg hover:bg-gray-800 transition-all duration-300 font-medium text-sm shadow-md hover:shadow-lg active:scale-95"
+            className="bg-black/80 cursor-pointer text-white px-5 py-2.5 rounded-lg hover:bg-gray-800 transition-all duration-300 font-medium text-sm shadow-md hover:shadow-lg active:scale-95"
           >
             View Details
           </button>

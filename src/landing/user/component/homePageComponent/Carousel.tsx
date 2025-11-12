@@ -70,7 +70,7 @@ const CarouselHome: React.FC = () => {
   ];
 
   return (
-    <div className="relative select-none">
+    <div className="relative select-none ">
       <Carousel
         autoplay
         autoplaySpeed={10000}
@@ -79,7 +79,7 @@ const CarouselHome: React.FC = () => {
       >
         {carData.map((car) => (
           <div key={car.id} className="relative">
-            <div className="w-full h-[610px] relative">
+            <div className="w-full h-screen relative">
               <video
                 src={car.video}
                 autoPlay
@@ -90,13 +90,8 @@ const CarouselHome: React.FC = () => {
               />
 
               <div className="absolute inset-0 flex items-center">
-                <div className="container mx-auto px-6">
+                <div className="container mx-auto px-10">
                   <div className="max-w-2xl">
-                    {/* Price */}
-                    <div className="text-4xl font-bold text-white mb-2">
-                      {car.price}
-                    </div>
-
                     <div className="text-6xl font-bold text-white mb-8 leading-tight">
                       {car.brand}
                       <br />

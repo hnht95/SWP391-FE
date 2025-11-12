@@ -32,6 +32,10 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import BookingPage from "../landing/user/component/BookingPage";
 import PaymentPage from "../landing/user/component/bookingComponent/PaymentPage";
 import BookingSuccessPage from "../landing/user/component/bookingComponent/BookingSuccessPage";
+import {
+  StationDetailPage,
+  StationsListPage,
+} from "../landing/user/component/index";
 
 const AllRouter = () => {
   return (
@@ -52,6 +56,8 @@ const AllRouter = () => {
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/vehicles/:id" element={<VehiclesDetail />} />
+        <Route path="/stations" element={<StationsListPage />} />
+        <Route path="/stations/:id" element={<StationDetailPage />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -69,6 +75,8 @@ const AllRouter = () => {
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/vehicles/:id" element={<VehiclesDetail />} />
+        <Route path="/stations" element={<StationsListPage />} />
+        <Route path="/stations/:id" element={<StationDetailPage />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -112,7 +120,10 @@ const AllRouter = () => {
         <Route path="/admin/vehicles" element={<VehiclesManagement />} />
         <Route path="/admin/stations" element={<StationManagementAdmin />} />
         <Route path="/admin/users" element={<ListUserManagement />} />
-        <Route path="/admin/users/verification" element={<UserVerification />} />
+        <Route
+          path="/admin/users/verification"
+          element={<UserVerification />}
+        />
         <Route path="/admin/transactions" element={<TransactionHistory />} />
         {/* <Route path="/admin/reports" element={<ReportsAndAI />} /> */}
       </Route>
