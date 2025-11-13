@@ -12,6 +12,7 @@ import {
   MdLogout,
   MdKeyboardArrowDown,
   MdWarning,
+  MdAttachMoney,
 } from "react-icons/md";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 import { useAuth } from "../../../hooks/useAuth";
@@ -67,6 +68,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
       label: "Damage Reports",
       icon: <MdWarning className="w-5 h-5" />,
       path: "/admin/damage-reports",
+    },
+    {
+      id: "manual-refunds",
+      label: "Manual Refunds Management",
+      icon: <MdAttachMoney className="w-5 h-5" />,
+      path: "/admin/manual-refunds",
     },
     // User Management is rendered as a dropdown below
   ];
