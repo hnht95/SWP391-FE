@@ -8,6 +8,7 @@ export type BookingStatus =
   | "pending"
   | "reserved"
   | "active"
+  | "returning"
   | "completed"
   | "cancelled"
   | "expired";
@@ -115,6 +116,7 @@ export type CancellationPolicy = {
 // ✅ Main Booking interface
 export type Booking = {
   _id: string;
+  bookingId?: string;
   renter: string | Renter;
   vehicle: string | VehicleInBooking;
   station: string | StationInfo;
@@ -179,6 +181,44 @@ export type PaymentStatusResponse = {
   success?: boolean;
   current: Booking;
   deposit?: DepositInfo;
+};
+
+// ✅ NEW: Mark Returned Response
+export type MarkReturnedResponse = {
+  success: boolean;
+  message: string;
+  booking: Booking;
+};
+
+// ✅ NEW: Extend Booking Request
+export type ExtendBookingRequest = {
+  addHours?: number;
+  addDays?: number;
+};
+
+// ✅ NEW: Extend Booking Response
+export type ExtendBookingResponse = {
+  success: boolean;
+  message: string;
+  booking: Booking;
+  additionalCharge: number;
+  newEndTime: string;
+};
+
+// ✅ NEW: Contract Response
+export type ContractResponse = {
+  success: boolean;
+  contract: {
+    _id: string;
+    url: string;
+    publicId: string;
+    type: string;
+    provider: string;
+    tags: string[];
+    uploadedBy: string;
+    createdAt: string;
+    updatedAt: string;
+  };
 };
 
 // ✅ Generic API response wrapper
@@ -448,6 +488,8 @@ const normalizeBooking = (data: unknown): Booking => {
 
   return {
     _id: bookingId,
+    bookingId:
+      typeof booking.bookingId === "string" ? booking.bookingId : bookingId,
     renter: booking.renter || "",
     vehicle: booking.vehicle || "",
     station: booking.station || "",
@@ -766,7 +808,6 @@ export const getPaymentStatus = async (
   try {
     console.log("📡 Fetching full booking for payment status:", bookingId);
 
-    // ✅ SIMPLE: Just get full booking - it has everything!
     const fullBooking = await getBookingById(bookingId);
 
     console.log("✅ Full booking with QR code:", {
@@ -837,6 +878,141 @@ export const refundBooking = async (
 };
 
 /**
+ * ✅ NEW: PUT /api/bookings/{id}/mark-returned
+ * Mark vehicle as returned - Renter only (waiting for staff verification)
+ * Changes: active → returning
+ */
+export const markVehicleReturned = async (
+  bookingId: string
+): Promise<MarkReturnedResponse> => {
+  try {
+    console.log("🔄 Marking vehicle as returned:", bookingId);
+
+    const response = await api.put<
+      ApiResponseWrapper<{
+        success: boolean;
+        message: string;
+        booking: Booking;
+      }>
+    >(`/bookings/${bookingId}/mark-returned`);
+
+    console.log("✅ Mark returned response:", response.data);
+
+    const data = response.data.data || response.data;
+
+    if (!data || typeof data !== "object") {
+      throw new Error("Invalid mark returned response");
+    }
+
+    return {
+      success: data.success !== false,
+      message:
+        typeof data.message === "string"
+          ? data.message
+          : "Vehicle marked as returned",
+      booking: normalizeBooking(data.booking),
+    };
+  } catch (error) {
+    return handleError(error, "markVehicleReturned");
+  }
+};
+
+/**
+ * ✅ NEW: POST /api/bookings/{id}/extend
+ * Extend booking time - Add hours or days
+ * Booking must be active or reserved
+ */
+export const extendBooking = async (
+  bookingId: string,
+  data: ExtendBookingRequest
+): Promise<ExtendBookingResponse> => {
+  try {
+    console.log("🔄 Extending booking:", bookingId, data);
+
+    const response = await api.post<
+      ApiResponseWrapper<{
+        success: boolean;
+        message: string;
+        booking: Booking;
+        additionalCharge: number;
+        newEndTime: string;
+      }>
+    >(`/bookings/${bookingId}/extend`, data);
+
+    console.log("✅ Extend booking response:", response.data);
+
+    const responseData = response.data.data || response.data;
+
+    if (!responseData || typeof responseData !== "object") {
+      throw new Error("Invalid extend booking response");
+    }
+
+    return {
+      success: responseData.success !== false,
+      message:
+        typeof responseData.message === "string"
+          ? responseData.message
+          : "Booking extended successfully",
+      booking: normalizeBooking(responseData.booking),
+      additionalCharge:
+        typeof responseData.additionalCharge === "number"
+          ? responseData.additionalCharge
+          : 0,
+      newEndTime:
+        typeof responseData.newEndTime === "string"
+          ? responseData.newEndTime
+          : "",
+    };
+  } catch (error) {
+    return handleError(error, "extendBooking");
+  }
+};
+
+/**
+ * ✅ NEW: GET /api/bookings/{id}/contract
+ * Get uploaded contract for booking - Renter/Staff/Admin
+ */
+export const getBookingContract = async (
+  bookingId: string
+): Promise<ContractResponse> => {
+  try {
+    console.log("📄 Fetching booking contract:", bookingId);
+
+    const response = await api.get<
+      ApiResponseWrapper<{
+        success: boolean;
+        contract: {
+          _id: string;
+          url: string;
+          publicId: string;
+          type: string;
+          provider: string;
+          tags: string[];
+          uploadedBy: string;
+          createdAt: string;
+          updatedAt: string;
+        };
+      }>
+    >(`/bookings/${bookingId}/contract`);
+
+    console.log("✅ Get contract response:", response.data);
+
+    const data = response.data.data || response.data;
+
+    if (!data || typeof data !== "object" || !data.contract) {
+      throw new Error("Contract not found for this booking");
+    }
+
+    return {
+      success: data.success !== false,
+      contract: data.contract,
+    };
+  } catch (error) {
+    return handleError(error, "getBookingContract");
+  }
+};
+
+/**
  * GET /api/bookings/admin/transactions
  * Admin list payment transactions with filters
  */
@@ -846,9 +1022,9 @@ export const getAdminTransactions = async (
     status?: AdminTransactionStatus | "--";
     renterPhone?: string;
     plateNumber?: string;
-    search?: string; // orderCode or paymentLinkId
-    from?: string; // ISO date string
-    to?: string; // ISO date string
+    search?: string;
+    from?: string;
+    to?: string;
     dateField?: "createdAt" | "updatedAt";
     page?: number;
     limit?: number;
@@ -899,6 +1075,7 @@ export const getBookingStatusColor = (status: BookingStatus): string => {
     pending: "bg-yellow-100 text-yellow-800",
     reserved: "bg-blue-100 text-blue-800",
     active: "bg-green-100 text-green-800",
+    returning: "bg-orange-100 text-orange-800",
     completed: "bg-purple-100 text-purple-800",
     cancelled: "bg-red-100 text-red-800",
     expired: "bg-gray-100 text-gray-800",
@@ -912,6 +1089,7 @@ export const getBookingStatusLabel = (status: BookingStatus): string => {
     pending: "Pending",
     reserved: "Reserved",
     active: "Active",
+    returning: "Returning",
     completed: "Completed",
     cancelled: "Cancelled",
     expired: "Expired",
@@ -980,6 +1158,9 @@ const bookingApi = {
   getPaymentStatus,
   cancelBooking,
   refundBooking,
+  markVehicleReturned,
+  extendBooking,
+  getBookingContract,
   getAdminTransactions,
   getBookingStatusColor,
   getBookingStatusLabel,

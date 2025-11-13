@@ -4,7 +4,7 @@ import { MdLocationOn, MdSearch } from "react-icons/md";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useStations } from "../../../../hooks/useStations";
 import type { Station } from "../../../../service/apiAdmin/apiStation/API";
-import stationHero from "../../../../assets/vehicles/Vehicle.svg"; // reuse vehicles hero image for now
+import stationHero from "../../../../assets/vehicles/Vehicle.svg";
 
 const StationsListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -50,8 +50,11 @@ const StationsListPage: React.FC = () => {
     );
   }
 
-  // Filter stations based on search term and province
+  // Filter stations: only active, search term, and province
   const filteredStations = stations.filter((station) => {
+    // Only show active stations
+    if (!station.isActive) return false;
+
     const matchesSearch =
       station.name?.toLowerCase().includes(searchTerm?.toLowerCase()) ||
       station.location?.address
@@ -83,7 +86,7 @@ const StationsListPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-gray-800 text-white">
       {/* Hero Section similar to Vehicles */}
-      <section className="relative h-[75vh] flex items-center justify-center overflow-hidden">
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <motion.img
           src={stationHero}
           alt="Stations network"
@@ -133,10 +136,9 @@ const StationsListPage: React.FC = () => {
 
       {/* Stations Grid */}
       <div className="w-full bg-gray-50">
-        {" "}
         <div
           ref={gridRef}
-          className="relative z-20 max-w-7xl mx-auto px-6 py-6 pb-16 "
+          className="relative z-20 max-w-7xl mx-auto px-6 py-6 pb-16"
         >
           <motion.h2
             className="text-2xl font-semibold text-black mb-6"
@@ -145,10 +147,10 @@ const StationsListPage: React.FC = () => {
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             {filteredStations.length > 0
-              ? `Showing ${filteredStations.length} station${
+              ? `Showing ${filteredStations.length} active station${
                   filteredStations.length !== 1 ? "s" : ""
                 }`
-              : "No stations found"}
+              : "No active stations found"}
           </motion.h2>
 
           {filteredStations.length > 0 && (
@@ -174,9 +176,9 @@ const StationsListPage: React.FC = () => {
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    {/* Status Badge */}
-                    <div className="absolute top-3 right-3 px-4 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shadow-lg border border-white/10 bg-black/60 text-white">
-                      {station.isActive ? "Active" : "Inactive"}
+                    {/* Active Badge - Always shows "Active" now */}
+                    <div className="absolute top-3 right-3 px-4 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shadow-lg border border-white/10 bg-green-500/90 text-white">
+                      Active
                     </div>
                     {station.code && (
                       <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shadow border border-white/10 bg-white/70 text-gray-800">
