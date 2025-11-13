@@ -18,6 +18,10 @@ import {
   getDeletionRequestsPaginated,
   approveDeletionRequest,
   rejectDeletionRequest,
+  approveMaintenanceRequest,
+  rejectMaintenanceRequest,
+  getAllTransferLogs,
+  type TransferLog,
 } from "../../../../service/apiAdmin/apiVehicles/API";
 import {
   getAllStations,
@@ -25,7 +29,6 @@ import {
 } from "../../../../service/apiAdmin/apiStation/API";
 import TransferVehicleModal from "./components/TransferVehicleModal";
 import ReportMaintenanceModal from "./components/ReportMaintenanceModal";
-import RequestDeletionModal from "./components/RequestDeletionModal";
 import DeletionRequestDetailModal from "./components/RequestsTab/DeletionRequestDetailModal";
 import MaintenanceRequestDetailModal from "./components/RequestsTab/MaintenanceRequestDetailModal";
 import ConfirmDeleteVehicleModal from "./components/ConfirmDeleteVehicleModal";
@@ -49,9 +52,12 @@ const VehiclesManagement: React.FC = () => {
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
-  const [isDeletionModalOpen, setIsDeletionModalOpen] = useState(false);
   const [isDeletionDetailOpen, setIsDeletionDetailOpen] = useState(false);
   const [selectedDeletionRequest, setSelectedDeletionRequest] = useState<
+    any | null
+  >(null);
+  const [isMaintenanceDetailOpen, setIsMaintenanceDetailOpen] = useState(false);
+  const [selectedMaintenanceRequest, setSelectedMaintenanceRequest] = useState<
     any | null
   >(null);
   const [vehicleToUpdate, setVehicleToUpdate] = useState<APIVehicle | null>(
@@ -66,6 +72,7 @@ const VehiclesManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [maintenanceRequests, setMaintenanceRequests] = useState<any[]>([]);
   const [deletionRequests, setDeletionRequests] = useState<any[]>([]);
+  const [transferLogs, setTransferLogs] = useState<TransferLog[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsPage, setRequestsPage] = useState(1);
   const [requestsLimit] = useState(20);
@@ -233,10 +240,21 @@ const VehiclesManagement: React.FC = () => {
     }
   };
 
+  const fetchTransferLogs = async () => {
+    try {
+      const logs = await getAllTransferLogs();
+      setTransferLogs(logs || []);
+    } catch (e) {
+      console.error("Fetch transfer logs error:", e);
+      setTransferLogs([]);
+    }
+  };
+
   useEffect(() => {
     fetchVehicles(1);
     fetchDeletionRequestsData();
     fetchMaintenanceRequestsData();
+    fetchTransferLogs();
   }, []);
 
   const handleEdit = (vehicle: UIVehicle) => {
@@ -273,12 +291,6 @@ const VehiclesManagement: React.FC = () => {
     setSelectedVehicle(vehicle);
     setIsDetailModalOpen(false); // Close detail modal first
     setIsMaintenanceModalOpen(true);
-  };
-
-  const handleRequestDeletion = (vehicle: APIVehicle) => {
-    setSelectedVehicle(vehicle);
-    setIsDetailModalOpen(false); // Close detail modal first
-    setIsDeletionModalOpen(true);
   };
 
   const handleDeleteDirect = (vehicle: APIVehicle) => {
@@ -323,6 +335,7 @@ const VehiclesManagement: React.FC = () => {
 
   const handleModalSuccess = () => {
     fetchVehicles();
+    fetchTransferLogs(); // Refresh transfer logs after transfer
   };
 
   // ✅ Filter vehicles based on search and status with loading effect
@@ -543,17 +556,31 @@ const VehiclesManagement: React.FC = () => {
         </>
       ) : (
         <RequestsTab
-          maintenanceRequests={[]}
+          maintenanceRequests={maintenanceRequests as any}
           deletionRequests={deletionRequests as any}
-          transferLogs={[]}
+          transferLogs={transferLogs as any}
           isLoading={requestsLoading}
           pagination={{ page: requestsPage, totalPages: requestsTotalPages }}
-          onPageChange={(p) => fetchDeletionRequestsData(p)}
+          onPageChange={(p) => {
+            fetchDeletionRequestsData(p);
+            fetchMaintenanceRequestsData(p);
+          }}
           onApproveMaintenance={async (id) => {
-            console.log("Approve maintenance:", id);
+            try {
+              await approveMaintenanceRequest(id);
+              await fetchMaintenanceRequestsData();
+              await fetchVehicles(); // Refresh vehicles to update status
+            } catch (e) {
+              console.error("Approve maintenance error:", e);
+            }
           }}
           onRejectMaintenance={async (id) => {
-            console.log("Reject maintenance:", id);
+            try {
+              await rejectMaintenanceRequest(id);
+              await fetchMaintenanceRequestsData();
+            } catch (e) {
+              console.error("Reject maintenance error:", e);
+            }
           }}
           onApproveDeletion={async (id) => {
             try {
@@ -575,6 +602,11 @@ const VehiclesManagement: React.FC = () => {
             setSelectedDeletionRequest(req);
             setIsDeletionDetailOpen(true);
           }}
+          onViewMaintenanceRequest={(req) => {
+            setSelectedMaintenanceRequest(req);
+            setIsMaintenanceDetailOpen(true);
+          }}
+          getStationName={getStationName}
         />
       )}
 
@@ -589,7 +621,6 @@ const VehiclesManagement: React.FC = () => {
         onEdit={handleEditFromDetail}
         onTransfer={handleTransfer}
         onReportMaintenance={handleReportMaintenance}
-        onRequestDeletion={handleRequestDeletion}
         onDelete={handleDeleteDirect}
         getStationName={getStationName}
       />
@@ -610,16 +641,6 @@ const VehiclesManagement: React.FC = () => {
         isOpen={isMaintenanceModalOpen}
         onClose={() => {
           setIsMaintenanceModalOpen(false);
-          setSelectedVehicle(null);
-        }}
-        onSuccess={handleModalSuccess}
-      />
-
-      <RequestDeletionModal
-        vehicle={selectedVehicle}
-        isOpen={isDeletionModalOpen}
-        onClose={() => {
-          setIsDeletionModalOpen(false);
           setSelectedVehicle(null);
         }}
         onSuccess={handleModalSuccess}
@@ -652,9 +673,12 @@ const VehiclesManagement: React.FC = () => {
       />
 
       <MaintenanceRequestDetailModal
-        request={maintenanceRequests}
-        isOpen={isMaintenanceModalOpen}
-        onClose={() => { setIsMaintenanceModalOpen(false); setSelectedVehicle(null); }}
+        request={selectedMaintenanceRequest}
+        isOpen={isMaintenanceDetailOpen}
+        onClose={() => {
+          setIsMaintenanceDetailOpen(false);
+          setSelectedMaintenanceRequest(null);
+        }}
         getStationName={getStationName}
       />
 

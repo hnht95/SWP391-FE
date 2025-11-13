@@ -64,11 +64,26 @@ const VehicleRow: React.FC<VehicleRowProps> = ({
   return (
     <>
       <td className="px-6 py-4 whitespace-nowrap">
-        <div>
-          <div className="text-sm font-medium text-gray-900">
-            {vehicle.brand}
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0 h-16 w-16 rounded-xl overflow-hidden border border-slate-200 bg-gray-100 shadow-sm flex items-center justify-center">
+            {vehicle.defaultPhotos?.exterior?.length ? (
+              <img
+                src={vehicle.defaultPhotos.exterior[0]}
+                alt={`${vehicle.brand} ${vehicle.model}`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-gray-500 text-base font-semibold uppercase">
+                {vehicle.brand?.charAt(0) ?? "?"}
+              </span>
+            )}
           </div>
-          <div className="text-sm text-gray-500">{vehicle.model}</div>
+          <div>
+            <div className="text-sm font-medium text-gray-900">
+              {vehicle.brand}
+            </div>
+            <div className="text-sm text-gray-500">{vehicle.model}</div>
+          </div>
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">

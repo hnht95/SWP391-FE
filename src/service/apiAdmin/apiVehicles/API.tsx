@@ -71,8 +71,24 @@ interface SingleVehicleResponse {
 export interface TransferLog {
   _id: string;
   vehicleId: string;
+  vehicle?: {
+    _id: string;
+    brand: string;
+    model: string;
+    plateNumber: string;
+  };
   fromStationId: string;
+  fromStation?: {
+    _id: string;
+    name: string;
+    code?: string;
+  };
   toStationId: string;
+  toStation?: {
+    _id: string;
+    name: string;
+    code?: string;
+  };
   transferredBy: string;
   transferDate: string;
   reason?: string;
@@ -685,6 +701,7 @@ export const deleteVehicle = async (id: string): Promise<void> => {
 
 /**
  * POST /api/vehicles/:id/transfer-station
+ * Chuyển xe sang trạm khác (admin)
  */
 export const transferVehicleStation = async (
   id: string,
@@ -696,10 +713,13 @@ export const transferVehicleStation = async (
       transferData
     );
 
+    console.log("✅ Transfer response:", response.data);
+
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
 
+    // Handle direct vehicle response
     if (
       typeof response.data === "object" &&
       response.data &&
@@ -710,17 +730,31 @@ export const transferVehicleStation = async (
 
     throw new Error("Failed to transfer vehicle");
   } catch (error) {
+    console.error("❌ Transfer vehicle error:", error);
     handleError(error);
     throw error;
   }
 };
 
 /**
- * GET /api/vehicles/transfer-logs
+ * GET /api/vehicles/transfer-logs (admin only)
+ * Hoặc GET /api/admin/vehicles/transfer-logs
  */
 export const getAllTransferLogs = async (): Promise<TransferLog[]> => {
   try {
-    const response = await api.get("/vehicles/transfer-logs");
+    // Try admin endpoint first
+    let response;
+    try {
+      response = await api.get("/admin/vehicles/transfer-logs");
+    } catch (adminError: any) {
+      // If admin endpoint fails, try regular endpoint
+      if (adminError?.response?.status === 404 || adminError?.response?.status === 403) {
+        console.log("⚠️ Admin endpoint not available, trying regular endpoint...");
+        response = await api.get("/vehicles/transfer-logs");
+      } else {
+        throw adminError;
+      }
+    }
 
     if (response.data.success && Array.isArray(response.data.data)) {
       return response.data.data;
@@ -730,10 +764,21 @@ export const getAllTransferLogs = async (): Promise<TransferLog[]> => {
       return response.data;
     }
 
+    if (Array.isArray(response.data.items)) {
+      return response.data.items;
+    }
+
     return [];
-  } catch (error) {
-    handleError(error);
-    throw error;
+  } catch (error: any) {
+    // Handle 403 Forbidden gracefully - return empty array instead of throwing
+    if (error?.response?.status === 403) {
+      console.warn("⚠️ Access denied to transfer logs (admin only). Returning empty array.");
+      return [];
+    }
+    
+    // For other errors, log but don't crash
+    console.error("❌ Error fetching transfer logs:", error);
+    return [];
   }
 };
 

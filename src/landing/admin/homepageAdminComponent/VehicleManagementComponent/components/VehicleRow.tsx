@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MdEdit, MdSwapHoriz, MdWarning, MdMoreVert } from "react-icons/md";
 import { GrHostMaintenance } from "react-icons/gr";
-import type { Vehicle, Station } from "../../../../../service/apiAdmin/apiVehicles/API";
-import { getStationId, getStationName as getStationNameHelper } from "../../../../../service/apiAdmin/apiVehicles/API";
+import type {
+  Vehicle,
+  Station,
+} from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { StatusStyle } from "../../../../../types/vehicle";
 
 interface VehicleRowProps {
@@ -58,6 +60,26 @@ const VehicleRow: React.FC<VehicleRowProps> = ({
 
   console.log("🚗 VehicleRow rendering:", vehicle);
   console.log("🏢 Station data:", vehicle.stationData);
+  const exteriorPhotoUrls = useMemo(() => {
+    if (!vehicle?.defaultPhotos?.exterior) {
+      return [];
+    }
+
+    return (vehicle.defaultPhotos.exterior as unknown[])
+      .map((photo) => {
+        if (typeof photo === "string") {
+          return photo;
+        }
+
+        if (photo && typeof photo === "object" && "url" in photo && photo.url) {
+          return photo.url as string;
+        }
+
+        return "";
+      })
+      .filter((url) => typeof url === "string" && url.length > 0);
+  }, [vehicle?.defaultPhotos?.exterior]);
+  const brandInitial = (vehicle.brand || "?").charAt(0);
   const getStatusStyle = (status: string): StatusStyle => {
     switch (status) {
       case "available":
@@ -114,15 +136,21 @@ const VehicleRow: React.FC<VehicleRowProps> = ({
     <>
       {/* Vehicle Info */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center">
-          <div className="flex-shrink-0 h-12 w-12">
-            <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0 h-16 w-16 rounded-xl overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center shadow-sm">
+            {exteriorPhotoUrls.length > 0 ? (
+              <img
+                src={exteriorPhotoUrls[0]}
+                alt={`${vehicle.brand} ${vehicle.model}`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
               <span className="text-gray-500 text-xs font-medium">
-                {vehicle.brand.charAt(0)}
+                {brandInitial}
               </span>
-            </div>
+            )}
           </div>
-          <div className="ml-4">
+          <div>
             <div className="text-sm font-medium text-gray-900">
               {vehicle.brand} {vehicle.model}
             </div>
