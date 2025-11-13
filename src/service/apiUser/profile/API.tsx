@@ -343,6 +343,8 @@ export type CancelledPaidItem = {
   updatedAt: string;
   vehicle: {
     _id: string;
+    id?: string; // thêm fallback
+    image?: string;
     plateNumber: string;
     brand: string;
     model: string;
@@ -439,7 +441,11 @@ const normalizeCancelledPaid = (raw: any): CancelledPaidItem => {
     createdAt: String(raw?.createdAt || ""),
     updatedAt: String(raw?.updatedAt || ""),
     vehicle: {
-      _id: String(raw?.vehicle?._id || ""),
+      // Fallback _id từ id nếu backend trả "id"
+      _id: String(raw?.vehicle?._id || raw?.vehicle?.id || ""),
+      id: raw?.vehicle?.id ? String(raw?.vehicle?.id) : undefined,
+      // Parse ảnh từ Markdown/URL
+      image: extractUrlFromMarkdown(raw?.vehicle?.image),
       plateNumber: String(raw?.vehicle?.plateNumber || ""),
       brand: String(raw?.vehicle?.brand || ""),
       model: String(raw?.vehicle?.model || ""),
@@ -477,6 +483,15 @@ const normalizeCancelledPaid = (raw: any): CancelledPaidItem => {
       ? String(raw?.cancellationReason)
       : undefined,
   };
+};
+const extractUrlFromMarkdown = (raw: unknown): string | undefined => {
+  if (typeof raw !== "string") return undefined;
+  // Ưu tiên Markdown: [text](url)
+  const md = /\((https?:\/\/[^\s)]+)\)/.exec(raw);
+  if (md?.[1]) return md[1];
+  // URL thuần
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return undefined;
 };
 
 const normalizeManualRefund = (raw: any): ManualRefundItem => {
