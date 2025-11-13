@@ -4,22 +4,20 @@ import {
   MdLogout,
   MdEdit,
   MdHome,
-  MdPerson,
-  MdKeyboardArrowDown,
 } from "react-icons/md";
 import { ImProfile } from "react-icons/im";
 import { FaCar } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { logout as logoutApi } from "../../../../../service/apiUser/auth/API";
-import type { UserProfile } from "../../../../../service/apiUser/profile/API"; // ✅ Import correct type
+import type { UserProfile } from "../../../../../service/apiUser/profile/API";
 
 export interface SidebarUserProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   activeTab: string;
   onTabChange: (tab: string) => void;
-  user: UserProfile; // ✅ Use UserProfile type
+  user: UserProfile;
   onSignOut?: () => void;
 }
 
@@ -32,7 +30,6 @@ const SidebarUser = ({
   onSignOut,
 }: SidebarUserProps) => {
   const navigate = useNavigate();
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const menuItems = [
@@ -79,7 +76,6 @@ const SidebarUser = ({
   };
 
   const handleBackToHome = () => {
-    setShowProfileMenu(false);
     navigate("/");
   };
 
@@ -87,15 +83,12 @@ const SidebarUser = ({
   const getAvatarUrl = (): string | undefined => {
     if (!user) return undefined;
 
-    // Handle nested object format
     if (typeof user.avatarUrl === "object" && user.avatarUrl?.url) {
       return user.avatarUrl.url;
     }
-    // Handle string format
     if (typeof user.avatarUrl === "string") {
       return user.avatarUrl;
     }
-    // Fallback to avatar field
     return user.avatar;
   };
 
@@ -127,7 +120,7 @@ const SidebarUser = ({
         isCollapsed ? "w-16" : "w-64"
       }`}
     >
-      {/* ✅ User Avatar Section - Moved to Top */}
+      {/* User Avatar Section - Top */}
       <div className="p-4 border-b border-gray-200 flex-shrink-0">
         {!isCollapsed ? (
           <div className="flex items-center space-x-3">
@@ -139,7 +132,6 @@ const SidebarUser = ({
                     alt={user.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      // ✅ Fallback if image fails to load
                       e.currentTarget.style.display = "none";
                       if (e.currentTarget.nextSibling) {
                         (
@@ -243,76 +235,72 @@ const SidebarUser = ({
         </div>
       </nav>
 
-      {/* Bottom Section */}
+      {/* ✅ Bottom Section - ONLY Buttons */}
       <div className="border-t border-gray-200 bg-white flex-shrink-0">
-        {/* Profile Menu with Dropdown */}
-        <div className="p-3">
-          {isCollapsed ? (
-            <div className="flex justify-center">
+        {/* Action Buttons */}
+        <div className="p-3 space-y-2">
+          {!isCollapsed ? (
+            <>
+              {/* Back to Home Button */}
               <button
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
+                onClick={handleBackToHome}
+                className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
               >
-                <MdPerson className="w-4 h-4 text-white" />
+                <MdHome className="w-4 h-4 mr-2" />
+                Back to Home
               </button>
-            </div>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleSignOut}
+                disabled={isLoggingOut}
+                className={`w-full flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${
+                  isLoggingOut
+                    ? "text-red-400 bg-red-50 cursor-not-allowed"
+                    : "text-red-600 hover:bg-red-50"
+                }`}
+              >
+                {isLoggingOut ? (
+                  <>
+                    <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
+                    Logging out...
+                  </>
+                ) : (
+                  <>
+                    <MdLogout className="w-4 h-4 mr-2" />
+                    Logout
+                  </>
+                )}
+              </button>
+            </>
           ) : (
-            <div className="relative">
+            <>
+              {/* Collapsed - Icon Only Buttons */}
               <button
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="w-full flex items-center px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                onClick={handleBackToHome}
+                className="w-full flex items-center justify-center p-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                title="Back to Home"
               >
-                <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center mr-3">
-                  <MdPerson className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user.name}
-                  </p>
-                  <p className="text-xs text-gray-500">{getRoleDisplay()}</p>
-                </div>
-                <MdKeyboardArrowDown
-                  className={`w-4 h-4 transition-transform duration-200 ${
-                    showProfileMenu ? "rotate-180" : ""
-                  }`}
-                />
+                <MdHome className="w-5 h-5" />
               </button>
 
-              {/* Dropdown with Logout + Home */}
-              {showProfileMenu && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border-2 border-black rounded-lg shadow-lg py-2">
-                  <button
-                    onClick={handleSignOut}
-                    disabled={isLoggingOut}
-                    className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center ${
-                      isLoggingOut
-                        ? "text-red-400 bg-red-50 cursor-not-allowed"
-                        : "text-red-600 hover:bg-red-50"
-                    }`}
-                  >
-                    {isLoggingOut ? (
-                      <>
-                        <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
-                        Logging out...
-                      </>
-                    ) : (
-                      <>
-                        <MdLogout className="w-4 h-4 mr-2" />
-                        Logout
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={handleBackToHome}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center border-t border-gray-200"
-                  >
-                    <MdHome className="w-4 h-4 mr-2" />
-                    Back to Home
-                  </button>
-                </div>
-              )}
-            </div>
+              <button
+                onClick={handleSignOut}
+                disabled={isLoggingOut}
+                className={`w-full flex items-center justify-center p-2 rounded-lg transition-colors ${
+                  isLoggingOut
+                    ? "text-red-400 bg-red-50 cursor-not-allowed"
+                    : "text-red-600 hover:bg-red-50"
+                }`}
+                title="Logout"
+              >
+                {isLoggingOut ? (
+                  <div className="w-5 h-5 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
+                ) : (
+                  <MdLogout className="w-5 h-5" />
+                )}
+              </button>
+            </>
           )}
         </div>
 
