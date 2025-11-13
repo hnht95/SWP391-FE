@@ -2,35 +2,49 @@
 import { AxiosError } from "axios";
 import api from "../../Utils";
 
+// ✅ Bank Info Type
+export type BankInfo = {
+  accountNumber?: string;
+  accountName?: string;
+  bankCode?: string;
+  bankName?: string;
+  updatedAt?: string;
+};
+
 export type UserProfile = {
   _id?: string;
   id?: string;
-  role: "renter" | "staff" | "admin";
+  role: "renter" | "staff" | "admin" | "partner";
   name: string;
   email: string;
   phone: string;
-  gender?: "male" | "female";
+  gender?: "male" | "female" | "other";
   isActive?: boolean;
   station?: string | null;
-  address?: string;
+
   dateOfBirth?: string;
-  avatarUrl?: string | null;
+  avatarUrl?: string | { url: string } | null;
   avatar?: string;
   createdAt?: string;
   updatedAt?: string;
   defaultRefundWallet?: string | null;
-  // ✅ Added KYC nested object
+
+  // ✅ KYC Info
   kyc?: {
     verified: boolean;
-    idFrontImage?: string | null;
-    idBackImage?: string | null;
-    licenseFrontImage?: string | null;
-    licenseBackImage?: string | null;
+    idNumber?: string | null;
+    licenseNumber?: string | null;
+    idFrontImage?: { url: string } | string | null;
+    idBackImage?: { url: string } | string | null;
+    licenseFrontImage?: { url: string } | string | null;
+    licenseBackImage?: { url: string } | string | null;
     verifiedAt?: string | null;
   };
+
+  // ✅ Bank Info
+  bankInfo?: BankInfo | null;
 };
 
-// Response types
 export type GetUserResponse = {
   success: boolean;
   data?: UserProfile;
@@ -44,6 +58,31 @@ export type UpdateUserResponse = {
   user?: UserProfile;
   data?: UserProfile;
   message?: string;
+};
+
+// Normalize server user payload into a consistent shape the UI can safely use
+const normalizeUser = (raw: any | undefined | null): UserProfile | undefined => {
+  if (!raw) return undefined;
+  const avatarUrlField = raw.avatarUrl;
+  const normalizedAvatarUrl: string | { url: string } | null =
+    typeof avatarUrlField === "object" && avatarUrlField?.url
+      ? { url: avatarUrlField.url }
+      : typeof avatarUrlField === "string"
+      ? raw.avatarUrl
+      : null;
+
+  const avatarString: string | undefined =
+    normalizedAvatarUrl && typeof normalizedAvatarUrl === "object"
+      ? normalizedAvatarUrl.url
+      : typeof normalizedAvatarUrl === "string"
+      ? normalizedAvatarUrl
+      : raw.avatar || undefined;
+
+  return {
+    ...raw,
+    avatarUrl: normalizedAvatarUrl,
+    avatar: avatarString,
+  } as UserProfile;
 };
 
 const handleError = (error: unknown, context: string) => {
@@ -70,38 +109,30 @@ const handleError = (error: unknown, context: string) => {
 /**
  * GET /api/users/me
  * Get current logged-in user profile
- * Response formats:
- * - { success: true, data: UserProfile }
- * - { ok: true, user: UserProfile }
- * - UserProfile (direct)
  */
 export const getCurrentUser = async (): Promise<GetUserResponse> => {
   try {
     const response = await api.get("/users/me");
-
     console.log("✅ Get current user response:", response.data);
 
-    // ✅ Case 1: { success: true, data: {...} }
     if (response.data.success && response.data.data) {
       return {
         success: true,
-        data: response.data.data,
+        data: normalizeUser(response.data.data),
       };
     }
 
-    // ✅ Case 2: { ok: true, user: {...} }
     if (response.data.ok && response.data.user) {
       return {
         success: true,
-        data: response.data.user,
+        data: normalizeUser(response.data.user),
       };
     }
 
-    // ✅ Case 3: Direct user object
     if (response.data._id || response.data.id) {
       return {
         success: true,
-        data: response.data,
+        data: normalizeUser(response.data),
       };
     }
 
@@ -114,32 +145,26 @@ export const getCurrentUser = async (): Promise<GetUserResponse> => {
 
 /**
  * PATCH /api/users/me
- * Update user profile (name, phone, gender, avatar)
- * Supports both JSON and FormData (for file uploads)
+ * Update basic profile info (name, phone, gender, dateOfBirth, addresses)
  */
-export const updateUserProfile = async (
-  data: FormData | Partial<UserProfile>
-): Promise<UpdateUserResponse> => {
+export const updateUserProfile = async (data: {
+  name?: string;
+  phone?: string;
+  gender?: "male" | "female" | "other";
+  dateOfBirth?: string;
+}): Promise<UpdateUserResponse> => {
   try {
-    console.log("Updating user profile");
-
-    const isFormData = data instanceof FormData;
-
-    const response = await api.patch<UpdateUserResponse>(
-      `/users/me`,
-      data,
-      isFormData
-        ? {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        : undefined
-    );
-
-    console.log("✅ Update profile response:", response.data);
-
-    return response.data;
+    console.log("Updating user profile (basic info):", data);
+    const response = await api.patch<UpdateUserResponse>(`/users/me`, data);
+    // Some backends omit unchanged fields or set them to null in PATCH response.
+    // Normalize the shape so UI never loses the avatar locally.
+    const normalized = {
+      ...response.data,
+      data: normalizeUser(response.data?.data ?? response.data?.user),
+      user: normalizeUser(response.data?.user ?? response.data?.data),
+    } as UpdateUserResponse;
+    console.log("✅ Update profile response (normalized):", normalized);
+    return normalized;
   } catch (error) {
     handleError(error, "updateUserProfile");
     throw error;
@@ -147,22 +172,59 @@ export const updateUserProfile = async (
 };
 
 /**
- * ✅ NEW: PATCH /api/users/me
- * Upload KYC documents (ID card, license, etc.)
- * Requires FormData with multiple image files
+ * ✅ PATCH /api/users/me
+ * Update bank information for refund purposes
+ */
+export const updateBankInfo = async (bankInfo: {
+  accountNumber: string;
+  accountName: string;
+  bankCode: string;
+  bankName?: string;
+}): Promise<UpdateUserResponse> => {
+  try {
+    console.log("Updating bank info:", bankInfo);
+
+    const response = await api.patch<UpdateUserResponse>(`/users/me`, {
+      "bankInfo.accountNumber": bankInfo.accountNumber,
+      "bankInfo.accountName": bankInfo.accountName,
+      "bankInfo.bankCode": bankInfo.bankCode,
+      "bankInfo.bankName": bankInfo.bankName,
+    });
+
+    console.log("✅ Bank info update response:", response.data);
+    return response.data;
+  } catch (error) {
+    handleError(error, "updateBankInfo");
+    throw error;
+  }
+};
+
+/**
+ * ✅ PATCH /api/users/me
+ * Upload KYC documents with ID/License numbers
  */
 export const uploadKYCDocuments = async (documents: {
+  idNumber?: string;
+  licenseNumber?: string;
   idFrontImage?: File;
   idBackImage?: File;
   licenseFrontImage?: File;
   licenseBackImage?: File;
 }): Promise<UpdateUserResponse> => {
   try {
-    console.log("Uploading KYC documents");
+    console.log("Uploading KYC documents with numbers");
 
     const formData = new FormData();
 
-    // ✅ Append KYC documents based on API spec
+    // ✅ Append text fields
+    if (documents.idNumber) {
+      formData.append("kyc.idNumber", documents.idNumber);
+    }
+    if (documents.licenseNumber) {
+      formData.append("kyc.licenseNumber", documents.licenseNumber);
+    }
+
+    // ✅ Append image files
     if (documents.idFrontImage) {
       formData.append("kyc.idFrontImage", documents.idFrontImage);
     }
@@ -187,8 +249,11 @@ export const uploadKYCDocuments = async (documents: {
     );
 
     console.log("✅ KYC upload response:", response.data);
-
-    return response.data;
+    return {
+      ...response.data,
+      data: normalizeUser(response.data?.data ?? response.data?.user),
+      user: normalizeUser(response.data?.user ?? response.data?.data),
+    } as UpdateUserResponse;
   } catch (error) {
     handleError(error, "uploadKYCDocuments");
     throw error;
@@ -196,7 +261,8 @@ export const uploadKYCDocuments = async (documents: {
 };
 
 /**
- * ✅ Helper: Upload single avatar image
+ * PATCH /api/users/me
+ * Upload avatar image ONLY
  */
 export const uploadAvatar = async (file: File): Promise<UpdateUserResponse> => {
   try {
@@ -216,8 +282,11 @@ export const uploadAvatar = async (file: File): Promise<UpdateUserResponse> => {
     );
 
     console.log("✅ Avatar upload response:", response.data);
-
-    return response.data;
+    return {
+      ...response.data,
+      data: normalizeUser(response.data?.data ?? response.data?.user),
+      user: normalizeUser(response.data?.user ?? response.data?.data),
+    } as UpdateUserResponse;
   } catch (error) {
     handleError(error, "uploadAvatar");
     throw error;
@@ -229,16 +298,47 @@ export const getRoleLabel = (role: UserProfile["role"]): string => {
     renter: "Renter",
     staff: "Staff",
     admin: "Admin",
+    partner: "Partner",
   };
   return roleLabels[role] || "User";
+};
+
+/**
+ * ✅ Get list of Vietnamese banks
+ */
+export const getVietnameseBanks = (): Array<{ code: string; name: string }> => {
+  return [
+    { code: "VCB", name: "Vietcombank" },
+    { code: "TCB", name: "Techcombank" },
+    { code: "VTB", name: "Vietinbank" },
+    { code: "BIDV", name: "BIDV" },
+    { code: "ACB", name: "ACB" },
+    { code: "MB", name: "MBBank" },
+    { code: "VPB", name: "VPBank" },
+    { code: "TPB", name: "TPBank" },
+    { code: "STB", name: "Sacombank" },
+    { code: "SHB", name: "SinHanBbank" },
+    { code: "MSB", name: "MSBank" },
+    { code: "OCB", name: "OCBbank" },
+    { code: "EIB", name: "Eximbank" },
+    { code: "HDB", name: "HDBank" },
+    { code: "VAB", name: "VietABank" },
+    { code: "NAB", name: "NamABank" },
+    { code: "PGB", name: "PGBank" },
+    { code: "SEAB", name: "SeABank" },
+    { code: "VIB", name: "VIB" },
+    { code: "ABB", name: "ABBANK" },
+  ].sort((a, b) => a.name.localeCompare(b.name));
 };
 
 const profileApi = {
   getCurrentUser,
   updateUserProfile,
-  uploadKYCDocuments, // ✅ New
-  uploadAvatar, // ✅ New
+  updateBankInfo, // ✅ New
+  uploadKYCDocuments,
+  uploadAvatar,
   getRoleLabel,
+  getVietnameseBanks, // ✅ New
 };
 
 export default profileApi;

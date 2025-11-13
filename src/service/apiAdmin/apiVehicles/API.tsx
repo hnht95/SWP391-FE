@@ -1,3 +1,4 @@
+/* eslint-disable */
 // service/apiVehicles/API.tsx
 import { AxiosError } from "axios";
 import api from "../../Utils";
@@ -41,11 +42,11 @@ export interface Vehicle {
   mileage: number;
   pricePerDay: number;
   pricePerHour: number;
-  status: "available" | "reserved" | "rented" | "maintenance";
+  status: "available" | "reserved" | "rented" | "maintenance" | "pending_deletion" | "pending_maintenance";
   station: string | StationData;
   defaultPhotos: {
-    exterior: VehiclePhoto[];
-    interior: VehiclePhoto[];
+    exterior: (string | VehiclePhoto)[];
+    interior: (string | VehiclePhoto)[];
   };
   ratingAvg?: number;
   ratingCount?: number;
@@ -53,18 +54,15 @@ export interface Vehicle {
   maintenanceHistory: any[];
   createdAt?: string;
   updatedAt?: string;
+
+  // Additional fields for UI compatibility
+  image?: string;
+  stationData?: StationData;
+  batteryLevel?: number;
+  isPartnerVehicle?: boolean; // From backend response
 }
 
 // ✅ API Response formats
-interface VehicleApiResponse {
-  success: boolean;
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  items: Vehicle[];
-}
-
 interface SingleVehicleResponse {
   success: boolean;
   data: Vehicle;
@@ -85,7 +83,7 @@ export interface TransferLog {
 
 export interface CreateVehicleData {
   plateNumber: string;
-  vin: string;
+  vin?: string;
   brand: string;
   model: string;
   year: number;
@@ -94,8 +92,19 @@ export interface CreateVehicleData {
   mileage: number;
   pricePerDay: number;
   pricePerHour: number;
-  status: string;
+  status: "available" | "reserved" | "rented" | "maintenance";
   station: string;
+  valuation?: {
+    valueVND: number;
+  };
+  // For FormData upload
+  exteriorFiles?: File[];
+  interiorFiles?: File[];
+  // For JSON with photo IDs
+  defaultPhotos?: {
+    exterior: string[];
+    interior: string[];
+  };
 }
 
 export interface UpdateVehicleData extends Partial<CreateVehicleData> {}
@@ -103,6 +112,73 @@ export interface UpdateVehicleData extends Partial<CreateVehicleData> {}
 export interface TransferStationData {
   toStationId: string;
   reason?: string;
+}
+
+/**
+ * Utility function to convert photo IDs or objects to URLs
+ * Handles both string IDs and VehiclePhoto objects
+ */
+export const getPhotoUrls = (photos: (string | VehiclePhoto)[]): string[] => {
+  if (!photos || !Array.isArray(photos)) return [];
+
+  return photos
+    .map((photo) => {
+      // If it's a string, assume it's a photo ID
+      if (typeof photo === "string") {
+        const baseURL =
+          import.meta.env.VITE_API_BASE_URL ||
+          "https://be-ev-rental-system-production.up.railway.app";
+        return `${baseURL}/uploads/${photo}`;
+      }
+
+      // If it's an object with url property
+      if (photo && typeof photo === "object" && photo.url) {
+        return photo.url;
+      }
+
+      // If it's an object with _id, construct URL
+      if (photo && typeof photo === "object" && photo._id) {
+        const baseURL =
+          import.meta.env.VITE_API_BASE_URL ||
+          "https://be-ev-rental-system-production.up.railway.app";
+        return `${baseURL}/uploads/${photo._id}`;
+      }
+
+      return "";
+    })
+    .filter((url) => url !== "");
+};
+
+/**
+ * Utility function to extract station ID from vehicle station data
+ * Handles both string IDs and StationData objects
+ */
+export const getStationId = (
+  station: string | StationData | undefined
+): string => {
+  if (!station) return "";
+
+  // If it's a string, return it directly
+  if (typeof station === "string") {
+    return station;
+  }
+
+  // If it's an object with _id, return the _id
+  if (station && typeof station === "object" && station._id) {
+    return station._id;
+  }
+
+  return "";
+};
+
+// ✅ Paginated response interface
+export interface PaginatedResponse<T> {
+  success: boolean;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  items: T[];
 }
 
 // ✅ Error handler
@@ -160,6 +236,143 @@ export const getAllVehicles = async (): Promise<Vehicle[]> => {
 
     throw new Error("Invalid API response format");
   } catch (error) {
+    console.error("❌ Error in getAllVehicles:", error);
+    handleError(error);
+    throw error;
+  }
+};
+
+// Paginated vehicles list
+export interface VehiclesPaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export const getVehiclesPaginated = async (
+  page = 1,
+  limit = 20
+): Promise<{ items: Vehicle[]; pagination: VehiclesPaginationMeta }> => {
+  try {
+    const response = await api.get<{
+      success?: boolean;
+      items?: Vehicle[];
+      data?: Vehicle[];
+      page?: number;
+      limit?: number;
+      total?: number;
+      totalPages?: number;
+      pagination?: VehiclesPaginationMeta;
+    }>("/vehicles", { params: { page, limit } });
+
+    // Swagger style: { success, items, pagination }
+    if (Array.isArray(response.data?.items)) {
+      return {
+        items: response.data.items,
+        pagination: response.data.pagination || {
+          page: response.data.page || page,
+          limit: response.data.limit || limit,
+          total: response.data.total || response.data.items.length,
+          totalPages: response.data.totalPages || 1,
+        },
+      };
+    }
+
+    // Alternative: { success, data, page, limit, total, totalPages }
+    if (Array.isArray(response.data?.data)) {
+      return {
+        items: response.data.data,
+        pagination: {
+          page: response.data.page || page,
+          limit: response.data.limit || limit,
+          total: response.data.total || response.data.data.length,
+          totalPages: response.data.totalPages || 1,
+        },
+      };
+    }
+
+    // Fallback direct array
+    if (Array.isArray(response.data)) {
+      const items = response.data as unknown as Vehicle[];
+      return {
+        items,
+        pagination: { page, limit, total: items.length, totalPages: 1 },
+      };
+    }
+
+    return { items: [], pagination: { page, limit, total: 0, totalPages: 1 } };
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Paginated with filters
+export interface VehiclesFilterParams {
+  station?: string;
+  status?: "available" | "reserved" | "rented" | "maintenance";
+  brand?: string;
+}
+
+export const getVehiclesPaginatedWithFilters = async (
+  page = 1,
+  limit = 10,
+  filters: VehiclesFilterParams = {}
+): Promise<{ items: Vehicle[]; pagination: VehiclesPaginationMeta }> => {
+  try {
+    const params: Record<string, string | number> = { page, limit };
+    if (filters.station) params.station = filters.station;
+    if (filters.status) params.status = filters.status;
+    if (filters.brand) params.brand = filters.brand;
+
+    type RawResponse = {
+      success?: boolean;
+      items?: Vehicle[];
+      data?: Vehicle[];
+      page?: number;
+      limit?: number;
+      total?: number;
+      totalPages?: number;
+      pagination?: VehiclesPaginationMeta;
+    };
+
+    const response = await api.get<RawResponse>("/vehicles", { params });
+
+    const buildPagination = (
+      base: RawResponse,
+      fallbackItems: Vehicle[]
+    ): VehiclesPaginationMeta => ({
+      page: base.page || base.pagination?.page || page,
+      limit: base.limit || base.pagination?.limit || limit,
+      total: base.total || base.pagination?.total || fallbackItems.length || 0,
+      totalPages: base.totalPages || base.pagination?.totalPages || 1,
+    });
+
+    if (Array.isArray(response.data?.items)) {
+      return {
+        items: response.data.items,
+        pagination: buildPagination(response.data, response.data.items),
+      };
+    }
+
+    if (Array.isArray(response.data?.data)) {
+      return {
+        items: response.data.data,
+        pagination: buildPagination(response.data, response.data.data),
+      };
+    }
+
+    if (Array.isArray(response.data)) {
+      const items = response.data as Vehicle[];
+      return {
+        items,
+        pagination: buildPagination({}, items),
+      };
+    }
+
+    return { items: [], pagination: { page, limit, total: 0, totalPages: 1 } };
+  } catch (error) {
     handleError(error);
     throw error;
   }
@@ -180,8 +393,12 @@ export const getVehicleById = async (id: string): Promise<Vehicle> => {
     }
 
     // ✅ Case 2: Direct vehicle object
-    if (response.data._id) {
-      return response.data as any;
+    if (
+      typeof response.data === "object" &&
+      response.data &&
+      (response.data as { _id?: string })._id
+    ) {
+      return response.data as unknown as Vehicle;
     }
 
     throw new Error("Vehicle not found");
@@ -198,17 +415,76 @@ export const createVehicle = async (
   vehicleData: CreateVehicleData
 ): Promise<Vehicle> => {
   try {
+    // Check if we need to send as FormData (has files)
+    const hasFiles =
+      vehicleData.exteriorFiles?.length || vehicleData.interiorFiles?.length;
+
+    let payload: FormData | CreateVehicleData;
+    let headers: Record<string, string> = {};
+
+    if (hasFiles) {
+      // Create FormData for file upload
+      const formData = new FormData();
+
+      // Append all text fields
+      if (vehicleData.plateNumber)
+        formData.append("plateNumber", vehicleData.plateNumber);
+      if (vehicleData.brand) formData.append("brand", vehicleData.brand);
+      if (vehicleData.model) formData.append("model", vehicleData.model);
+      if (vehicleData.year)
+        formData.append("year", vehicleData.year.toString());
+      if (vehicleData.color) formData.append("color", vehicleData.color);
+      if (vehicleData.batteryCapacity)
+        formData.append(
+          "batteryCapacity",
+          vehicleData.batteryCapacity.toString()
+        );
+      if (vehicleData.mileage)
+        formData.append("mileage", vehicleData.mileage.toString());
+      if (vehicleData.pricePerDay)
+        formData.append("pricePerDay", vehicleData.pricePerDay.toString());
+      if (vehicleData.pricePerHour)
+        formData.append("pricePerHour", vehicleData.pricePerHour.toString());
+      if (vehicleData.status) formData.append("status", vehicleData.status);
+      if (vehicleData.station) formData.append("station", vehicleData.station);
+      if (vehicleData.valuation)
+        formData.append("valuation", JSON.stringify(vehicleData.valuation));
+
+      // Append files
+      if (vehicleData.exteriorFiles) {
+        vehicleData.exteriorFiles.forEach((file) => {
+          formData.append("exteriorFiles", file);
+        });
+      }
+      if (vehicleData.interiorFiles) {
+        vehicleData.interiorFiles.forEach((file) => {
+          formData.append("interiorFiles", file);
+        });
+      }
+
+      payload = formData;
+      headers = { "Content-Type": "multipart/form-data" };
+    } else {
+      // Send as JSON if no files
+      payload = vehicleData;
+    }
+
     const response = await api.post<SingleVehicleResponse>(
       "/vehicles",
-      vehicleData
+      payload,
+      hasFiles ? { headers } : undefined
     );
 
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
 
-    if (response.data._id) {
-      return response.data as any;
+    if (
+      typeof response.data === "object" &&
+      response.data &&
+      (response.data as { _id?: string })._id
+    ) {
+      return response.data as unknown as Vehicle;
     }
 
     throw new Error("Failed to create vehicle");
@@ -226,20 +502,169 @@ export const updateVehicle = async (
   vehicleData: UpdateVehicleData
 ): Promise<Vehicle> => {
   try {
-    const response = await api.put<SingleVehicleResponse>(
-      `/vehicles/${id}`,
-      vehicleData
-    );
+    console.log("🔄 Updating vehicle with data:", vehicleData);
 
+    // Separate files and photos from other data to avoid backend transaction requirements
+    const {
+      exteriorFiles,
+      interiorFiles,
+      defaultPhotos: _unusedPhotos,
+      ...restData
+    } = vehicleData as UpdateVehicleData & {
+      exteriorFiles?: File[];
+      interiorFiles?: File[];
+    };
+
+    // Normalize station to ID string if object provided
+    let normalizedStation: string | undefined = undefined;
+    if (typeof restData.station !== "undefined") {
+      normalizedStation = getStationId(restData.station);
+    }
+
+    const basePayload: Record<string, unknown> = { ...restData };
+    if (typeof normalizedStation !== "undefined" && normalizedStation) {
+      basePayload.station = normalizedStation;
+    } else if (typeof restData.station !== "undefined") {
+      // Explicitly remove station if it's an object and no id resolved
+      delete basePayload.station;
+    }
+
+    // Never send defaultPhotos in the main update; handled by separate upload step
+    if (typeof basePayload.defaultPhotos !== "undefined")
+      delete basePayload.defaultPhotos;
+
+    // Remove undefined fields to prevent schema validation noise
+    Object.keys(basePayload).forEach((k) => {
+      if (typeof basePayload[k] === "undefined" || basePayload[k] === null) {
+        delete basePayload[k];
+      }
+    });
+
+    // First, update vehicle data without files
+    console.log("📡 Step 1: Updating vehicle basic info...");
+
+    let response: { data: any };
+    try {
+      response = await api.put<SingleVehicleResponse>(
+        `/vehicles/${id}`,
+        basePayload
+      );
+    } catch (err: unknown) {
+      const errorObj = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      const msg = (
+        errorObj?.response?.data?.message ||
+        errorObj?.message ||
+        ""
+      ).toString();
+      const needRetry = /action|type|source/i.test(msg);
+      if (!needRetry) {
+        throw err;
+      }
+      // Retry once with ultra-minimal payload to avoid transaction plugin requirements
+      const minimalPayload: Record<string, unknown> = {
+        plateNumber: basePayload.plateNumber,
+        brand: basePayload.brand,
+        model: basePayload.model,
+        year: basePayload.year,
+        color: basePayload.color,
+        batteryCapacity: basePayload.batteryCapacity,
+        mileage: basePayload.mileage,
+        pricePerDay: basePayload.pricePerDay,
+        pricePerHour: basePayload.pricePerHour,
+        status: basePayload.status,
+      };
+      if (basePayload.station) minimalPayload.station = basePayload.station;
+      response = await api.put<SingleVehicleResponse>(
+        `/vehicles/${id}`,
+        minimalPayload
+      );
+    }
+
+    console.log("✅ Update response:", response.data);
+
+    let updatedVehicle: Vehicle;
     if (response.data.success && response.data.data) {
-      return response.data.data;
+      updatedVehicle = response.data.data;
+    } else if (
+      typeof response.data === "object" &&
+      response.data &&
+      (response.data as { _id?: string })._id
+    ) {
+      updatedVehicle = response.data as unknown as Vehicle;
+    } else {
+      throw new Error("Failed to update vehicle");
     }
 
-    if (response.data._id) {
-      return response.data as any;
+    // If there are new files to upload, do it in a separate request
+    const hasNewFiles = exteriorFiles?.length || interiorFiles?.length;
+
+    if (hasNewFiles) {
+      console.log("📤 Step 2: Uploading new photos...");
+      console.log("New files:", {
+        exterior: exteriorFiles?.length || 0,
+        interior: interiorFiles?.length || 0,
+      });
+
+      // Create FormData for file upload
+      const formData = new FormData();
+
+      // Append files
+      if (exteriorFiles) {
+        exteriorFiles.forEach((file: File) => {
+          formData.append("exteriorFiles", file);
+        });
+      }
+      if (interiorFiles) {
+        interiorFiles.forEach((file: File) => {
+          formData.append("interiorFiles", file);
+        });
+      }
+
+      // Send files to update photos with mode as query parameter
+      const photosResponse = await api.put<SingleVehicleResponse>(
+        `/vehicles/${id}?mode=append`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      console.log("✅ Photos upload response:", photosResponse.data);
+      console.log("📸 Photos in response:", {
+        exterior:
+          photosResponse.data.data?.defaultPhotos?.exterior?.length || 0,
+        interior:
+          photosResponse.data.data?.defaultPhotos?.interior?.length || 0,
+        hasData: !!photosResponse.data.data,
+        fullData: photosResponse.data.data?.defaultPhotos,
+      });
+
+      // Always fetch the vehicle again to get the most up-to-date data including photos
+      if (photosResponse.data.success) {
+        console.log("🔄 Fetching updated vehicle data to get photos...");
+
+        // Wait a bit for backend to process files (1 second delay)
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const updatedVehicleWithPhotos = await getVehicleById(id);
+
+        console.log("✅ Updated vehicle with photos:", {
+          exterior:
+            updatedVehicleWithPhotos.defaultPhotos?.exterior?.length || 0,
+          interior:
+            updatedVehicleWithPhotos.defaultPhotos?.interior?.length || 0,
+        });
+
+        return updatedVehicleWithPhotos;
+      }
     }
 
-    throw new Error("Failed to update vehicle");
+    return updatedVehicle;
   } catch (error) {
     handleError(error);
     throw error;
@@ -275,8 +700,12 @@ export const transferVehicleStation = async (
       return response.data.data;
     }
 
-    if (response.data._id) {
-      return response.data as any;
+    if (
+      typeof response.data === "object" &&
+      response.data &&
+      (response.data as { _id?: string })._id
+    ) {
+      return response.data as unknown as Vehicle;
     }
 
     throw new Error("Failed to transfer vehicle");
@@ -326,6 +755,263 @@ export const getVehicleTransferLogs = async (
     }
 
     return [];
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Vehicle Management Request Functions
+export const reportMaintenance = async (
+  id: string,
+  body: { description: string }
+): Promise<Vehicle> => {
+  try {
+    const response = await api.post<{ success: boolean; data: Vehicle }>(
+      `/vehicles/${id}/report-maintenance`,
+      body
+    );
+
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    throw new Error("Failed to report maintenance");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const createDeletionRequest = async (
+  id: string,
+  body: { reason: string }
+): Promise<Vehicle> => {
+  try {
+    const response = await api.post<{ success: boolean; data: Vehicle }>(
+      `/vehicles/${id}/deletion-requests`,
+      body
+    );
+
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    throw new Error("Failed to create deletion request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Deletion Requests Management
+export const getDeletionRequests = async (): Promise<any[]> => {
+  try {
+    const response = await api.get<{
+      success: boolean;
+      data?: any[];
+      items?: any[];
+      pagination?: any;
+    }>("/vehicles/deletion-requests");
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+
+    return [];
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Paginated variant helper for deletion requests
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export const getDeletionRequestsPaginated = async (
+  page = 1,
+  limit = 20
+): Promise<{ items: any[]; pagination: PaginationMeta }> => {
+  try {
+    const response = await api.get<{
+      success?: boolean;
+      items?: any[];
+      data?: any[];
+      pagination?: PaginationMeta;
+    }>("/vehicles/deletion-requests", { params: { page, limit } });
+
+    // Prefer Swagger shape: { success, items, pagination }
+    if (Array.isArray(response.data?.items)) {
+      return {
+        items: response.data.items || [],
+        pagination: response.data.pagination || {
+          page,
+          limit,
+          total: response.data.items?.length || 0,
+          totalPages: 1,
+        },
+      };
+    }
+
+    // Fallback: { success, data }
+    if (Array.isArray(response.data?.data)) {
+      const items = response.data.data || [];
+      return {
+        items,
+        pagination: { page, limit, total: items.length, totalPages: 1 },
+      };
+    }
+
+    // Fallback: array only
+    if (Array.isArray(response.data)) {
+      const items = response.data as any[];
+      return {
+        items,
+        pagination: { page, limit, total: items.length, totalPages: 1 },
+      };
+    }
+
+    return { items: [], pagination: { page, limit, total: 0, totalPages: 1 } };
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const approveDeletionRequest = async (
+  requestId: string
+): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/deletion-requests/${requestId}/approve`
+    );
+
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    throw new Error("Failed to approve deletion request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const rejectDeletionRequest = async (
+  requestId: string
+): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/deletion-requests/${requestId}/reject`
+    );
+
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    throw new Error("Failed to reject deletion request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Maintenance Requests Management
+export const getMaintenanceRequests = async (): Promise<any[]> => {
+  try {
+    const response = await api.get<{ success: boolean; data: any[] }>(
+      "/vehicles/maintenance-requests"
+    );
+
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+
+    return [];
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const approveMaintenanceRequest = async (
+  requestId: string
+): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/maintenance-requests/${requestId}/approve`
+    );
+
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    throw new Error("Failed to approve maintenance request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+export const rejectMaintenanceRequest = async (
+  requestId: string
+): Promise<any> => {
+  try {
+    const response = await api.post<{ success: boolean; data: any }>(
+      `/vehicles/maintenance-requests/${requestId}/reject`
+    );
+
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    throw new Error("Failed to reject maintenance request");
+  } catch (error) {
+    handleError(error);
+    throw error;
+  }
+};
+
+// Paginated maintenance requests (admin)
+export const getMaintenanceRequestsPaginated = async (
+  page = 1,
+  limit = 20
+): Promise<{ items: any[]; pagination: PaginationMeta }> => {
+  try {
+    const response = await api.get<{ success?: boolean; items?: any[]; data?: any[]; pagination?: PaginationMeta }>(
+      "/vehicles/maintenance-requests",
+      { params: { page, limit } }
+    );
+
+    if (Array.isArray(response.data?.items)) {
+      return {
+        items: response.data.items || [],
+        pagination: response.data.pagination || { page, limit, total: response.data.items?.length || 0, totalPages: 1 },
+      };
+    }
+
+    if (Array.isArray(response.data?.data)) {
+      const items = response.data.data || [];
+      return {
+        items,
+        pagination: { page, limit, total: items.length, totalPages: 1 },
+      };
+    }
+
+    if (Array.isArray((response as any).data)) {
+      const items = (response as any).data as any[];
+      return { items, pagination: { page, limit, total: items.length, totalPages: 1 } };
+    }
+
+    return { items: [], pagination: { page, limit, total: 0, totalPages: 1 } };
   } catch (error) {
     handleError(error);
     throw error;

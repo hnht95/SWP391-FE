@@ -1,24 +1,27 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MdAdd,
-  MdDirectionsCar,
-  MdAssignment,
-  MdVisibility,
-  MdClose,
   MdCalendarToday,
+  MdDirectionsCar,
   MdPerson,
+  MdClose,
   MdLocationOn,
+  MdSearch,
+  MdFilterList,
+  MdViewModule,
+  MdViewList,
 } from "react-icons/md";
 import CustomSelect from "../../../components/CustomSelect";
 import staffAPI from "../../../service/apiStaff/API";
 import type {
   BookingTransactionItem,
   AdminBookingTransactionsResponse,
+  CreateBookingResponse,
 } from "../../../types/bookings";
 import type { RawApiVehicle } from "../../../types/vehicle";
 import { getAllStations } from "../../../service/apiAdmin/apiStation/API";
 import { formatDateTime } from "../../../utils/dateUtils";
+import useDebounce from "../../../hooks/useDebounce";
 
 const VehicleHandover = () => {
   // List state
@@ -28,6 +31,13 @@ const VehicleHandover = () => {
   const [items, setItems] = useState<BookingTransactionItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 500);
+  // Payment status filter - changed to match booking statuses
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Detail modal
   const [selected, setSelected] = useState<BookingTransactionItem | null>(null);
@@ -63,15 +73,34 @@ const VehicleHandover = () => {
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
-  // Fetch list
+  // Fetch list with filters
   useEffect(() => {
     let active = true;
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const res: AdminBookingTransactionsResponse =
-          await staffAPI.getAdminBookingTransactions({ page, limit });
+
+        let res: AdminBookingTransactionsResponse;
+        if (debouncedSearch) {
+          res = await staffAPI.searchBookings({
+            q: debouncedSearch,
+            page,
+            limit,
+            sort: "-createdAt",
+          });
+        } else {
+          const paramsTx: Record<string, string | number> = {
+            page,
+            limit,
+            provider: "payos",
+          };
+          if (statusFilter && statusFilter !== "all") {
+            paramsTx.status = statusFilter;
+          }
+          paramsTx.sort = "-createdAt";
+          res = await staffAPI.getAdminBookingTransactions(paramsTx);
+        }
         if (!active) return;
         setItems(res.items || []);
         setTotal(res.total || 0);
@@ -87,7 +116,12 @@ const VehicleHandover = () => {
     return () => {
       active = false;
     };
-  }, [page, limit]);
+  }, [page, limit, debouncedSearch, statusFilter]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter]);
 
   // Prefetch vehicles + stations for create modal
   useEffect(() => {
@@ -100,7 +134,7 @@ const VehicleHandover = () => {
         ]);
         if (!active) return;
         setVehiclesOptions(
-          (vehiclesRes?.data || []).map((v: RawApiVehicle) => ({
+          (vehiclesRes?.items || []).map((v: RawApiVehicle) => ({
             value: v._id,
             label: `${v.brand} ${v.model} - ${v.plateNumber}`,
           }))
@@ -118,17 +152,44 @@ const VehicleHandover = () => {
   }, []);
 
   const stats = useMemo(() => {
-    const byStatus = items.reduce((acc, it) => {
-      acc[it.status] = (acc[it.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
     return {
-      total,
-      cancelled: byStatus["cancelled"] || 0,
-      expired: byStatus["expired"] || 0,
-      created: byStatus["created"] || 0,
+      all: items.length,
+      successful: items.filter((it) => it.status === "completed").length,
+      failed: items.filter((it) => it.status === "cancelled").length,
+      pending: items.filter(
+        (it) =>
+          it.deposit?.status === "pending" ||
+          it.status === "pending" ||
+          it.status === "confirmed"
+      ).length,
+      expired: items.filter((it) => it.status === "expired").length,
+      cancelled: items.filter((it) => it.status === "cancelled").length,
     };
-  }, [items, total]);
+  }, [items]);
+
+  // Try to find a PayOS checkout URL in any nested response shape
+  const extractCheckoutUrl = (data: unknown): string | null => {
+    if (!data || typeof data !== "object") return null;
+    const stack: unknown[] = [data];
+    while (stack.length) {
+      const node: unknown = stack.pop();
+      if (!node) continue;
+      if (typeof node === "string") {
+        if (/^https?:\/\//.test(node) && node.includes("pay")) return node;
+        continue;
+      }
+      if (typeof node === "object") {
+        const obj = node as Record<string, unknown>;
+        for (const [k, v] of Object.entries(obj)) {
+          if (k.toLowerCase() === "checkouturl" && typeof v === "string") {
+            return v;
+          }
+          stack.push(v);
+        }
+      }
+    }
+    return null;
+  };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,12 +198,24 @@ const VehicleHandover = () => {
     // no toast state
     try {
       // Call new booking API payload shape (vehicleId, startTime, endTime, deposit)
-      await staffAPI.createBooking({
+      // Open a blank tab immediately to avoid popup blockers
+      const preOpened = window.open("about:blank", "_blank");
+      const createRes = await staffAPI.createBooking({
         vehicleId: createForm.vehicle,
         startTime: new Date(createForm.startDate).toISOString(),
         endTime: new Date(createForm.endDate).toISOString(),
         deposit: { provider: "payos" },
       });
+      const checkoutUrl = extractCheckoutUrl(
+        (createRes as CreateBookingResponse).data
+      );
+      if (checkoutUrl) {
+        if (preOpened) preOpened.location.href = checkoutUrl;
+        else window.open(checkoutUrl, "_blank", "noopener,noreferrer");
+      } else if (preOpened) {
+        // No URL returned, close the pre-opened tab
+        preOpened.close();
+      }
       // Refresh list
       setPage(1);
       const res = await staffAPI.getAdminBookingTransactions({
@@ -184,29 +257,28 @@ const VehicleHandover = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
       <motion.div
-        className="mb-8"
+        className="mb-6"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
-              <MdDirectionsCar className="w-8 h-8 mr-3 text-blue-600" />
-              Vehicle Handover
+            <h1 className="text-2xl font-bold text-gray-900">
+              Booking Management
             </h1>
-            <p className="text-gray-600">
-              Manage vehicle handovers and track rental status
+            <p className="text-gray-500 text-sm mt-1">
+              Manage all vehicle bookings and reservations.
             </p>
           </div>
           <motion.button
             onClick={openCreateModal}
-            className="bg-gray-900 cursor-pointer text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
+            className="bg-gray-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <MdAdd className="w-5 h-5" />
-            <span>Create Vehicle Handover</span>
+            <MdCalendarToday className="w-5 h-5" />
+            <span>New Booking</span>
           </motion.button>
         </div>
       </motion.div>
@@ -217,379 +289,627 @@ const VehicleHandover = () => {
         </div>
       )}
 
-      {/* Stats Cards */}
+      {/* Status Tabs */}
       <motion.div
-        className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+        className="mb-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.1 }}
       >
-        {[
-          {
-            title: "Total Bookings",
-            value: stats.total,
-            icon: MdAssignment,
-            bg: "bg-blue-100",
-            fg: "text-blue-600",
-          },
-          {
-            title: "Cancelled",
-            value: stats.cancelled,
-            icon: MdAssignment,
-            bg: "bg-red-100",
-            fg: "text-red-600",
-          },
-          {
-            title: "Expired",
-            value: stats.expired,
-            icon: MdDirectionsCar,
-            bg: "bg-amber-100",
-            fg: "text-amber-600",
-          },
-        ].map((s, i) => (
-          <motion.div
-            key={s.title}
-            className="bg-white rounded-xl p-6 border border-gray-100 hover:border-gray-200 transition-colors"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 + i * 0.1 }}
-            whileHover={{ y: -4 }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div
-                className={`w-12 h-12 ${s.bg} rounded-lg flex items-center justify-center`}
+        <div className="bg-white rounded-lg shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 px-6 py-4 border-b">
+            {[
+              { value: "all", label: "All", count: stats.all },
+              {
+                value: "successful",
+                label: "Successful",
+                count: stats.successful,
+              },
+              { value: "failed", label: "Failed", count: stats.failed },
+              {
+                value: "pending",
+                label: "Pending Payment",
+                count: stats.pending,
+              },
+              {
+                value: "expired",
+                label: "Payment Expired",
+                count: stats.expired,
+              },
+              {
+                value: "cancelled",
+                label: "Cancelled",
+                count: stats.cancelled,
+              },
+            ].map((tab, idx) => (
+              <motion.button
+                key={tab.value}
+                onClick={() => setStatusFilter(tab.value)}
+                className={`px-4 py-2 text-sm font-medium transition-all relative ${
+                  statusFilter === tab.value
+                    ? "text-gray-900"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + idx * 0.05 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <s.icon className={`w-6 h-6 ${s.fg}`} />
+                {tab.label} <span className="ml-1">{tab.count}</span>
+                {statusFilter === tab.value && (
+                  <motion.div
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
+                    layoutId="activeTab"
+                  />
+                )}
+              </motion.button>
+            ))}
+          </div>
+
+          {/* Search and View Toggle */}
+          <div className="p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-700">
+                  All bookings {stats.all}
+                </span>
+                <div className="relative flex-1 md:w-80">
+                  <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search booking ID, customer, vehicle..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
-              <span className="text-2xl font-bold text-gray-900">
-                {s.value}
-              </span>
+
+              <div className="flex items-center gap-2">
+                <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                  <MdFilterList className="w-5 h-5 text-gray-600" />
+                </button>
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <motion.button
+                    onClick={() => setViewMode("grid")}
+                    className={`p-1.5 rounded ${
+                      viewMode === "grid"
+                        ? "bg-white text-gray-900 shadow"
+                        : "text-gray-500"
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <MdViewModule className="w-5 h-5" />
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setViewMode("list")}
+                    className={`p-1.5 rounded ${
+                      viewMode === "list"
+                        ? "bg-white text-gray-900 shadow"
+                        : "text-gray-500"
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <MdViewList className="w-5 h-5" />
+                  </motion.button>
+                </div>
+              </div>
             </div>
-            <h3 className="text-gray-600 text-sm">{s.title}</h3>
-          </motion.div>
-        ))}
+          </div>
+        </div>
       </motion.div>
 
-      {/* Recent Handovers Table */}
+      {/* Bookings Display */}
       <motion.div
-        className="bg-white rounded-xl border border-gray-100"
+        className="bg-white rounded-lg shadow-sm p-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
+        transition={{ delay: 0.2 }}
       >
-        <div className="p-6 border-b border-gray-100">
-          <motion.h3
-            className="text-lg font-semibold text-gray-900"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-          >
-            Booking Transactions
-          </motion.h3>
-        </div>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-600">Loading bookings...</p>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-12">
+            <MdDirectionsCar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600">No bookings found</p>
+          </div>
+        ) : viewMode === "grid" ? (
+          /* Grid View */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {items.map((booking, index) => {
+              // Get status badge info
+              const getStatusBadge = () => {
+                switch (booking.status) {
+                  case "completed":
+                    return {
+                      color: "bg-green-100 text-green-800",
+                      label: "Successful",
+                    };
+                  case "cancelled":
+                    return {
+                      color: "bg-red-100 text-red-800",
+                      label: "Failed",
+                    };
+                  case "expired":
+                    return {
+                      color: "bg-yellow-100 text-yellow-800",
+                      label: "Payment Expired",
+                    };
+                  case "pending":
+                  case "confirmed":
+                    return {
+                      color: "bg-yellow-100 text-yellow-800",
+                      label: "Pending Payment",
+                    };
+                  default:
+                    return {
+                      color: "bg-gray-100 text-gray-800",
+                      label: booking.status,
+                    };
+                }
+              };
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                {[
-                  "Booking ID",
-                  "Renter",
-                  "Vehicle",
-                  "Station",
-                  "Status",
-                  "Created",
-                  "Action",
-                ].map((header, index) => (
-                  <motion.th
-                    key={header}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 + index * 0.05 }}
+              const statusBadge = getStatusBadge();
+
+              return (
+                <motion.div
+                  key={booking._id}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer bg-white"
+                  onClick={() => openDetail(booking)}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ y: -5 }}
+                >
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Booking ID</p>
+                      <h3 className="font-semibold text-gray-900">
+                        BK-{booking._id.substring(0, 8).toUpperCase()}
+                      </h3>
+                    </div>
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${statusBadge.color}`}
+                    >
+                      {statusBadge.label}
+                    </span>
+                  </div>
+
+                  {/* Customer */}
+                  <div className="flex items-center text-sm text-gray-600 mb-2">
+                    <MdPerson className="w-4 h-4 mr-1 text-gray-400" />
+                    <span className="text-xs text-gray-500">Customer:</span>
+                    <span className="ml-2 font-medium text-gray-900">
+                      {booking.renterInfo?.name || "N/A"}
+                    </span>
+                  </div>
+
+                  {/* Vehicle */}
+                  <div className="flex items-center text-sm text-gray-600 mb-3">
+                    <MdDirectionsCar className="w-4 h-4 mr-1 text-gray-400" />
+                    <span className="text-xs text-gray-500">Vehicle:</span>
+                    <span className="ml-2 font-medium text-gray-900">
+                      {booking.vehicleInfo?.brand} {booking.vehicleInfo?.model}
+                    </span>
+                  </div>
+
+                  {/* Dates */}
+                  <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                    <div>
+                      <span className="text-gray-500">Start Date</span>
+                      <div className="flex items-center mt-1">
+                        <MdCalendarToday className="w-3 h-3 mr-1 text-gray-400" />
+                        <span className="font-medium text-gray-900">
+                          {new Date(booking.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">End Date</span>
+                      <div className="flex items-center mt-1">
+                        <MdCalendarToday className="w-3 h-3 mr-1 text-gray-400" />
+                        <span className="font-medium text-gray-900">
+                          {new Date(booking.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Amount and Payment Method */}
+                  <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                    <div>
+                      <span className="text-gray-500">Total Amount</span>
+                      <p className="font-semibold text-gray-900 mt-1">
+                        ${booking.amounts?.totalPaid?.toLocaleString() || "0"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Payment Method</span>
+                      <p className="font-medium text-gray-900 mt-1">
+                        {booking.deposit?.status === "captured"
+                          ? "Credit Card"
+                          : booking.deposit?.status === "pending"
+                          ? "Pending"
+                          : booking.status === "cancelled"
+                          ? "Failed"
+                          : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* View Details Button */}
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDetail(booking);
+                    }}
+                    className="w-full py-2 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors font-medium"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    {header}
-                  </motion.th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading && (
+                    View details
+                  </motion.button>
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
+          /* List View */
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
                 <tr>
-                  <td className="px-6 py-6 text-sm text-gray-500" colSpan={7}>
-                    Loading bookings...
-                  </td>
+                  {[
+                    "Booking ID",
+                    "Customer",
+                    "Vehicle",
+                    "Start Date",
+                    "End Date",
+                    "Amount",
+                    "Status",
+                    "Actions",
+                  ].map((header) => (
+                    <th
+                      key={header}
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
+                      {header}
+                    </th>
+                  ))}
                 </tr>
-              )}
-              {!loading && items.length === 0 && (
-                <tr>
-                  <td className="px-6 py-6 text-sm text-gray-500" colSpan={7}>
-                    No bookings found.
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                items.map((b, index) => (
-                  <motion.tr
-                    key={b._id}
-                    className="hover:bg-gray-50 transition-colors"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.9 + index * 0.05 }}
-                    whileHover={{ x: 4 }}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => openDetail(b)}
-                        className="text-sm font-medium text-gray-900 hover:text-blue-600 underline"
-                      >
-                        {b.bookingId}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {b.renterInfo?.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {b.vehicleInfo?.brand} {b.vehicleInfo?.model} -{" "}
-                      {b.vehicleInfo?.plateNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {b.stationInfo?.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                          b.status === "cancelled"
-                            ? "bg-red-100 text-red-700"
-                            : b.status === "expired"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
-                      >
-                        {b.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {formatDateTime(b.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => openDetail(b)}
-                        className="text-gray-600 hover:text-gray-900"
-                        title="View details"
-                      >
-                        <MdVisibility className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </motion.tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {items.map((booking) => {
+                  const getStatusBadge = () => {
+                    switch (booking.status) {
+                      case "completed":
+                        return {
+                          color: "bg-green-100 text-green-800",
+                          label: "Successful",
+                        };
+                      case "cancelled":
+                        return {
+                          color: "bg-red-100 text-red-800",
+                          label: "Failed",
+                        };
+                      case "expired":
+                        return {
+                          color: "bg-yellow-100 text-yellow-800",
+                          label: "Payment Expired",
+                        };
+                      case "pending":
+                      case "confirmed":
+                        return {
+                          color: "bg-yellow-100 text-yellow-800",
+                          label: "Pending Payment",
+                        };
+                      default:
+                        return {
+                          color: "bg-gray-100 text-gray-800",
+                          label: booking.status,
+                        };
+                    }
+                  };
+
+                  const statusBadge = getStatusBadge();
+
+                  return (
+                    <tr
+                      key={booking._id}
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => openDetail(booking)}
+                    >
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        BK-{booking._id.substring(0, 8).toUpperCase()}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        {booking.renterInfo?.name || "N/A"}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        {booking.vehicleInfo?.brand}{" "}
+                        {booking.vehicleInfo?.model}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        {new Date(booking.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        {new Date(booking.updatedAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        ${booking.amounts?.totalPaid?.toLocaleString() || "0"}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${statusBadge.color}`}
+                        >
+                          {statusBadge.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDetail(booking);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          View details
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Pagination */}
-        <div className="flex items-center justify-between p-4 border-t border-gray-100">
-          <div className="text-sm text-gray-600">
-            Showing {total === 0 ? 0 : (page - 1) * limit + 1}-
-            {Math.min(page * limit, total)} of {total}
+        {!loading && items.length > 0 && (
+          <div className="mt-6 flex items-center justify-between border-t pt-4">
+            <div className="text-sm text-gray-600">
+              Showing {total === 0 ? 0 : (page - 1) * limit + 1}-
+              {Math.min(page * limit, total)} of {total}
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+              >
+                Prev
+              </button>
+              <span className="text-sm text-gray-700">
+                Page {page} / {totalPages}
+              </span>
+              <button
+                className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                Next
+              </button>
+              <CustomSelect
+                className="ml-2"
+                value={limit}
+                options={[
+                  { value: 5, label: "5 / page" },
+                  { value: 10, label: "10 / page" },
+                  { value: 20, label: "20 / page" },
+                  { value: 50, label: "50 / page" },
+                ]}
+                onChange={(v: string | number) => {
+                  setLimit(Number(v));
+                  setPage(1);
+                }}
+                menuPlacement="top"
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || loading}
-            >
-              Prev
-            </button>
-            <span className="text-sm text-gray-700">
-              Page {page} / {totalPages}
-            </span>
-            <button
-              className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages || loading}
-            >
-              Next
-            </button>
-            <CustomSelect
-              className="ml-2"
-              value={limit}
-              options={[
-                { value: 5, label: "5 / page" },
-                { value: 10, label: "10 / page" },
-                { value: 20, label: "20 / page" },
-                { value: 50, label: "50 / page" },
-              ]}
-              onChange={(v: string | number) => {
-                setLimit(Number(v));
-                setPage(1);
-              }}
-            />
-          </div>
-        </div>
+        )}
       </motion.div>
 
       {/* Create Booking Modal */}
       <AnimatePresence>
         {isCreateOpen && (
           <motion.div
-            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="bg-white rounded-xl max-w-3xl w-full p-6 overflow-y-auto"
+              className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
             >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Create Booking</h2>
+              <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Create Booking
+                </h2>
                 <button
                   onClick={closeCreateModal}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <MdClose className="w-6 h-6" />
                 </button>
               </div>
-              {createError && (
-                <div className="mb-3 px-3 py-2 rounded bg-red-50 text-red-700 text-sm">
-                  {createError}
-                </div>
-              )}
-              <form onSubmit={handleCreateSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">
-                      Vehicle
-                    </label>
-                    <CustomSelect
-                      className="mt-1"
-                      value={createForm.vehicle}
-                      options={[
-                        { value: "", label: "Select vehicle" },
-                        ...vehiclesOptions,
-                      ]}
-                      onChange={(v: string | number) =>
-                        setCreateForm((s) => ({ ...s, vehicle: String(v) }))
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">
-                      Rental Type
-                    </label>
-                    <CustomSelect
-                      className="mt-1"
-                      value={createForm.rentalType}
-                      options={[
-                        { value: "daily", label: "Daily" },
-                        { value: "hourly", label: "Hourly" },
-                      ]}
-                      onChange={(v: string | number) =>
-                        setCreateForm((s) => ({
-                          ...s,
-                          rentalType: v as "daily" | "hourly",
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">
-                      Pickup Station
-                    </label>
-                    <CustomSelect
-                      className="mt-1"
-                      value={createForm.pickupStation}
-                      options={[
-                        { value: "", label: "Select station" },
-                        ...stationOptions,
-                      ]}
-                      onChange={(v: string | number) =>
-                        setCreateForm((s) => ({
-                          ...s,
-                          pickupStation: String(v),
-                        }))
-                      }
-                    />
+              <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+                {createError && (
+                  <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
+                    {createError}
                   </div>
+                )}
+                <form onSubmit={handleCreateSubmit} className="space-y-6">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">
-                      Dropoff Station
-                    </label>
-                    <CustomSelect
-                      className="mt-1"
-                      value={createForm.dropoffStation}
-                      options={[
-                        { value: "", label: "Same as pickup" },
-                        ...stationOptions,
-                      ]}
-                      onChange={(v: string | number) =>
-                        setCreateForm((s) => ({
-                          ...s,
-                          dropoffStation: String(v),
-                        }))
-                      }
-                    />
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      Vehicle & Rental
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Vehicle
+                        </label>
+                        <CustomSelect
+                          className="w-full"
+                          value={createForm.vehicle}
+                          options={[
+                            { value: "", label: "Select vehicle" },
+                            ...vehiclesOptions,
+                          ]}
+                          onChange={(v: string | number) =>
+                            setCreateForm((s) => ({ ...s, vehicle: String(v) }))
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Rental Type
+                        </label>
+                        <CustomSelect
+                          className="w-full"
+                          value={createForm.rentalType}
+                          options={[
+                            { value: "daily", label: "Daily" },
+                            { value: "hourly", label: "Hourly" },
+                          ]}
+                          onChange={(v: string | number) =>
+                            setCreateForm((s) => ({
+                              ...s,
+                              rentalType: v as "daily" | "hourly",
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">
-                      Start
-                    </label>
-                    <input
-                      type="datetime-local"
-                      className="w-full mt-1 border-2 rounded-xl px-3 py-2"
-                      value={createForm.startDate}
-                      onChange={(e) =>
-                        setCreateForm((s) => ({
-                          ...s,
-                          startDate: e.target.value,
-                        }))
-                      }
-                    />
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-violet-500" />
+                      Stations
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Pickup Station
+                        </label>
+                        <CustomSelect
+                          className="w-full"
+                          value={createForm.pickupStation}
+                          options={[
+                            { value: "", label: "Select station" },
+                            ...stationOptions,
+                          ]}
+                          onChange={(v: string | number) =>
+                            setCreateForm((s) => ({
+                              ...s,
+                              pickupStation: String(v),
+                            }))
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Dropoff Station
+                        </label>
+                        <CustomSelect
+                          className="w-full"
+                          value={createForm.dropoffStation}
+                          options={[
+                            { value: "", label: "Same as pickup" },
+                            ...stationOptions,
+                          ]}
+                          onChange={(v: string | number) =>
+                            setCreateForm((s) => ({
+                              ...s,
+                              dropoffStation: String(v),
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">
-                      End
-                    </label>
-                    <input
-                      type="datetime-local"
-                      className="w-full mt-1 border-2 rounded-xl px-3 py-2"
-                      value={createForm.endDate}
-                      onChange={(e) =>
-                        setCreateForm((s) => ({
-                          ...s,
-                          endDate: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={closeCreateModal}
-                    className="px-4 py-2 border rounded-lg"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={creating}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-60"
-                  >
-                    {creating ? "Creating..." : "Create Booking"}
-                  </button>
-                </div>
-              </form>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Schedule
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Start
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          value={createForm.startDate}
+                          required
+                          onChange={(e) =>
+                            setCreateForm((s) => ({
+                              ...s,
+                              startDate: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          End
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          value={createForm.endDate}
+                          required
+                          onChange={(e) =>
+                            setCreateForm((s) => ({
+                              ...s,
+                              endDate: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-4">
+                    <motion.button
+                      type="button"
+                      onClick={closeCreateModal}
+                      className="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      Cancel
+                    </motion.button>
+                    <motion.button
+                      type="submit"
+                      disabled={creating}
+                      className={`px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                        creating
+                          ? "bg-black text-white"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
+                      whileHover={{ scale: creating ? 1 : 1.02 }}
+                      whileTap={{ scale: creating ? 1 : 0.98 }}
+                    >
+                      {creating ? "Creating..." : "Create Booking"}
+                    </motion.button>
+                  </div>
+                </form>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -605,93 +925,280 @@ const VehicleHandover = () => {
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="bg-white h-[90%] rounded-xl max-w-2xl w-full overflow-y-auto"
+              className="bg-white h-[90%] rounded-xl max-w-[800px] w-full overflow-y-auto"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
             >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Booking Details - {selected.bookingId}
-                </h2>
+              {/* Header */}
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Booking Details
+                  </h2>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                        selected.status === "completed"
+                          ? "bg-green-100 text-green-800"
+                          : selected.status === "cancelled"
+                          ? "bg-red-100 text-red-800"
+                          : selected.status === "expired"
+                          ? "bg-gray-100 text-gray-800"
+                          : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {selected.status}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {formatDateTime(selected.createdAt)}
+                    </span>
+                  </div>
+                </div>
                 <button
                   onClick={closeModal}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <MdClose className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="p-6 space-y-6 h-[calc(100%_-_100px)] overflow-y-auto">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                    <MdPerson className="w-5 h-5 mr-2" />
-                    Renter
+              {/* Content */}
+              <div className="p-6 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                {/* Renter Info */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                      <MdPerson className="w-5 h-5 text-white" />
+                    </div>
+                    Renter Information
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-900">
-                    <p>
-                      <span className="text-gray-600">Name: </span>
-                      {selected.renterInfo?.name}
-                    </p>
-                    <p>
-                      <span className="text-gray-600">Phone: </span>
-                      {selected.renterInfo?.phone}
-                    </p>
-                    <p className="md:col-span-2">
-                      <span className="text-gray-600">Email: </span>
-                      {selected.renterInfo?.email}
-                    </p>
+                    <div>
+                      <span className="text-sm text-gray-600 block mb-1">
+                        Name
+                      </span>
+                      <span className="font-medium">
+                        {selected.renterInfo?.name || "N/A"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-600 block mb-1">
+                        Phone
+                      </span>
+                      <span className="font-medium">
+                        {selected.renterInfo?.phone || "N/A"}
+                      </span>
+                    </div>
+                    <div className="md:col-span-2">
+                      <span className="text-sm text-gray-600 block mb-1">
+                        Email
+                      </span>
+                      <span className="font-medium">
+                        {selected.renterInfo?.email || "N/A"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                    <MdDirectionsCar className="w-5 h-5 mr-2" />
-                    Vehicle
+                {/* Vehicle Info */}
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center mr-3">
+                      <MdDirectionsCar className="w-5 h-5 text-white" />
+                    </div>
+                    Vehicle Information
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-900">
-                    <p>
-                      {selected.vehicleInfo?.brand}{" "}
-                      {selected.vehicleInfo?.model} -{" "}
-                      {selected.vehicleInfo?.plateNumber}
-                    </p>
-                    <p className="flex items-center">
-                      <MdLocationOn className="w-4 h-4 mr-1" />
-                      {selected.stationInfo?.name}
-                    </p>
+                    <div>
+                      <span className="text-sm text-gray-600 block mb-1">
+                        Vehicle
+                      </span>
+                      <span className="font-medium">
+                        {selected.vehicleInfo?.brand}{" "}
+                        {selected.vehicleInfo?.model}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-600 block mb-1">
+                        Plate Number
+                      </span>
+                      <span className="font-medium">
+                        {selected.vehicleInfo?.plateNumber || "N/A"}
+                      </span>
+                    </div>
+                    <div className="md:col-span-2">
+                      <span className="text-sm text-gray-600 flex items-center mb-1">
+                        <MdLocationOn className="w-4 h-4 mr-1" />
+                        Station
+                      </span>
+                      <span className="font-medium">
+                        {selected.stationInfo?.name || "N/A"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                    <MdCalendarToday className="w-5 h-5 mr-2" />
-                    Meta
+                {/* Deposit & Payment Info */}
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center mr-3">
+                      <MdCalendarToday className="w-5 h-5 text-white" />
+                    </div>
+                    Payment & Deposit
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-900">
-                    <p>
-                      <span className="text-gray-600">Status: </span>
-                      {selected.status}
-                    </p>
-                    <p>
-                      <span className="text-gray-600">Created: </span>
-                      {formatDateTime(selected.createdAt)}
-                    </p>
-                    <p className="md:col-span-2">
-                      <span className="text-gray-600">Deposit: </span>
-                      {selected.deposit?.amount?.toLocaleString()}{" "}
-                      {selected.deposit?.currency}
-                    </p>
+                  <div className="space-y-4">
+                    {/* Deposit Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-900">
+                      <div>
+                        <span className="text-sm text-gray-600 block mb-1">
+                          Deposit Amount
+                        </span>
+                        <span className="font-medium text-lg">
+                          {selected.deposit?.amount?.toLocaleString() || "0"}{" "}
+                          {selected.deposit?.currency || "VND"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 block mb-1">
+                          Deposit Status
+                        </span>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                            selected.deposit?.status === "completed"
+                              ? "bg-green-100 text-green-800"
+                              : selected.deposit?.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {selected.deposit?.status || "N/A"}
+                        </span>
+                      </div>
+                      {selected.deposit?.providerRef && (
+                        <div className="md:col-span-2">
+                          <span className="text-sm text-gray-600 block mb-1">
+                            Provider Reference
+                          </span>
+                          <span className="font-medium font-mono text-sm">
+                            {selected.deposit.providerRef}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* PayOS Info */}
+                    {selected.deposit?.payos && (
+                      <div className="mt-4 p-4 bg-white bg-opacity-60 rounded-lg border border-green-200">
+                        <h4 className="font-medium text-gray-900 mb-3">
+                          PayOS Details
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                          {selected.deposit.payos.orderCode && (
+                            <div>
+                              <span className="text-gray-600 block mb-1">
+                                Order Code
+                              </span>
+                              <span className="font-mono text-gray-900">
+                                {selected.deposit.payos.orderCode}
+                              </span>
+                            </div>
+                          )}
+                          {selected.deposit.payos.paymentLinkId && (
+                            <div>
+                              <span className="text-gray-600 block mb-1">
+                                Payment Link ID
+                              </span>
+                              <span className="font-mono text-gray-900">
+                                {selected.deposit.payos.paymentLinkId}
+                              </span>
+                            </div>
+                          )}
+                          {selected.deposit.payos.paidAt && (
+                            <div>
+                              <span className="text-gray-600 block mb-1">
+                                Paid At
+                              </span>
+                              <span className="font-medium text-gray-900">
+                                {formatDateTime(selected.deposit.payos.paidAt)}
+                              </span>
+                            </div>
+                          )}
+                          {selected.deposit.payos.checkoutUrl && (
+                            <div className="md:col-span-2">
+                              <span className="text-gray-600 block mb-1">
+                                Checkout URL
+                              </span>
+                              <a
+                                href={selected.deposit.payos.checkoutUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline break-all text-xs"
+                              >
+                                {selected.deposit.payos.checkoutUrl}
+                              </a>
+                            </div>
+                          )}
+                          {selected.deposit.payos.qrCode && (
+                            <div className="md:col-span-2">
+                              <span className="text-gray-600 block mb-1">
+                                QR Code
+                              </span>
+                              <a
+                                href={selected.deposit.payos.qrCode}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline break-all text-xs"
+                              >
+                                View QR Code
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Total Paid */}
+                    {selected.amounts?.totalPaid !== undefined && (
+                      <div className="mt-4 p-4 bg-white bg-opacity-60 rounded-lg border border-green-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600 font-medium">
+                            Total Paid
+                          </span>
+                          <span className="text-2xl font-bold text-green-600">
+                            {selected.amounts.totalPaid.toLocaleString()} VND
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-              <div className="p-6 border-t border-gray-100 flex justify-end">
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                >
-                  Close
-                </button>
+
+                {/* Timestamps */}
+                <div className="bg-gray-50 rounded-xl p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Timestamps
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-900">
+                    <div>
+                      <span className="text-sm text-gray-600 block mb-1">
+                        Created At
+                      </span>
+                      <span className="font-medium">
+                        {formatDateTime(selected.createdAt)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-600 block mb-1">
+                        Last Updated
+                      </span>
+                      <span className="font-medium">
+                        {formatDateTime(selected.updatedAt)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>

@@ -3,29 +3,21 @@ import {
   MdChevronRight,
   MdLogout,
   MdEdit,
-  MdHome, // ✅ Home icon
+  MdHome,
 } from "react-icons/md";
 import { ImProfile } from "react-icons/im";
 import { FaCar } from "react-icons/fa";
-import { BiSolidNotepad } from "react-icons/bi";
-import { IoSettingsSharp } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
-import logoWeb from "../../../../../assets/loginImage/logoZami.png";
+import { useState } from "react";
+import { logout as logoutApi } from "../../../../../service/apiUser/auth/API";
+import type { UserProfile } from "../../../../../service/apiUser/profile/API";
 
 export interface SidebarUserProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   activeTab: string;
   onTabChange: (tab: string) => void;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    avatar?: string;
-    role: "User" | "Staff" | "Admin";
-    kycVerified?: boolean;
-  };
+  user: UserProfile;
   onSignOut?: () => void;
 }
 
@@ -38,6 +30,7 @@ const SidebarUser = ({
   onSignOut,
 }: SidebarUserProps) => {
   const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const menuItems = [
     {
@@ -50,16 +43,6 @@ const SidebarUser = ({
       label: "Booking History",
       icon: <FaCar className="w-5 h-5" />,
     },
-    {
-      id: "activity",
-      label: "Activity",
-      icon: <BiSolidNotepad className="w-5 h-5" />,
-    },
-    {
-      id: "settings",
-      label: "Settings",
-      icon: <IoSettingsSharp className="w-5 h-5" />,
-    },
   ];
 
   const handleMenuClick = (item: (typeof menuItems)[0]) => {
@@ -70,15 +53,65 @@ const SidebarUser = ({
     console.log("Edit avatar clicked");
   };
 
-  const handleSignOut = () => {
-    if (onSignOut) {
-      onSignOut();
+  const handleSignOut = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    try {
+      await logoutApi();
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      if (onSignOut) {
+        onSignOut();
+      }
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      navigate("/");
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
-  // ✅ Handle navigate to home
   const handleBackToHome = () => {
     navigate("/");
+  };
+
+  // ✅ Get avatar URL - handle nested object
+  const getAvatarUrl = (): string | undefined => {
+    if (!user) return undefined;
+
+    if (typeof user.avatarUrl === "object" && user.avatarUrl?.url) {
+      return user.avatarUrl.url;
+    }
+    if (typeof user.avatarUrl === "string") {
+      return user.avatarUrl;
+    }
+    return user.avatar;
+  };
+
+  const avatarUrl = getAvatarUrl();
+
+  // ✅ Get user role display
+  const getRoleDisplay = (): string => {
+    const roleMap: Record<string, string> = {
+      renter: "User",
+      staff: "Staff",
+      admin: "Admin",
+    };
+    return roleMap[user.role] || user.role;
+  };
+
+  // ✅ Get initials for avatar placeholder
+  const getInitials = (): string => {
+    return user.name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -87,48 +120,36 @@ const SidebarUser = ({
         isCollapsed ? "w-16" : "w-64"
       }`}
     >
-      {/* Logo Section */}
+      {/* User Avatar Section - Top */}
       <div className="p-4 border-b border-gray-200 flex-shrink-0">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 flex items-center justify-center">
-            <img
-              src={logoWeb}
-              alt="Zami Logo"
-              className="w-8 h-8 object-contain"
-            />
-          </div>
-          {!isCollapsed && (
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Zami Renter</h2>
-              <p className="text-xs text-gray-500">Vehicle Rental</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* User Avatar Section */}
-      {!isCollapsed && (
-        <div className="p-4 border-b border-gray-200 flex-shrink-0">
+        {!isCollapsed ? (
           <div className="flex items-center space-x-3">
             <div className="relative group">
               <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 shadow-md">
-                {user.avatar ? (
+                {avatarUrl ? (
                   <img
-                    src={user.avatar}
+                    src={avatarUrl}
                     alt={user.name}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                      if (e.currentTarget.nextSibling) {
+                        (
+                          e.currentTarget.nextSibling as HTMLElement
+                        ).style.display = "flex";
+                      }
+                    }}
                   />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-400 flex items-center justify-center">
-                    <span className="text-black text-lg font-bold">
-                      {user.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()}
-                    </span>
-                  </div>
-                )}
+                ) : null}
+                <div
+                  className={`w-full h-full bg-gradient-to-br from-gray-200 to-gray-400 flex items-center justify-center ${
+                    avatarUrl ? "hidden" : ""
+                  }`}
+                >
+                  <span className="text-black text-lg font-bold">
+                    {getInitials()}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={handleEditAvatar}
@@ -144,9 +165,9 @@ const SidebarUser = ({
               <p className="text-xs text-gray-500 truncate">{user.email}</p>
               <div className="flex items-center space-x-1 mt-1">
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-black text-white">
-                  {user.role}
+                  {getRoleDisplay()}
                 </span>
-                {user.kycVerified && (
+                {user.kyc?.verified && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-500 text-white">
                     ✓
                   </span>
@@ -154,8 +175,39 @@ const SidebarUser = ({
               </div>
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 shadow-md">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                      if (e.currentTarget.nextSibling) {
+                        (
+                          e.currentTarget.nextSibling as HTMLElement
+                        ).style.display = "flex";
+                      }
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={`w-full h-full bg-gradient-to-br from-gray-200 to-gray-400 flex items-center justify-center ${
+                    avatarUrl ? "hidden" : ""
+                  }`}
+                >
+                  <span className="text-black text-xs font-bold">
+                    {getInitials()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Navigation Menu */}
       <nav className="mt-6 px-3 flex-1 overflow-y-auto">
@@ -183,61 +235,72 @@ const SidebarUser = ({
         </div>
       </nav>
 
-      {/* Bottom Section */}
+      {/* ✅ Bottom Section - ONLY Buttons */}
       <div className="border-t border-gray-200 bg-white flex-shrink-0">
-        {/* ✅ Back to Home Button - Above Sign Out */}
-        <div className="p-3">
-          {isCollapsed ? (
-            <div className="flex justify-center">
+        {/* Action Buttons */}
+        <div className="p-3 space-y-2">
+          {!isCollapsed ? (
+            <>
+              {/* Back to Home Button */}
               <button
                 onClick={handleBackToHome}
-                className="w-8 h-8 bg-black rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
-                title="Back to Home"
+                className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
               >
-                <MdHome className="w-4 h-4 text-white" />
+                <MdHome className="w-4 h-4 mr-2" />
+                Back to Home
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleBackToHome}
-              className="w-full flex items-center px-3 py-2 text-black bg-white hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center mr-3">
-                <MdHome className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-medium text-black">Back to Home</p>
-                <p className="text-xs text-gray-500">Return to main page</p>
-              </div>
-            </button>
-          )}
-        </div>
 
-        {/* Sign Out Button */}
-        <div className="p-3 border-t border-gray-100">
-          {isCollapsed ? (
-            <div className="flex justify-center">
+              {/* Logout Button */}
               <button
                 onClick={handleSignOut}
-                className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center hover:bg-red-700 transition-colors"
-                title="Sign Out"
+                disabled={isLoggingOut}
+                className={`w-full flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${
+                  isLoggingOut
+                    ? "text-red-400 bg-red-50 cursor-not-allowed"
+                    : "text-red-600 hover:bg-red-50"
+                }`}
               >
-                <MdLogout className="w-4 h-4 text-white" />
+                {isLoggingOut ? (
+                  <>
+                    <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
+                    Logging out...
+                  </>
+                ) : (
+                  <>
+                    <MdLogout className="w-4 h-4 mr-2" />
+                    Logout
+                  </>
+                )}
               </button>
-            </div>
+            </>
           ) : (
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center mr-3">
-                <MdLogout className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-medium text-red-600">Sign Out</p>
-                <p className="text-xs text-gray-500">Exit your account</p>
-              </div>
-            </button>
+            <>
+              {/* Collapsed - Icon Only Buttons */}
+              <button
+                onClick={handleBackToHome}
+                className="w-full flex items-center justify-center p-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                title="Back to Home"
+              >
+                <MdHome className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={handleSignOut}
+                disabled={isLoggingOut}
+                className={`w-full flex items-center justify-center p-2 rounded-lg transition-colors ${
+                  isLoggingOut
+                    ? "text-red-400 bg-red-50 cursor-not-allowed"
+                    : "text-red-600 hover:bg-red-50"
+                }`}
+                title="Logout"
+              >
+                {isLoggingOut ? (
+                  <div className="w-5 h-5 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
+                ) : (
+                  <MdLogout className="w-5 h-5" />
+                )}
+              </button>
+            </>
           )}
         </div>
 

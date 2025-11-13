@@ -114,7 +114,12 @@ export interface Vehicle {
   model: string;
   year: number;
   color: string;
-  status: "available" | "reserved" | "rented" | "maintenance";
+  status:
+    | "available"
+    | "reserved"
+    | "rented"
+    | "pending_maintenance"
+    | "pending_deletion";
   batteryLevel: number;
   batteryCapacity: number;
   mileage: number;
@@ -139,7 +144,12 @@ export interface Vehicle {
 }
 
 // Status-related types
-export type VehicleStatus = "available" | "reserved" | "rented" | "maintenance";
+export type VehicleStatus =
+  | "available"
+  | "reserved"
+  | "rented"
+  | "pending_maintenance"
+  | "pending_deletion";
 export type VehicleType = "scooter" | "sport" | "standard";
 
 // Filter types
@@ -155,4 +165,76 @@ export interface StatusStyle {
   color: string;
   label: string;
   dotColor: string;
+}
+
+// Request types for Vehicle Management
+export interface MaintenanceRequest {
+  _id: string;
+  vehicleId: string;
+  vehicle: {
+    _id: string;
+    plateNumber: string;
+    brand: string;
+    model: string;
+  };
+  description: string;
+  reportedBy: string;
+  reportedAt: string;
+  status: "pending" | "approved" | "rejected";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeletionRequest {
+  _id: string;
+  vehicleId: string;
+  vehicle: {
+    _id: string;
+    plateNumber: string;
+    brand: string;
+    model: string;
+  };
+  reason: string;
+  requestedBy: string;
+  requestedAt: string;
+  status: "pending" | "approved" | "rejected";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TransferLog {
+  _id: string;
+  vehicleId: string;
+  fromStationId: string;
+  toStationId: string;
+  transferredBy: string;
+  transferDate: string;
+  reason?: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Request types for API calls
+export interface TransferVehicleRequest {
+  toStationId: string;
+  reason?: string;
+}
+
+export interface ReportMaintenanceRequest {
+  description: string;
+}
+
+export interface CreateDeletionRequest {
+  reason: string;
 }

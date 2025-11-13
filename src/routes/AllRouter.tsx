@@ -14,11 +14,12 @@ import VehiclesStaff from "../landing/staff/homepageStaffComponent/VehiclesStaff
 import StaffUser from "../landing/staff/homepageStaffComponent/StaffUser";
 import LayoutAdmin from "../landing/admin/LayoutAdmin";
 import DashboardAdmin from "../landing/admin/homepageAdminComponent/DashboardAdmin";
-import VehiclesManagement from "../landing/admin/homepageAdminComponent/VehicleManagementAdmin";
-import StationManagementAdmin from "../landing/admin/homepageAdminComponent/StationManagementAdmin";
-import CustomerManagementAdmin from "../landing/admin/homepageAdminComponent/CustomerManagementAdmin";
-import StaffManagementAdmin from "../landing/admin/homepageAdminComponent/StaffManagementAdmin/StaffManagement";
-import ReportsAndAI from "../landing/admin/homepageAdminComponent/ReportsAndAI";
+import VehiclesManagement from "../landing/admin/homepageAdminComponent/VehicleManagementComponent";
+// import StationManagementAdmin from "../landing/admin/homepageAdminComponent/StationManagementAdmin";
+import ListUserManagement from "../landing/admin/homepageAdminComponent/UserManagerComponent/ListUserManagement";
+import UserVerification from "../landing/admin/homepageAdminComponent/UserManagerComponent/UserVerification";
+import TransactionHistory from "../landing/admin/homepageAdminComponent/BookingManagementComponent";
+// import ReportsAndAI from "../landing/admin/homepageAdminComponent/ReportsAndAI";
 import AboutUs from "../landing/user/component/subnavComponent/AboutUs";
 import Vehicles from "../landing/user/component/subnavComponent/Vehicles";
 import TermsOfService from "../landing/user/component/footerComponent/TermOfService";
@@ -31,6 +32,8 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import BookingPage from "../landing/user/component/BookingPage";
 import PaymentPage from "../landing/user/component/bookingComponent/PaymentPage";
 import BookingSuccessPage from "../landing/user/component/bookingComponent/BookingSuccessPage";
+import StationManagement from "../landing/admin/homepageAdminComponent/StationManagementAdmin/StationManagement";
+import { StationDetailPage, StationsListPage } from "../landing/user/component";
 
 const AllRouter = () => {
   return (
@@ -51,6 +54,8 @@ const AllRouter = () => {
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/vehicles/:id" element={<VehiclesDetail />} />
+        <Route path="/stations" element={<StationsListPage />} />
+        <Route path="/stations/:id" element={<StationDetailPage />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -68,6 +73,8 @@ const AllRouter = () => {
         <Route path="/aboutus" element={<AboutUs />} />
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/vehicles/:id" element={<VehiclesDetail />} />
+        <Route path="/stations" element={<StationsListPage />} />
+        <Route path="/stations/:id" element={<StationDetailPage />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -109,10 +116,14 @@ const AllRouter = () => {
         <Route path="/admin" element={<DashboardAdmin />} />
         <Route path="/admin/dashboard" element={<DashboardAdmin />} />
         <Route path="/admin/vehicles" element={<VehiclesManagement />} />
-        <Route path="/admin/stations" element={<StationManagementAdmin />} />
-        <Route path="/admin/customers" element={<CustomerManagementAdmin />} />
-        <Route path="/admin/staff" element={<StaffManagementAdmin />} />
-        <Route path="/admin/reports" element={<ReportsAndAI />} />
+        <Route path="/admin/stations" element={<StationManagement />} />
+        <Route path="/admin/users" element={<ListUserManagement />} />
+        <Route
+          path="/admin/users/verification"
+          element={<UserVerification />}
+        />
+        <Route path="/admin/transactions" element={<TransactionHistory />} />
+        {/* <Route path="/admin/reports" element={<ReportsAndAI />} /> */}
       </Route>
     </Routes>
   );

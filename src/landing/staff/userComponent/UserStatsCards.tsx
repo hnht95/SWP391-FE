@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { MdPerson, MdStar, MdCheckCircle, MdBlock } from "react-icons/md";
+import { MdPerson, MdCheckCircle, MdBlock } from "react-icons/md";
 import type { UserStats } from "../../../types/userTypes";
 
 interface UserStatsCardsProps {
@@ -12,28 +12,21 @@ const UserStatsCards: React.FC<UserStatsCardsProps> = ({ stats }) => {
     {
       title: "Total Users",
       value: stats.total,
-      subtitle: "All registered users",
+      subtitle: "All car rental customers",
       icon: MdPerson,
       color: "blue",
     },
     {
-      title: "VIP Users",
-      value: stats.vip,
-      subtitle: "Premium customers",
-      icon: MdStar,
-      color: "yellow",
-    },
-    {
-      title: "Active Users",
+      title: "Active",
       value: stats.active,
-      subtitle: "Currently active",
+      subtitle: "Active accounts",
       icon: MdCheckCircle,
       color: "green",
     },
     {
-      title: "Locked Users",
+      title: "Locked",
       value: stats.locked,
-      subtitle: "Account restrictions",
+      subtitle: "Restricted accounts",
       icon: MdBlock,
       color: "red",
     },
@@ -41,7 +34,7 @@ const UserStatsCards: React.FC<UserStatsCardsProps> = ({ stats }) => {
 
   return (
     <motion.div
-      className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+      className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 0.2 }}

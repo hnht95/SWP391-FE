@@ -1,402 +1,469 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
+  Car,
   Calendar,
   MapPin,
   CreditCard,
   Clock,
-  Car,
+  Loader2,
   AlertCircle,
+  ArrowRight,
 } from "lucide-react";
+import BookingDetailModal from "./bookingComponent/BookingDetailModal";
+import type { Booking } from "../../../../../../../service/apiBooking/API";
 import bookingApi, {
-  type Booking,
   type BookingQueryParams,
 } from "../../../../../../../service/apiBooking/API";
-import BookingDetailModal from "./bookingComponent/BookingDetailModal";
+import { getVehicleById } from "../../../../../../../service/apiAdmin/apiVehicles/API";
+
+// ✅ Global cache to avoid duplicate fetches
+const vehicleImageCache = new Map<string, string | null>();
+
+// Status badge component
+const StatusBadge = ({ status }: { status: string }) => {
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case "pending":
+        return {
+          bg: "bg-yellow-100",
+          text: "text-yellow-700",
+          border: "border-yellow-200",
+          label: "Pending Payment",
+        };
+      case "reserved":
+        return {
+          bg: "bg-blue-100",
+          text: "text-blue-700",
+          border: "border-blue-200",
+          label: "Reserved",
+        };
+      case "active":
+        return {
+          bg: "bg-green-100",
+          text: "text-green-700",
+          border: "border-green-200",
+          label: "Active",
+        };
+      case "completed":
+        return {
+          bg: "bg-gray-100",
+          text: "text-gray-700",
+          border: "border-gray-200",
+          label: "Completed",
+        };
+      case "cancelled":
+        return {
+          bg: "bg-red-100",
+          text: "text-red-700",
+          border: "border-red-200",
+          label: "Cancelled",
+        };
+      case "expired":
+        return {
+          bg: "bg-orange-100",
+          text: "text-orange-700",
+          border: "border-orange-200",
+          label: "Expired",
+        };
+      default:
+        return {
+          bg: "bg-gray-100",
+          text: "text-gray-700",
+          border: "border-gray-200",
+          label: status,
+        };
+    }
+  };
+
+  const config = getStatusConfig(status);
+
+  return (
+    <span
+      className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border ${config.bg} ${config.text} ${config.border}`}
+    >
+      {config.label}
+    </span>
+  );
+};
 
 const BookingHistoryTab = () => {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [vehicleImages, setVehicleImages] = useState<
+    Record<string, string | null>
+  >({});
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  // ✅ Modal state
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadingImages, setLoadingImages] = useState(true);
 
-  const itemsPerPage = 5;
+  // ✅ Fetch vehicle thumbnail with caching
+  const fetchVehicleThumbnail = useCallback(
+    async (vehicleId: string): Promise<string | null> => {
+      // Check cache first
+      if (vehicleImageCache.has(vehicleId)) {
+        return vehicleImageCache.get(vehicleId)!;
+      }
 
+      try {
+        const vehicle = await getVehicleById(vehicleId);
+        const imageUrl = vehicle.defaultPhotos?.exterior?.[0]?.url || null;
+        vehicleImageCache.set(vehicleId, imageUrl);
+        return imageUrl;
+      } catch (err) {
+        console.error(`Failed to fetch vehicle ${vehicleId}:`, err);
+        vehicleImageCache.set(vehicleId, null);
+        return null;
+      }
+    },
+    []
+  );
+
+  // ✅ Fetch bookings and vehicle images
   useEffect(() => {
-    fetchBookings(1, true);
-  }, [filterStatus]);
+    const fetchBookings = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const fetchBookings = async (page: number, reset: boolean = false) => {
-    try {
-      if (reset) {
-        setIsLoading(true);
-      } else {
-        setIsLoadingMore(true);
+        const params: BookingQueryParams = {
+          limit: 50,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        };
+
+        const response = await bookingApi.getUserBookings(params);
+
+        console.log("📦 Bookings response:", response);
+
+        // ✅ Fix: Backend returns "items" not "data"
+        if (response.success && response.items) {
+          // ✅ Add debug logging for each booking
+          response.items.forEach((booking: any, index: number) => {
+            console.log(`Booking ${index}:`, {
+              _id: booking._id,
+              vehicle:
+                typeof booking.vehicle === "string"
+                  ? booking.vehicle
+                  : booking.vehicle?._id,
+              station:
+                typeof booking.station === "string"
+                  ? booking.station
+                  : booking.station?._id,
+              hasVehicle: !!booking.vehicle,
+              hasStation: !!booking.station,
+            });
+          });
+
+          setBookings(response.items);
+
+          // ✅ Fetch vehicle images in parallel
+          setLoadingImages(true);
+
+          // ✅ Extract vehicle IDs safely with null checks
+          const uniqueVehicleIds = [
+            ...new Set(
+              response.items
+                .map((booking: any) => {
+                  if (!booking.vehicle) {
+                    console.warn("⚠️ Booking missing vehicle:", booking._id);
+                    return null;
+                  }
+                  // Handle both string and object vehicle
+                  if (typeof booking.vehicle === "string") {
+                    return booking.vehicle;
+                  }
+                  return booking.vehicle?._id;
+                })
+                .filter(Boolean) // Remove null/undefined
+            ),
+          ] as string[];
+
+          console.log("🚗 Unique vehicle IDs:", uniqueVehicleIds);
+
+          if (uniqueVehicleIds.length > 0) {
+            const imagePromises = uniqueVehicleIds.map(async (vehicleId) => {
+              const imageUrl = await fetchVehicleThumbnail(vehicleId);
+              return { vehicleId, imageUrl };
+            });
+
+            const results = await Promise.all(imagePromises);
+
+            const imagesMap: Record<string, string | null> = {};
+            results.forEach(({ vehicleId, imageUrl }) => {
+              imagesMap[vehicleId] = imageUrl;
+            });
+
+            console.log("🖼️ Vehicle images map:", imagesMap);
+
+            setVehicleImages(imagesMap);
+          }
+
+          setLoadingImages(false);
+        } else {
+          console.error("❌ Invalid response format:", response);
+          setError("Invalid response format from server");
+        }
+      } catch (err: any) {
+        console.error("❌ Failed to fetch bookings:", err);
+        setError(err.message || "Failed to load booking history");
+      } finally {
+        setLoading(false);
       }
-      setError(null);
+    };
 
-      const params: BookingQueryParams = {
-        page,
-        limit: itemsPerPage,
-        ...(filterStatus !== "all" && { status: filterStatus as any }),
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      };
+    fetchBookings();
+  }, [fetchVehicleThumbnail]);
 
-      const response = await bookingApi.getMyBookings(params);
-
-      if (reset) {
-        setBookings(response.items);
-        setCurrentPage(1);
-      } else {
-        setBookings((prev) => [...prev, ...response.items]);
-      }
-
-      setTotalPages(response.totalPages);
-    } catch (err) {
-      console.error("Failed to fetch bookings:", err);
-      setError("Failed to load bookings");
-    } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
-    }
+  // ✅ Handle payment page navigation
+  const handleReturnToPayment = (e: React.MouseEvent, bookingId: string) => {
+    e.stopPropagation(); // Prevent opening detail modal
+    navigate(`/payment/${bookingId}`);
   };
 
-  const handleLoadMore = () => {
-    const nextPage = currentPage + 1;
-    setCurrentPage(nextPage);
-    fetchBookings(nextPage, false);
-  };
-
-  // ✅ Open modal handler
   const handleViewDetails = (bookingId: string) => {
     setSelectedBookingId(bookingId);
     setIsModalOpen(true);
   };
 
-  // ✅ Close modal handler
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedBookingId(null);
-    // ✅ Refresh bookings after modal closes
-    fetchBookings(1, true);
-  };
-
-  const handleCancelBooking = async (bookingId: string) => {
-    if (!confirm("Are you sure you want to cancel this booking?")) return;
-
-    try {
-      await bookingApi.cancelBooking(bookingId, "Cancelled by user");
-      alert("Booking cancelled successfully");
-      setCurrentPage(1);
-      fetchBookings(1, true);
-    } catch (error) {
-      console.error("Failed to cancel booking:", error);
-      alert("Failed to cancel booking");
-    }
-  };
-
-  const formatDate = (dateString: string): string => {
-    return new Intl.DateTimeFormat("vi-VN", {
-      year: "numeric",
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
-    }).format(new Date(dateString));
+      year: "numeric",
+    });
   };
 
-  const calculateDuration = (startTime: string, endTime: string): string => {
-    const days = bookingApi.calculateDuration(startTime, endTime);
-    return `${days} ${days === 1 ? "day" : "days"}`;
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading bookings...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="w-12 h-12 animate-spin text-gray-400 mb-4" />
+        <p className="text-gray-500">Loading booking history...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={() => fetchBookings(1, true)}
-            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="flex flex-col items-center justify-center py-12">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <p className="text-red-600 font-medium mb-2">Failed to load bookings</p>
+        <p className="text-sm text-gray-500">{error}</p>
       </div>
     );
   }
 
   if (bookings.length === 0) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <Car className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
-            No Bookings Yet
-          </h3>
-          <p className="text-gray-600">
-            Start your journey by booking a vehicle!
-          </p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-12">
+        <Car className="w-16 h-16 text-gray-300 mb-4" />
+        <p className="text-gray-500 font-medium">No bookings yet</p>
+        <p className="text-sm text-gray-400 mt-2">
+          Your booking history will appear here
+        </p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="space-y-6">
-        {/* Filter Section */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <label className="text-sm font-medium text-gray-700">Filter:</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+      <div className="space-y-4">
+        {/* ✅ Loading state for images */}
+        {loadingImages && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3 mb-4"
+          >
+            <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+            <p className="text-sm text-blue-700">Loading vehicle images...</p>
+          </motion.div>
+        )}
+
+        {bookings.map((booking, index) => {
+          // ✅ Handle null/undefined vehicle
+          if (!booking.vehicle) {
+            console.warn("⚠️ Skipping booking without vehicle:", booking._id);
+            return null;
+          }
+
+          // ✅ Handle string or object vehicle with safe checks
+          const vehicleId =
+            typeof booking.vehicle === "string"
+              ? booking.vehicle
+              : booking.vehicle?._id || "";
+
+          const vehicleBrand =
+            typeof booking.vehicle === "string"
+              ? "Unknown"
+              : booking.vehicle?.brand || "Unknown";
+
+          const vehicleModel =
+            typeof booking.vehicle === "string"
+              ? "Vehicle"
+              : booking.vehicle?.model || "Vehicle";
+
+          const vehiclePlate =
+            typeof booking.vehicle === "string"
+              ? "N/A"
+              : booking.vehicle?.plateNumber || "N/A";
+
+          // ✅ Handle null/undefined station with safe checks
+          const stationName = !booking.station
+            ? "Station Not Available"
+            : typeof booking.station === "string"
+            ? "N/A"
+            : booking.station?.name || "N/A";
+
+          const vehicleImage = vehicleImages[vehicleId];
+          const imageLoading = loadingImages && !vehicleImage;
+
+          // ✅ Check if booking is pending
+          const isPending = booking.status === "pending";
+
+          return (
+            <motion.div
+              key={booking._id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              whileHover={{ y: -4 }}
+              onClick={() => handleViewDetails(booking._id)}
+              className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all cursor-pointer"
             >
-              <option value="all">All Bookings</option>
-              <option value="reserved">Reserved</option>
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="expired">Expired</option>
-            </select>
-          </div>
-          <div className="text-sm text-gray-600">
-            Showing {bookings.length} bookings
-          </div>
-        </div>
-
-        {/* Bookings List */}
-        <div className="space-y-4">
-          <AnimatePresence mode="popLayout">
-            {bookings.map((booking, index) => (
-              <motion.div
-                key={booking._id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{
-                  delay: index * 0.05,
-                  duration: 0.4,
-                  ease: "easeOut",
-                  layout: { duration: 0.3 },
-                }}
-                whileHover={{ y: -2 }}
-                className="bg-white rounded-2xl border border-gray-200 p-6 hover:bg-gray-50 transition-all duration-300 ease-in-out shadow-lg hover:shadow-xl group cursor-pointer"
-              >
-                <div className="flex items-start space-x-4">
-                  <div className="flex-shrink-0">
-                    <div className="w-16 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl shadow-md flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                      <Car className="w-8 h-8 text-gray-600" />
+              <div className="flex gap-4">
+                {/* ✅ Vehicle Image with loading state */}
+                <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 relative">
+                  {imageLoading ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
                     </div>
-                  </div>
-
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="text-lg font-semibold text-black group-hover:text-gray-700 transition-colors duration-300">
-                          {booking.vehicle.brand} {booking.vehicle.model}
-                        </h4>
-                        <p className="text-gray-600 text-sm">
-                          {booking.vehicle.plateNumber} •{" "}
-                          {booking._id.slice(-8)}
-                        </p>
-                      </div>
-
-                      <div
-                        className={`flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium border ${bookingApi.getBookingStatusColor(
-                          booking.status
-                        )}`}
-                      >
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            booking.status === "active"
-                              ? "animate-pulse bg-green-500"
-                              : booking.status === "reserved"
-                              ? "bg-blue-500"
-                              : booking.status === "completed"
-                              ? "bg-purple-500"
-                              : booking.status === "cancelled"
-                              ? "bg-red-500"
-                              : "bg-gray-500"
-                          }`}
-                        ></div>
-                        <span className="capitalize">
-                          {bookingApi.getBookingStatusLabel(booking.status)}
-                        </span>
-                      </div>
+                  ) : vehicleImage ? (
+                    <motion.img
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                      src={vehicleImage}
+                      alt={`${vehicleBrand} ${vehicleModel}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.style.display = "none";
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `
+                            <div class="w-full h-full flex items-center justify-center">
+                              <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
+                                <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
+                              </svg>
+                            </div>
+                          `;
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Car className="w-8 h-8 text-gray-400" />
                     </div>
-
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Clock className="w-4 h-4 text-gray-600" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium">
-                            Duration
-                          </p>
-                          <p className="text-sm font-bold text-black">
-                            {calculateDuration(
-                              booking.startTime,
-                              booking.endTime
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="w-4 h-4 text-gray-600" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium">
-                            Station
-                          </p>
-                          <p className="text-sm font-bold text-black truncate">
-                            {booking.station.name}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <CreditCard className="w-4 h-4 text-gray-600" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium">
-                            Total Cost
-                          </p>
-                          <p className="text-sm font-bold text-black">
-                            {bookingApi.formatCurrency(
-                              booking.amounts.grandTotal
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-gray-600" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium">
-                            Start Date
-                          </p>
-                          <p className="text-sm font-bold text-black">
-                            {formatDate(booking.startTime)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-gray-200">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center space-x-4">
-                          <span className="text-gray-600">
-                            Paid:{" "}
-                            <span className="font-semibold text-black">
-                              {bookingApi.formatCurrency(
-                                booking.amounts.totalPaid
-                              )}
-                            </span>
-                          </span>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          {/* ✅ View Details Button */}
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewDetails(booking._id);
-                            }}
-                            className="px-3 py-1 bg-black text-white rounded-lg text-xs hover:bg-gray-800 transition-colors duration-300 font-medium"
-                          >
-                            View Details
-                          </motion.button>
-
-                          {booking.status === "reserved" && (
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCancelBooking(booking._id);
-                              }}
-                              className="px-3 py-1 bg-red-50 text-red-600 rounded-lg text-xs hover:bg-red-100 transition-colors duration-300 font-medium"
-                            >
-                              Cancel
-                            </motion.button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
 
-        {/* Load More Button */}
-        {currentPage < totalPages && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.3 }}
-            className="text-center pt-4"
-          >
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleLoadMore}
-              disabled={isLoadingMore}
-              className="px-6 py-3 bg-gray-50 text-black rounded-2xl font-medium hover:bg-gray-100 transition-all duration-300 ease-in-out border border-gray-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoadingMore ? (
-                <span className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                  <span>Loading...</span>
-                </span>
-              ) : (
-                `Load More (${currentPage}/${totalPages})`
+                {/* Booking Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-lg">
+                        {vehicleBrand} {vehicleModel}
+                      </h3>
+                      <p className="text-sm text-gray-600">{vehiclePlate}</p>
+                    </div>
+                    <StatusBadge status={booking.status} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                    <div className="flex items-center text-gray-600">
+                      <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <span className="truncate">
+                        Start: {formatDate(booking.startTime)}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-gray-600">
+                      <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <span className="truncate">{stationName}</span>
+                    </div>
+                    <div className="flex items-center text-gray-600">
+                      <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <span className="truncate">
+                        End: {formatDate(booking.endTime)}
+                      </span>
+                    </div>
+                    <div className="flex items-center font-semibold text-green-600">
+                      <CreditCard className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <span className="truncate">
+                        {booking.amounts?.grandTotal?.toLocaleString() || "0"}đ
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ✅ Payment Button for Pending Status */}
+                  {isPending && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={(e) => handleReturnToPayment(e, booking._id)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>Complete Payment</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </motion.button>
+                  )}
+                </div>
+              </div>
+
+              {/* ✅ Pending Payment Warning */}
+              {isPending && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="mt-3 pt-3 border-t border-yellow-200 bg-yellow-50 -mx-5 -mb-5 px-5 py-3 rounded-b-xl"
+                >
+                  <div className="flex items-start gap-2 text-xs text-yellow-800">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                      <span className="font-semibold">Payment Required:</span>{" "}
+                      This booking is waiting for payment completion. Click the
+                      button above to proceed with payment.
+                    </p>
+                  </div>
+                </motion.div>
               )}
-            </motion.button>
-          </motion.div>
-        )}
+            </motion.div>
+          );
+        })}
 
-        {currentPage >= totalPages && bookings.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center pt-4 text-gray-500 text-sm"
-          >
-            You've reached the end of your bookings
-          </motion.div>
-        )}
+        {/* End message */}
+        <div className="text-center py-8 text-gray-400 text-sm">
+          You've reached the end of your bookings
+        </div>
       </div>
 
-      {/* ✅ Modal */}
+      {/* Detail Modal */}
       {selectedBookingId && (
         <BookingDetailModal
           isOpen={isModalOpen}
-          onClose={handleCloseModal}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedBookingId(null);
+          }}
           bookingId={selectedBookingId}
         />
       )}

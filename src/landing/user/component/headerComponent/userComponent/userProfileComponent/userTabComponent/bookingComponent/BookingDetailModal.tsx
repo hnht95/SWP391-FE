@@ -1,24 +1,43 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   X,
   Car,
   Calendar,
   MapPin,
   CreditCard,
+  Clock,
   Loader2,
   AlertCircle,
+  CheckCircle,
+  Battery,
+  FileText,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import ConfirmModal from "./ConfirmModal";
 import type { Booking } from "../../../../../../../../service/apiBooking/API";
 import bookingApi from "../../../../../../../../service/apiBooking/API";
+import { getVehicleById } from "../../../../../../../../service/apiAdmin/apiVehicles/API";
+import ContractModal from "./ContractModal";
+import ExtendBookingModal from "./ExtendBookingModal";
 
-interface BookingDetailModalProps {
+type BookingDetailModalProps = {
   isOpen: boolean;
   onClose: () => void;
   bookingId: string;
-}
+};
+
+type VehicleDetails = {
+  defaultPhotos?: {
+    exterior?: Array<{ url: string }>;
+    interior?: Array<{ url: string }>;
+  };
+  batteryCapacity?: number;
+  mileage?: number;
+  color?: string;
+  year?: number;
+};
 
 const BookingDetailModal = ({
   isOpen,
@@ -26,40 +45,68 @@ const BookingDetailModal = ({
   bookingId,
 }: BookingDetailModalProps) => {
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
 
-  const [showConfirmCancel, setShowConfirmCancel] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
+  const [showConfirmCancel, setShowConfirmCancel] = useState<boolean>(false);
+  const [isCancelling, setIsCancelling] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (isOpen && bookingId) {
-      fetchBookingDetails();
-    }
-  }, [isOpen, bookingId]);
+  // Child modals state
+  const [openContract, setOpenContract] = useState<boolean>(false);
+  const [openExtend, setOpenExtend] = useState<boolean>(false);
 
-  const fetchBookingDetails = async () => {
+  const canExtend = useMemo(
+    () =>
+      !!booking &&
+      (booking.status === "active" || booking.status === "reserved"),
+    [booking]
+  );
+
+  const fetchBookingDetails = useCallback(async () => {
+    if (!isOpen || !bookingId) return;
     try {
       setIsLoading(true);
-      setError(null);
+      setError("");
+      const bookingData = await bookingApi.getBookingById(bookingId);
+      setBooking(bookingData);
 
-      const data = await bookingApi.getBookingById(bookingId);
-      setBooking(data);
-    } catch (err) {
-      console.error("Failed to fetch booking details:", err);
-      setError("Failed to load booking details");
+      const vehId =
+        typeof bookingData.vehicle === "object"
+          ? bookingData.vehicle._id
+          : String(bookingData.vehicle);
+
+      if (vehId) {
+        try {
+          const v = await getVehicleById(vehId);
+          setVehicleDetails({
+            defaultPhotos: v.defaultPhotos,
+            batteryCapacity: v.batteryCapacity,
+            mileage: v.mileage,
+            color: v.color,
+            year: v.year,
+          });
+        } catch (e) {
+          // silent; keep details null
+        }
+      }
+    } catch (e: unknown) {
+      setError(
+        e instanceof Error ? e.message : "Failed to load booking details"
+      );
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isOpen, bookingId]);
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
+    fetchBookingDetails();
+  }, [fetchBookingDetails]);
 
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? "hidden" : "unset";
     return () => {
       document.body.style.overflow = "unset";
     };
@@ -67,102 +114,139 @@ const BookingDetailModal = ({
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !showConfirmCancel) onClose();
+      if (
+        e.key === "Escape" &&
+        !showConfirmCancel &&
+        !openContract &&
+        !openExtend
+      ) {
+        onClose();
+      }
     };
-
-    if (isOpen) {
-      window.addEventListener("keydown", handleEsc);
-    }
-
-    return () => {
-      window.removeEventListener("keydown", handleEsc);
-    };
-  }, [isOpen, showConfirmCancel, onClose]);
+    if (isOpen) window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [isOpen, showConfirmCancel, openContract, openExtend, onClose]);
 
   const handleCancelBooking = async () => {
+    if (!booking) return;
     try {
       setIsCancelling(true);
-      await bookingApi.cancelBooking(booking!._id, "Cancelled by user");
+      await bookingApi.cancelBooking(booking._id, "Cancelled by user");
       setShowConfirmCancel(false);
-      await fetchBookingDetails(); // ✅ Refresh booking data
       onClose();
-    } catch (error) {
-      console.error("Failed to cancel booking:", error);
+    } catch {
       setShowConfirmCancel(false);
     } finally {
       setIsCancelling(false);
     }
   };
 
-  const formatDate = (dateString: string): string => {
-    return new Intl.DateTimeFormat("vi-VN", {
+  const formatDate = (dateString: string): string =>
+    new Intl.DateTimeFormat("en-US", {
       year: "numeric",
-      month: "long",
+      month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(dateString));
-  };
 
-  // ✅ Type guard for populated vehicle
-  const isVehiclePopulated = (
-    vehicle: Booking["vehicle"]
-  ): vehicle is Extract<Booking["vehicle"], { _id: string; brand: string }> => {
-    return typeof vehicle === "object" && "brand" in vehicle;
-  };
+  const vehicleImage = useMemo<string | null>(() => {
+    const url = vehicleDetails?.defaultPhotos?.exterior?.[0]?.url;
+    return url || null;
+  }, [vehicleDetails]);
 
-  // ✅ Type guard for populated station
-  const isStationPopulated = (
-    station: Booking["station"]
-  ): station is Extract<Booking["station"], { _id: string; name: string }> => {
-    return typeof station === "object" && "name" in station;
-  };
-
-  const modalContent = (
+  const content = (
     <AnimatePresence mode="wait">
       {isOpen && (
         <>
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+            animate={{ opacity: 1, backdropFilter: "blur(8px)" }}
+            exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+            transition={{ duration: 0.3 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-gray-900 to-gray-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center space-x-3">
-                  <Car className="w-6 h-6 text-white" />
-                  <h2 className="text-xl font-bold text-white">
-                    Booking Details
-                  </h2>
+              <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-8 py-6 flex items-center justify-between flex-shrink-0">
+                <div className="relative flex items-center space-x-3">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2, type: "spring" }}
+                    className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm"
+                  >
+                    <Car className="w-6 h-6 text-white" />
+                  </motion.div>
+                  <div>
+                    <motion.h2
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="text-2xl font-bold text-white"
+                    >
+                      Booking Details
+                    </motion.h2>
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="text-sm text-gray-300"
+                    >
+                      {booking
+                        ? `${booking.vehicle.brand} ${booking.vehicle.model}`
+                        : ""}
+                    </motion.p>
+                  </div>
                 </div>
-                <button
-                  onClick={onClose}
-                  className="text-white hover:text-gray-300 transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+
+                <div className="flex gap-2">
+                  {/* View Contract */}
+                  <button
+                    onClick={() => setOpenContract(true)}
+                    className="px-3 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 flex items-center gap-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span className="hidden sm:inline">View Contract</span>
+                  </button>
+                  {/* Extend */}
+                  {canExtend && (
+                    <button
+                      onClick={() => setOpenExtend(true)}
+                      className="px-3 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+                    >
+                      Extend
+                    </button>
+                  )}
+                  <motion.button
+                    whileHover={{ scale: 1.1, rotate: 90 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={onClose}
+                    className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </motion.button>
+                </div>
               </div>
 
-              {/* Content - Scrollable */}
-              <div className="flex-1 overflow-y-auto p-6">
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
                 {isLoading && (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className="w-12 h-12 text-gray-400 animate-spin" />
                   </div>
                 )}
 
-                {error && (
+                {!!error && !isLoading && (
                   <div className="flex flex-col items-center justify-center py-20">
                     <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
                     <p className="text-red-600">{error}</p>
@@ -171,152 +255,169 @@ const BookingDetailModal = ({
 
                 {booking && !isLoading && !error && (
                   <div className="space-y-6">
-                    {/* Status Badge */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Booking ID</p>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {booking._id}
-                        </p>
-                      </div>
-                      <div
-                        className={`px-4 py-2 rounded-full text-sm font-medium ${bookingApi.getBookingStatusColor(
-                          booking.status
-                        )}`}
-                      >
-                        {bookingApi.getBookingStatusLabel(booking.status)}
-                      </div>
-                    </div>
-
-                    {/* Vehicle Info */}
-                    {isVehiclePopulated(booking.vehicle) && (
-                      <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                          <Car className="w-5 h-5 mr-2" />
-                          Vehicle Information
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-500">
-                              Brand & Model
-                            </p>
-                            <p className="text-base font-semibold text-gray-900">
-                              {booking.vehicle.brand} {booking.vehicle.model}
-                            </p>
+                    {/* Hero */}
+                    <div className="relative bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                      {vehicleImage ? (
+                        <div className="relative h-64 w-full">
+                          <img
+                            src={vehicleImage}
+                            alt={`${booking.vehicle.brand} ${booking.vehicle.model}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                          <div className="absolute top-4 right-4">
+                            <div
+                              className={`px-6 py-3 rounded-2xl text-base font-bold shadow-2xl backdrop-blur-sm ${bookingApi.getBookingStatusColor(
+                                booking.status
+                              )}`}
+                            >
+                              {bookingApi.getBookingStatusLabel(booking.status)}
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm text-gray-500">
-                              Plate Number
-                            </p>
-                            <p className="text-base font-semibold text-gray-900">
+                          <div className="absolute bottom-4 left-4 text-white">
+                            <h3 className="text-2xl font-bold">
+                              {booking.vehicle.brand} {booking.vehicle.model}
+                            </h3>
+                            <p className="text-sm text-gray-200">
                               {booking.vehicle.plateNumber}
                             </p>
                           </div>
-                          <div>
-                            <p className="text-sm text-gray-500">
-                              Price per Day
-                            </p>
-                            <p className="text-base font-semibold text-gray-900">
-                              {bookingApi.formatCurrency(
-                                booking.vehicle.pricePerDay
-                              )}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">
-                              Price per Hour
-                            </p>
-                            <p className="text-base font-semibold text-gray-900">
-                              {bookingApi.formatCurrency(
-                                booking.vehicle.pricePerHour
-                              )}
-                            </p>
+                        </div>
+                      ) : (
+                        <div className="relative h-64 w-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                          <Car className="w-24 h-24 text-gray-400" />
+                          <div className="absolute top-4 right-4">
+                            <div
+                              className={`px-6 py-3 rounded-2xl text-base font-bold shadow-2xl ${bookingApi.getBookingStatusColor(
+                                booking.status
+                              )}`}
+                            >
+                              {bookingApi.getBookingStatusLabel(booking.status)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
-                    {/* Rental Period */}
-                    <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                        <Calendar className="w-5 h-5 mr-2" />
-                        Rental Period
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-500">Start Time</p>
-                          <p className="text-base font-semibold text-gray-900">
-                            {formatDate(booking.startTime)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">End Time</p>
-                          <p className="text-base font-semibold text-gray-900">
-                            {formatDate(booking.endTime)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Duration</p>
-                          <p className="text-base font-semibold text-gray-900">
-                            {bookingApi.calculateDuration(
-                              booking.startTime,
-                              booking.endTime
-                            )}{" "}
-                            days
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Created At</p>
-                          <p className="text-base font-semibold text-gray-900">
-                            {formatDate(booking.createdAt)}
-                          </p>
-                        </div>
+                    {/* Vehicle info */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <Car className="w-5 h-5 text-gray-700" />
+                        <h3 className="text-lg font-bold text-gray-900">
+                          Vehicle Information
+                        </h3>
+                      </div>
+                      <div className="grid grid-cols-2 gap-6">
+                        <Info
+                          label="Price per Day"
+                          value={bookingApi.formatCurrency(
+                            booking.vehicle.pricePerDay
+                          )}
+                        />
+                        <Info
+                          label="Price per Hour"
+                          value={bookingApi.formatCurrency(
+                            booking.vehicle.pricePerHour
+                          )}
+                        />
+                        {vehicleDetails?.year ? (
+                          <Info
+                            label="Year"
+                            value={String(vehicleDetails.year)}
+                          />
+                        ) : null}
+                        {vehicleDetails?.color ? (
+                          <Info label="Color" value={vehicleDetails.color} />
+                        ) : null}
+                        {typeof vehicleDetails?.batteryCapacity === "number" ? (
+                          <Info
+                            label="Battery"
+                            value={`${vehicleDetails.batteryCapacity}%`}
+                            icon={<Battery className="w-3 h-3 mr-1" />}
+                          />
+                        ) : null}
+                        {typeof vehicleDetails?.mileage === "number" ? (
+                          <Info
+                            label="Mileage"
+                            value={`${vehicleDetails.mileage.toLocaleString()} km`}
+                          />
+                        ) : null}
                       </div>
                     </div>
 
-                    {/* Station Info */}
-                    {isStationPopulated(booking.station) && (
-                      <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                          <MapPin className="w-5 h-5 mr-2" />
+                    {/* Period */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <Calendar className="w-5 h-5 text-gray-700" />
+                        <h3 className="text-lg font-bold text-gray-900">
+                          Rental Period
+                        </h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Info
+                          label="Start Time"
+                          value={formatDate(booking.startTime)}
+                        />
+                        <Info
+                          label="End Time"
+                          value={formatDate(booking.endTime)}
+                        />
+                        <Info
+                          label="Duration"
+                          value={`${bookingApi.calculateDuration(
+                            booking.startTime,
+                            booking.endTime
+                          )} days`}
+                          icon={<Clock className="w-3 h-3 mr-1" />}
+                        />
+                        <Info
+                          label="Created At"
+                          value={formatDate(booking.createdAt)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Station */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <MapPin className="w-5 h-5 text-gray-700" />
+                        <h3 className="text-lg font-bold text-gray-900">
                           Pickup Station
                         </h3>
-                        <div>
-                          <p className="text-base font-semibold text-gray-900 mb-2">
-                            {booking.station.name}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {booking.station.location.address}
-                          </p>
-                        </div>
                       </div>
-                    )}
+                      <div className="space-y-2">
+                        <p className="text-base font-semibold text-gray-900">
+                          {booking.station.name}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {booking.station.location.address}
+                        </p>
+                      </div>
+                    </div>
 
-                    {/* Payment Info */}
-                    <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                        <CreditCard className="w-5 h-5 mr-2" />
-                        Payment Information
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">
-                            Estimated Rental
-                          </span>
-                          <span className="font-semibold text-gray-900">
-                            {bookingApi.formatCurrency(
-                              booking.amounts?.rentalEstimated || 0
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Deposit Amount</span>
-                          <span className="font-semibold text-gray-900">
-                            {bookingApi.formatCurrency(booking.deposit.amount)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Deposit Status</span>
+                    {/* Payment */}
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 shadow-sm border border-green-100">
+                      <div className="flex items-center space-x-2 mb-6">
+                        <CreditCard className="w-5 h-5 text-green-700" />
+                        <h3 className="text-lg font-bold text-green-900">
+                          Payment Information
+                        </h3>
+                      </div>
+                      <div className="space-y-4">
+                        <Row
+                          label="Estimated Rental"
+                          value={bookingApi.formatCurrency(
+                            booking.amounts.rentalEstimated || 0
+                          )}
+                        />
+                        <Row
+                          label="Deposit Amount"
+                          value={bookingApi.formatCurrency(
+                            booking.deposit.amount
+                          )}
+                        />
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-green-700">Deposit Status</span>
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-medium ${bookingApi.getDepositStatusColor(
                               booking.deposit.status
@@ -325,80 +426,70 @@ const BookingDetailModal = ({
                             {booking.deposit.status.toUpperCase()}
                           </span>
                         </div>
-                        <div className="border-t border-gray-300 pt-3 mt-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-lg font-bold text-gray-900">
+                        <div className="border-t border-green-200 pt-4 mt-4">
+                          <div className="flex justify-between items-center mb-3">
+                            <span className="text-lg font-bold text-green-900">
                               Grand Total
                             </span>
-                            <span className="text-lg font-bold text-gray-900">
+                            <span className="text-2xl font-bold text-green-900">
                               {bookingApi.formatCurrency(
-                                booking.amounts?.grandTotal || 0
+                                booking.amounts.grandTotal
                               )}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center mt-2">
-                            <span className="text-green-600">Total Paid</span>
-                            <span className="text-green-600 font-semibold">
+                          <div className="flex justify-between items-center bg-green-500 px-4 py-3 rounded-xl">
+                            <span className="text-white flex items-center font-medium">
+                              <CheckCircle className="w-5 h-5 mr-2" />
+                              Total Paid
+                            </span>
+                            <span className="text-white font-bold text-lg">
                               {bookingApi.formatCurrency(
-                                booking.amounts?.totalPaid || 0
+                                booking.amounts.totalPaid
                               )}
                             </span>
                           </div>
                         </div>
-
-                        {booking.deposit.payos &&
-                          booking.deposit.payos.paidAt && (
-                            <div className="mt-4 pt-4 border-t border-gray-300">
-                              <p className="text-sm font-semibold text-gray-700 mb-2">
-                                PayOS Details
-                              </p>
-                              <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div>
-                                  <span className="text-gray-500">
-                                    Order Code:
-                                  </span>
-                                  <p className="font-medium text-gray-900">
-                                    {booking.deposit.payos.orderCode}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">
-                                    Paid At:
-                                  </span>
-                                  <p className="font-medium text-gray-900">
-                                    {formatDate(booking.deposit.payos.paidAt)}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Footer - Fixed at bottom */}
-              <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3 border-t border-gray-200 flex-shrink-0">
+              {/* Footer */}
+              <div className="bg-white px-8 py-6 flex flex-wrap justify-end gap-3 border-t border-gray-200 flex-shrink-0">
                 <button
                   onClick={onClose}
-                  className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
                 >
                   Close
                 </button>
-                {booking &&
-                  (booking.status === "pending" ||
-                    booking.status === "reserved") && (
-                    <button
-                      onClick={() => setShowConfirmCancel(true)}
-                      className="px-6 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
-                    >
-                      Cancel Booking
-                    </button>
-                  )}
+                {booking?.status === "reserved" && (
+                  <button
+                    onClick={() => setShowConfirmCancel(true)}
+                    className="px-6 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors shadow-lg shadow-red-500/30"
+                  >
+                    Cancel Booking
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
+
+          {/* Child modals */}
+          <ContractModal
+            isOpen={openContract}
+            onClose={() => setOpenContract(false)}
+            bookingId={bookingId}
+          />
+          <ExtendBookingModal
+            isOpen={openExtend}
+            onClose={() => setOpenExtend(false)}
+            bookingId={bookingId}
+            onExtended={() => {
+              // Refresh after extend
+              fetchBookingDetails();
+            }}
+          />
         </>
       )}
     </AnimatePresence>
@@ -407,10 +498,9 @@ const BookingDetailModal = ({
   return (
     <>
       {createPortal(
-        modalContent,
+        content,
         document.getElementById("modal-root") || document.body
       )}
-
       <ConfirmModal
         isOpen={showConfirmCancel}
         onClose={() => setShowConfirmCancel(false)}
@@ -426,3 +516,32 @@ const BookingDetailModal = ({
 };
 
 export default BookingDetailModal;
+
+function Info({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-gray-500 font-medium flex items-center">
+        {icon}
+        {label}
+      </p>
+      <p className="text-base font-semibold text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between items-center text-sm">
+      <span className="text-green-700">{label}</span>
+      <span className="font-semibold text-green-900">{value}</span>
+    </div>
+  );
+}

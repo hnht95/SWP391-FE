@@ -1,24 +1,38 @@
+// pages/Admin/Stations/StationManagement.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MdLocationOn, MdAdd, MdMap, MdViewList } from "react-icons/md";
 import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
-import { useSidebar } from "../../context/SidebarContext";
 import StationTable from "./StationTable";
 import StationFilters from "./StationFilters";
 import MapView from "./MapView";
 import AddStationModal from "./AddStationModal";
 import EditStationModal from "./EditStationModal";
 import MeasurementIndex from "./MeasurementIndex";
-import type { Station, StationFilters as Filters, Pagination } from "./types";
-import SuccessModal from "../StaffManagementAdmin/SuccessModal";
+import SuccessModal from "../UserManagerComponent/SuccessModal";
 import {
   deleteStation,
   getAllStations,
   type DeleteStationResponse,
+  type Station,
 } from "../../../../service/apiAdmin/apiStation/API";
-import type { Station as APIStation } from "../../../../service/apiAdmin/apiStation/API";
+
+interface StationFiltersState {
+  search: string;
+  status: "all" | "active" | "inactive";
+  province?: string;
+  page: number;
+  limit: number;
+}
+
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
 
 const StationManagement: React.FC = () => {
   const [stations, setStations] = useState<Station[]>([]);
@@ -35,13 +49,13 @@ const StationManagement: React.FC = () => {
     useState<Station | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  const { setSidebarCollapsed } = useSidebar();
   const [transferToStationId, setTransferToStationId] = useState<string>("");
   const [deleteInlineError, setDeleteInlineError] = useState<string>("");
 
-  const [filters, setFilters] = useState<Filters>({
+  const [filters, setFilters] = useState<StationFiltersState>({
     search: "",
     status: "all",
+    province: undefined,
     page: 1,
     limit: 20,
   });
@@ -53,96 +67,93 @@ const StationManagement: React.FC = () => {
     totalPages: 0,
   });
 
-  // Fetch stations from API
-  const fetchStations = useCallback(async (useHardLoading: boolean = true) => {
-    try {
-      if (useHardLoading) {
-        setLoading(true);
-      } else {
-        setUiLoading(true);
+  // Fetch
+  const fetchStations = useCallback(
+    async (useHardLoading: boolean = true) => {
+      try {
+        if (useHardLoading) setLoading(true);
+        else setUiLoading(true);
+        setError(null);
+
+        const apiItems: Station[] = await getAllStations();
+
+        const cleanedStations = apiItems.filter(
+          (st) => st._id && st.name && st.name.trim().length > 0
+        );
+
+        const total = cleanedStations.length;
+        const totalPages = Math.ceil(total / filters.limit);
+
+        setStations(cleanedStations);
+        setPagination({
+          page: filters.page,
+          limit: filters.limit,
+          total,
+          totalPages,
+        });
+
+        applyFilters(cleanedStations);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+        console.error("Error fetching stations:", err);
+      } finally {
+        if (useHardLoading) setLoading(false);
+        else setUiLoading(false);
       }
-      setError(null);
+    },
+    [filters.page, filters.limit]
+  );
 
-      // ✅ Fetch all stations (API doesn't support pagination params)
-      const apiItems: APIStation[] = await getAllStations();
-
-      // ✅ Map API items to UI Station type
-      const stationsData: Station[] = apiItems.map((s) => ({
-        id: s._id, // ✅ Use _id from API
-        name: s.name,
-        code: s.code || "",
-        location: s.location
-          ? {
-              address: s.location.address,
-              latitude: s.location.lat,
-              longitude: s.location.lng,
-            }
-          : { address: "", latitude: 0, longitude: 0 },
-        note: s.note,
-        isActive: s.isActive,
-        createdAt: s.createdAt || "",
-        updatedAt: s.updatedAt || "",
-      }));
-
-      // ✅ Loại bỏ bản ghi không hợp lệ (thiếu tên hoặc id)
-      const cleanedStations = stationsData.filter(
-        (st) => st.id && st.name && st.name.trim().length > 0
-      );
-
-      const total = cleanedStations.length;
-      const totalPages = Math.ceil(total / filters.limit);
-
-      setStations(cleanedStations);
-      setPagination({
-        page: filters.page,
-        limit: filters.limit,
-        total,
-        totalPages,
-      });
-
-      // Apply client-side filtering
-      applyFilters(cleanedStations);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      console.error("Error fetching stations:", err);
-    } finally {
-      if (useHardLoading) {
-        setLoading(false);
-      } else {
-        setUiLoading(false);
-      }
-    }
-  }, [filters.page, filters.limit]); // Only depend on pagination params
-
-  // Apply client-side filters
+  // Apply filters (đã thêm province)
   const applyFilters = useCallback(
     (stationsData: Station[]) => {
       let filtered = [...stationsData];
 
-      // Search filter
+      // Search
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         filtered = filtered.filter(
           (s) =>
             s.name.toLowerCase().includes(searchLower) ||
-            s.code.toLowerCase().includes(searchLower) ||
+            s.code?.toLowerCase().includes(searchLower) ||
             s.location?.address?.toLowerCase().includes(searchLower)
         );
       }
 
-      // Status filter
+      // Status
       if (filters.status !== "all") {
         filtered = filtered.filter((s) =>
           filters.status === "active" ? s.isActive : !s.isActive
         );
       }
 
-      // ✅ Apply pagination to filtered results
+      // ✅ Province filter (field province hoặc fallback từ address)
+      if (filters.province && filters.province.trim().length > 0) {
+        const selected = filters.province.trim().toLowerCase();
+
+        filtered = filtered.filter((s) => {
+          const fromField =
+            typeof (s as any).province === "string" &&
+            ((s as any).province as string).trim().toLowerCase() === selected;
+
+          const address = s.location?.address || "";
+          const tokens = address
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean);
+          const lastToken = (tokens[tokens.length - 1] || "").toLowerCase();
+
+          const byAddress = lastToken === selected;
+
+          return fromField || byAddress;
+        });
+      }
+
+      // Pagination
       const start = (filters.page - 1) * filters.limit;
       const end = start + filters.limit;
       const paginatedFiltered = filtered.slice(start, end);
 
-      // ✅ Update pagination with filtered total
       const filteredTotal = filtered.length;
       const filteredTotalPages = Math.ceil(filteredTotal / filters.limit);
 
@@ -158,12 +169,10 @@ const StationManagement: React.FC = () => {
     [filters]
   );
 
-  // Load data on mount
   useEffect(() => {
     fetchStations(true);
   }, [fetchStations]);
 
-  // Re-apply filters when filter criteria change
   useEffect(() => {
     if (stations.length > 0) {
       applyFilters(stations);
@@ -171,35 +180,25 @@ const StationManagement: React.FC = () => {
   }, [
     filters.search,
     filters.status,
+    filters.province,
     filters.page,
     filters.limit,
+    stations,
     applyFilters,
   ]);
 
-  // Auto control sidebar when map is visible
-  useEffect(() => {
-    if (isMapVisible) {
-      setSidebarCollapsed(true);
-    } else {
-      setSidebarCollapsed(false);
-    }
-  }, [isMapVisible, setSidebarCollapsed]);
+  const handleToggleMap = () => setIsMapVisible((v) => !v);
 
-  const handleToggleMap = () => {
-    setIsMapVisible(!isMapVisible);
-  };
-
-  const handleFiltersChange = (newFilters: Filters) => {
-    // Reset to page 1 when filters change (except pagination)
+  const handleFiltersChange = (newFilters: StationFiltersState) => {
     if (
       newFilters.search !== filters.search ||
-      newFilters.status !== filters.status
+      newFilters.status !== filters.status ||
+      newFilters.province !== filters.province
     ) {
       setFilters({ ...newFilters, page: 1 });
     } else {
       setFilters(newFilters);
     }
-    // Hiển thị hiệu ứng loading ngắn khi đổi filter (Active/Inactive/All)
     setUiLoading(true);
     window.setTimeout(() => setUiLoading(false), 300);
   };
@@ -228,7 +227,6 @@ const StationManagement: React.FC = () => {
   };
 
   const handleDelete = (station: Station) => {
-    console.log("Delete click:", station);
     setShowSuccessModal(false);
     setStationPendingDelete(station);
     setTransferToStationId("");
@@ -240,13 +238,13 @@ const StationManagement: React.FC = () => {
     if (!stationPendingDelete) return;
     try {
       const res: DeleteStationResponse = await deleteStation(
-        stationPendingDelete.id,
+        stationPendingDelete._id,
         transferToStationId || undefined
       );
       await fetchStations(false);
       const movedCount = res?.movedVehiclesCount ?? 0;
       const nameInfo = stationPendingDelete.name
-        ? `Station \"${stationPendingDelete.name}\" deleted successfully`
+        ? `Station "${stationPendingDelete.name}" deleted successfully`
         : "Station deleted successfully";
       const moveInfo = movedCount > 0 ? ` • Moved vehicles: ${movedCount}` : "";
       setSuccessMessage(`${nameInfo}${moveInfo}`);
@@ -254,9 +252,12 @@ const StationManagement: React.FC = () => {
       setConfirmDeleteOpen(false);
       setStationPendingDelete(null);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to delete station";
+      const msg =
+        err instanceof Error ? err.message : "Failed to delete station";
       if (msg.toLowerCase().includes("transferstationid")) {
-        setDeleteInlineError("Station còn xe, hãy chọn trạm để chuyển trước khi xóa.");
+        setDeleteInlineError(
+          "Station còn xe, hãy chọn trạm để chuyển trước khi xóa."
+        );
       } else {
         setError(msg);
         setConfirmDeleteOpen(false);
@@ -266,12 +267,10 @@ const StationManagement: React.FC = () => {
     }
   };
 
-  // Calculate stats for MeasurementIndex (from all stations, not filtered)
   const totalStations = stations.length;
   const activeStations = stations.filter((s) => s.isActive).length;
   const inactiveStations = stations.filter((s) => !s.isActive).length;
 
-  // Pagination controls
   const handlePageChange = (newPage: number) => {
     setFilters({ ...filters, page: newPage });
     setUiLoading(true);
@@ -309,7 +308,7 @@ const StationManagement: React.FC = () => {
               {!isMapVisible && (
                 <button
                   onClick={handleAddStation}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 hover:shadow-lg hover:scale-105"
+                  className="flex items-center space-x-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all duration-300 hover:shadow-lg hover:scale-105"
                 >
                   <MdAdd className="w-5 h-5" />
                   <span>Add Station</span>
@@ -319,7 +318,7 @@ const StationManagement: React.FC = () => {
           </FadeIn>
         </div>
 
-        {/* Measurement Index Dashboard */}
+        {/* Measurement Index */}
         <AnimatePresence>
           {!isMapVisible && (
             <MeasurementIndex
@@ -330,7 +329,7 @@ const StationManagement: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Map View */}
+        {/* Map */}
         <AnimatePresence>
           {isMapVisible && (
             <motion.div
@@ -344,7 +343,7 @@ const StationManagement: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Table View */}
+        {/* Table */}
         <AnimatePresence>
           {!isMapVisible && (
             <motion.div
@@ -354,14 +353,12 @@ const StationManagement: React.FC = () => {
               exit={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.7 }}
             >
-              {/* Filters */}
               <StationFilters
                 filters={filters}
                 onFiltersChange={handleFiltersChange}
                 totalResults={pagination.total}
               />
 
-              {/* Error Message */}
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <p className="text-red-600 font-medium">{error}</p>
@@ -374,42 +371,42 @@ const StationManagement: React.FC = () => {
                 </div>
               )}
 
-              {/* Table */}
               {loading || uiLoading ? (
-                <StationTable stations={[]} loading={true} />
+                <StationTable stations={[]} loading />
               ) : (
                 <StationTable
                   stations={filteredStations}
-                  onEdit={handleEdit}
+                  onEdit={(s) => {
+                    setShowSuccessModal(false);
+                    setSelectedStation(s);
+                    setIsEditModalOpen(true);
+                  }}
                   onDelete={handleDelete}
                   loading={false}
                 />
               )}
 
-              {/* Pagination */}
-              {!loading &&
-                pagination.totalPages &&
-                pagination.totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 pt-4">
-                    <button
-                      onClick={() => handlePageChange(filters.page - 1)}
-                      disabled={filters.page === 1}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Previous
-                    </button>
-                    <span className="text-sm text-gray-600">
-                      Page {filters.page} of {pagination.totalPages}
-                    </span>
-                    <button
-                      onClick={() => handlePageChange(filters.page + 1)}
-                      disabled={filters.page >= pagination.totalPages}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
+              {!loading && pagination.totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-4">
+                  <button
+                    onClick={() => handlePageChange(filters.page - 1)}
+                    disabled={filters.page === 1}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {filters.page} of {pagination.totalPages}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(filters.page + 1)}
+                    disabled={filters.page >= pagination.totalPages}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -434,19 +431,19 @@ const StationManagement: React.FC = () => {
           message={successMessage}
         />
 
-        {/* Confirm Delete Modal (portal + animation mượt như Edit) */}
+        {/* Confirm Delete */}
         {confirmDeleteOpen &&
           createPortal(
             <AnimatePresence>
               <>
                 <motion.div
-                  className="fixed inset-0 bg-black/50 z-[99998]"
+                  className="fixed inset-0 bg-black/50 z-[9999]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setConfirmDeleteOpen(false)}
                 />
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pointer-events-none">
+                <div className="fixed inset-0 z[10000] flex items-center justify-center p-4 pointer-events-none">
                   <motion.div
                     className="pointer-events-auto bg-white rounded-2xl shadow-2xl w-full max-w-md"
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -459,8 +456,10 @@ const StationManagement: React.FC = () => {
                         Delete Station
                       </h3>
                       <p className="text-sm text-gray-600 mb-5">
-                        Are you sure you want to delete station {""}
-                        <span className="font-semibold">"{stationPendingDelete?.name}"</span>
+                        Are you sure you want to delete station{" "}
+                        <span className="font-semibold">
+                          "{stationPendingDelete?.name}"
+                        </span>
                         ? This action cannot be undone.
                       </p>
                       {deleteInlineError && (
@@ -472,14 +471,20 @@ const StationManagement: React.FC = () => {
                         {deleteInlineError && (
                           <select
                             value={transferToStationId}
-                            onChange={(e) => setTransferToStationId(e.target.value)}
+                            onChange={(e) =>
+                              setTransferToStationId(e.target.value)
+                            }
                             className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
                           >
-                            <option value="">-- Select destination station --</option>
+                            <option value="">
+                              -- Select destination station --
+                            </option>
                             {stations
-                              .filter((s) => s.id !== stationPendingDelete?.id)
+                              .filter(
+                                (s) => s._id !== stationPendingDelete?._id
+                              )
                               .map((s) => (
-                                <option key={s.id} value={s.id}>
+                                <option key={s._id} value={s._id}>
                                   {s.name} ({s.code})
                                 </option>
                               ))}

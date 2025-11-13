@@ -13,7 +13,7 @@ interface UserProps {
 }
 
 const User: React.FC<UserProps> = ({
-  userName = "Guest User",
+  userName,
   userAvatar,
   onLogout,
   isLoggedIn = false,
@@ -25,6 +25,16 @@ const User: React.FC<UserProps> = ({
   const { getNavigationPaths } = useRoleBasedNavigation();
   const { user } = useAuth();
   const navigationPaths = getNavigationPaths();
+
+  // ✅ Get avatar from useAuth if not provided via props
+  const avatarValue = userAvatar || user?.avatarUrl;
+  const displayAvatar =
+    typeof avatarValue === "string"
+      ? avatarValue
+      : avatarValue && typeof avatarValue === "object" && "url" in avatarValue
+      ? avatarValue.url
+      : null;
+  const displayName = userName || user?.name || "Guest User";
 
   // Get role display text
   const getRoleDisplay = () => {
@@ -84,16 +94,37 @@ const User: React.FC<UserProps> = ({
         }`}
       >
         <div className="w-7 h-7 flex items-center justify-center text-white overflow-hidden">
-          {isLoggedIn && userAvatar ? (
+          {isLoggedIn && displayAvatar ? (
+            // ✅ Show actual avatar from Cloudinary
             <img
-              src={userAvatar}
+              src={displayAvatar}
               alt="User Avatar"
               className="w-full h-full rounded-full object-cover"
+              onError={(e) => {
+                // ✅ Fallback to initials if image fails to load
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const parent = target.parentElement;
+                if (parent) {
+                  parent.innerHTML = `
+                    <div class="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                      <span class="text-white text-xs font-bold">
+                        ${displayName
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()}
+                      </span>
+                    </div>
+                  `;
+                }
+              }}
             />
           ) : isLoggedIn ? (
+            // ✅ Fallback to initials
             <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
               <span className="text-white text-xs font-bold">
-                {userName
+                {displayName
                   .split(" ")
                   .map((n) => n[0])
                   .join("")
@@ -136,7 +167,7 @@ const User: React.FC<UserProps> = ({
         >
           {/* User Info */}
           <div className="px-4 py-3 border-b border-gray-200">
-            <p className="text-sm font-medium">{userName}</p>
+            <p className="text-sm font-medium">{displayName}</p>
             <p className="text-xs text-gray-500">{getRoleDisplay()}</p>
           </div>
 

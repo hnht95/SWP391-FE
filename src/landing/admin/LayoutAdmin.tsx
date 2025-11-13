@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./component/Sidebar";
-import ChatbotAnimated from "./component/ChatbotAnimated";
-import { SidebarProvider, useSidebar } from "./context/SidebarContext";
 
-const LayoutAdminContent: React.FC = () => {
-  const { isSidebarCollapsed, toggleSidebar } = useSidebar();
+const LayoutAdmin: React.FC = () => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => !prev);
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -24,17 +26,9 @@ const LayoutAdminContent: React.FC = () => {
         </div>
       </div>
 
-      {/* Chatbot Component */}
-      <ChatbotAnimated />
+      {/* Chatbot Component - Temporarily hidden */}
+      {/* <ChatbotAnimated /> */}
     </div>
-  );
-};
-
-const LayoutAdmin: React.FC = () => {
-  return (
-    <SidebarProvider>
-      <LayoutAdminContent />
-    </SidebarProvider>
   );
 };
 
