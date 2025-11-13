@@ -1,3 +1,4 @@
+// pages/Admin/Stations/StationManagement.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,17 +12,21 @@ import AddStationModal from "./AddStationModal";
 import EditStationModal from "./EditStationModal";
 import MeasurementIndex from "./MeasurementIndex";
 import SuccessModal from "../UserManagerComponent/SuccessModal";
-import { deleteStation, getAllStations, type DeleteStationResponse, type Station } from "../../../../service/apiAdmin/apiStation/API";
+import {
+  deleteStation,
+  getAllStations,
+  type DeleteStationResponse,
+  type Station,
+} from "../../../../service/apiAdmin/apiStation/API";
 
-// ✅ Filters type
-interface StationFilters {
+interface StationFiltersState {
   search: string;
   status: "all" | "active" | "inactive";
+  province?: string;
   page: number;
   limit: number;
 }
 
-// ✅ Pagination type
 interface Pagination {
   page: number;
   limit: number;
@@ -47,9 +52,10 @@ const StationManagement: React.FC = () => {
   const [transferToStationId, setTransferToStationId] = useState<string>("");
   const [deleteInlineError, setDeleteInlineError] = useState<string>("");
 
-  const [filters, setFilters] = useState<StationFilters>({
+  const [filters, setFilters] = useState<StationFiltersState>({
     search: "",
     status: "all",
+    province: undefined,
     page: 1,
     limit: 20,
   });
@@ -61,21 +67,16 @@ const StationManagement: React.FC = () => {
     totalPages: 0,
   });
 
-  // Fetch stations from API
+  // Fetch
   const fetchStations = useCallback(
     async (useHardLoading: boolean = true) => {
       try {
-        if (useHardLoading) {
-          setLoading(true);
-        } else {
-          setUiLoading(true);
-        }
+        if (useHardLoading) setLoading(true);
+        else setUiLoading(true);
         setError(null);
 
-        // ✅ Fetch all stations from API
         const apiItems: Station[] = await getAllStations();
 
-        // ✅ Filter out invalid stations
         const cleanedStations = apiItems.filter(
           (st) => st._id && st.name && st.name.trim().length > 0
         );
@@ -91,28 +92,24 @@ const StationManagement: React.FC = () => {
           totalPages,
         });
 
-        // Apply client-side filtering
         applyFilters(cleanedStations);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
         console.error("Error fetching stations:", err);
       } finally {
-        if (useHardLoading) {
-          setLoading(false);
-        } else {
-          setUiLoading(false);
-        }
+        if (useHardLoading) setLoading(false);
+        else setUiLoading(false);
       }
     },
     [filters.page, filters.limit]
   );
 
-  // Apply client-side filters
+  // Apply filters (đã thêm province)
   const applyFilters = useCallback(
     (stationsData: Station[]) => {
       let filtered = [...stationsData];
 
-      // Search filter
+      // Search
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         filtered = filtered.filter(
@@ -123,19 +120,40 @@ const StationManagement: React.FC = () => {
         );
       }
 
-      // Status filter
+      // Status
       if (filters.status !== "all") {
         filtered = filtered.filter((s) =>
           filters.status === "active" ? s.isActive : !s.isActive
         );
       }
 
-      // ✅ Apply pagination to filtered results
+      // ✅ Province filter (field province hoặc fallback từ address)
+      if (filters.province && filters.province.trim().length > 0) {
+        const selected = filters.province.trim().toLowerCase();
+
+        filtered = filtered.filter((s) => {
+          const fromField =
+            typeof (s as any).province === "string" &&
+            ((s as any).province as string).trim().toLowerCase() === selected;
+
+          const address = s.location?.address || "";
+          const tokens = address
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean);
+          const lastToken = (tokens[tokens.length - 1] || "").toLowerCase();
+
+          const byAddress = lastToken === selected;
+
+          return fromField || byAddress;
+        });
+      }
+
+      // Pagination
       const start = (filters.page - 1) * filters.limit;
       const end = start + filters.limit;
       const paginatedFiltered = filtered.slice(start, end);
 
-      // ✅ Update pagination with filtered total
       const filteredTotal = filtered.length;
       const filteredTotalPages = Math.ceil(filteredTotal / filters.limit);
 
@@ -151,12 +169,10 @@ const StationManagement: React.FC = () => {
     [filters]
   );
 
-  // Load data on mount
   useEffect(() => {
     fetchStations(true);
   }, [fetchStations]);
 
-  // Re-apply filters when filter criteria change
   useEffect(() => {
     if (stations.length > 0) {
       applyFilters(stations);
@@ -164,21 +180,20 @@ const StationManagement: React.FC = () => {
   }, [
     filters.search,
     filters.status,
+    filters.province,
     filters.page,
     filters.limit,
     stations,
     applyFilters,
   ]);
 
+  const handleToggleMap = () => setIsMapVisible((v) => !v);
 
-  const handleToggleMap = () => {
-    setIsMapVisible(!isMapVisible);
-  };
-
-  const handleFiltersChange = (newFilters: StationFilters) => {
+  const handleFiltersChange = (newFilters: StationFiltersState) => {
     if (
       newFilters.search !== filters.search ||
-      newFilters.status !== filters.status
+      newFilters.status !== filters.status ||
+      newFilters.province !== filters.province
     ) {
       setFilters({ ...newFilters, page: 1 });
     } else {
@@ -212,7 +227,6 @@ const StationManagement: React.FC = () => {
   };
 
   const handleDelete = (station: Station) => {
-    console.log("Delete click:", station);
     setShowSuccessModal(false);
     setStationPendingDelete(station);
     setTransferToStationId("");
@@ -253,12 +267,10 @@ const StationManagement: React.FC = () => {
     }
   };
 
-  // Calculate stats for MeasurementIndex
   const totalStations = stations.length;
   const activeStations = stations.filter((s) => s.isActive).length;
   const inactiveStations = stations.filter((s) => !s.isActive).length;
 
-  // Pagination controls
   const handlePageChange = (newPage: number) => {
     setFilters({ ...filters, page: newPage });
     setUiLoading(true);
@@ -306,7 +318,7 @@ const StationManagement: React.FC = () => {
           </FadeIn>
         </div>
 
-        {/* Measurement Index Dashboard */}
+        {/* Measurement Index */}
         <AnimatePresence>
           {!isMapVisible && (
             <MeasurementIndex
@@ -317,7 +329,7 @@ const StationManagement: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Map View */}
+        {/* Map */}
         <AnimatePresence>
           {isMapVisible && (
             <motion.div
@@ -331,7 +343,7 @@ const StationManagement: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Table View */}
+        {/* Table */}
         <AnimatePresence>
           {!isMapVisible && (
             <motion.div
@@ -341,14 +353,12 @@ const StationManagement: React.FC = () => {
               exit={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.7 }}
             >
-              {/* Filters */}
               <StationFilters
                 filters={filters}
                 onFiltersChange={handleFiltersChange}
                 totalResults={pagination.total}
               />
 
-              {/* Error Message */}
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <p className="text-red-600 font-medium">{error}</p>
@@ -361,42 +371,42 @@ const StationManagement: React.FC = () => {
                 </div>
               )}
 
-              {/* Table */}
               {loading || uiLoading ? (
-                <StationTable stations={[]} loading={true} />
+                <StationTable stations={[]} loading />
               ) : (
                 <StationTable
                   stations={filteredStations}
-                  onEdit={handleEdit}
+                  onEdit={(s) => {
+                    setShowSuccessModal(false);
+                    setSelectedStation(s);
+                    setIsEditModalOpen(true);
+                  }}
                   onDelete={handleDelete}
                   loading={false}
                 />
               )}
 
-              {/* Pagination */}
-              {!loading &&
-                pagination.totalPages &&
-                pagination.totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 pt-4">
-                    <button
-                      onClick={() => handlePageChange(filters.page - 1)}
-                      disabled={filters.page === 1}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Previous
-                    </button>
-                    <span className="text-sm text-gray-600">
-                      Page {filters.page} of {pagination.totalPages}
-                    </span>
-                    <button
-                      onClick={() => handlePageChange(filters.page + 1)}
-                      disabled={filters.page >= pagination.totalPages}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
+              {!loading && pagination.totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-4">
+                  <button
+                    onClick={() => handlePageChange(filters.page - 1)}
+                    disabled={filters.page === 1}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {filters.page} of {pagination.totalPages}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(filters.page + 1)}
+                    disabled={filters.page >= pagination.totalPages}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -421,7 +431,7 @@ const StationManagement: React.FC = () => {
           message={successMessage}
         />
 
-        {/* Confirm Delete Modal */}
+        {/* Confirm Delete */}
         {confirmDeleteOpen &&
           createPortal(
             <AnimatePresence>
@@ -433,7 +443,7 @@ const StationManagement: React.FC = () => {
                   exit={{ opacity: 0 }}
                   onClick={() => setConfirmDeleteOpen(false)}
                 />
-                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none">
+                <div className="fixed inset-0 z[10000] flex items-center justify-center p-4 pointer-events-none">
                   <motion.div
                     className="pointer-events-auto bg-white rounded-2xl shadow-2xl w-full max-w-md"
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}

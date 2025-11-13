@@ -33,7 +33,11 @@ const BookingPage: React.FC = () => {
   const [formError, setFormError] = useState<string>("");
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [bookingData, setBookingData] = useState<any>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [bookingData, setBookingData] = useState<CreateBookingResponse | null>(
+    null
+  );
 
   const [pickupDate, setPickupDate] = useState("");
   const [pickupTime, setPickupTime] = useState("10:00");
