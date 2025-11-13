@@ -61,7 +61,9 @@ export type UpdateUserResponse = {
 };
 
 // Normalize server user payload into a consistent shape the UI can safely use
-const normalizeUser = (raw: any | undefined | null): UserProfile | undefined => {
+const normalizeUser = (
+  raw: any | undefined | null
+): UserProfile | undefined => {
   if (!raw) return undefined;
   const avatarUrlField = raw.avatarUrl;
   const normalizedAvatarUrl: string | { url: string } | null =
@@ -331,6 +333,261 @@ export const getVietnameseBanks = (): Array<{ code: string; name: string }> => {
   ].sort((a, b) => a.name.localeCompare(b.name));
 };
 
+// ========== Refund & Cancelled Paid Types ==========
+export type CancelledPaidItem = {
+  bookingId: string;
+  status: "cancelled";
+  startTime: string;
+  endTime: string;
+  createdAt: string;
+  updatedAt: string;
+  vehicle: {
+    _id: string;
+    id?: string; // thêm fallback
+    image?: string;
+    plateNumber: string;
+    brand: string;
+    model: string;
+    pricePerDay?: number;
+    pricePerHour?: number;
+    status?: string;
+    defaultPhotos?: {
+      exterior?: string[] | Array<{ _id?: string; url?: string }>;
+      interior?: string[] | Array<{ _id?: string; url?: string }>;
+    };
+  };
+  station: {
+    _id: string;
+    name: string;
+    location: { address: string; lat: number; lng: number };
+  };
+  deposit: {
+    status: "refunded" | "pending" | "captured" | "failed" | "none";
+    amount: number;
+    currency: string;
+    provider: string;
+  };
+  amounts: {
+    totalPaid?: number;
+    rentalEstimated?: number;
+    rentalActual?: number;
+  };
+  paid?: number;
+  cancellationReason?: string;
+};
+
+export type Paginated<T> = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  items: T[];
+};
+
+export type ManualRefundItem = {
+  id: string;
+  booking: {
+    bookingId: string;
+    status:
+      | "cancelled"
+      | "completed"
+      | "reserved"
+      | "active"
+      | "expired"
+      | "returning";
+    startTime: string;
+    endTime: string;
+    depositStatus: "refunded" | "pending" | "captured" | "failed" | "none";
+    totalPaid: number;
+  };
+  amount: number;
+  currency: string;
+  method: "bank_transfer" | "cash" | "card" | string;
+  status: "done" | "pending" | "failed";
+  reference: string | null;
+  transferredAt: string;
+  beneficiary: {
+    bankCode?: string;
+    bankName?: string;
+    accountNumber?: string;
+    accountName?: string;
+  };
+  note?: string;
+  staff?: { _id: string; name: string; email?: string };
+  attachments?: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+const normPhotoArray = (arr: unknown): Array<{ _id?: string; url: string }> => {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((x) => {
+      if (typeof x === "string") return { url: x };
+      if (x && typeof x === "object") {
+        const o = x as { _id?: string; url?: string };
+        return { _id: o._id, url: o.url || "" };
+      }
+      return { url: "" };
+    })
+    .filter((x) => x.url);
+};
+
+const normalizeCancelledPaid = (raw: any): CancelledPaidItem => {
+  return {
+    bookingId: String(raw?.bookingId || ""),
+    status: "cancelled",
+    startTime: String(raw?.startTime || ""),
+    endTime: String(raw?.endTime || ""),
+    createdAt: String(raw?.createdAt || ""),
+    updatedAt: String(raw?.updatedAt || ""),
+    vehicle: {
+      // Fallback _id từ id nếu backend trả "id"
+      _id: String(raw?.vehicle?._id || raw?.vehicle?.id || ""),
+      id: raw?.vehicle?.id ? String(raw?.vehicle?.id) : undefined,
+      // Parse ảnh từ Markdown/URL
+      image: extractUrlFromMarkdown(raw?.vehicle?.image),
+      plateNumber: String(raw?.vehicle?.plateNumber || ""),
+      brand: String(raw?.vehicle?.brand || ""),
+      model: String(raw?.vehicle?.model || ""),
+      pricePerDay: Number(raw?.vehicle?.pricePerDay || 0),
+      pricePerHour: Number(raw?.vehicle?.pricePerHour || 0),
+      status: String(raw?.vehicle?.status || ""),
+      defaultPhotos: {
+        exterior: normPhotoArray(raw?.vehicle?.defaultPhotos?.exterior),
+        interior: normPhotoArray(raw?.vehicle?.defaultPhotos?.interior),
+      },
+    },
+    station: {
+      _id: String(raw?.station?._id || ""),
+      name: String(raw?.station?.name || ""),
+      location: {
+        address: String(raw?.station?.location?.address || ""),
+        lat: Number(raw?.station?.location?.lat || 0),
+        lng: Number(raw?.station?.location?.lng || 0),
+      },
+    },
+    deposit: {
+      status: (raw?.deposit?.status ||
+        "none") as CancelledPaidItem["deposit"]["status"],
+      amount: Number(raw?.deposit?.amount || 0),
+      currency: String(raw?.deposit?.currency || "VND"),
+      provider: String(raw?.deposit?.provider || "payos"),
+    },
+    amounts: {
+      totalPaid: Number(raw?.amounts?.totalPaid || 0),
+      rentalEstimated: Number(raw?.amounts?.rentalEstimated || 0),
+      rentalActual: Number(raw?.amounts?.rentalActual || 0),
+    },
+    paid: Number(raw?.paid || 0),
+    cancellationReason: raw?.cancellationReason
+      ? String(raw?.cancellationReason)
+      : undefined,
+  };
+};
+const extractUrlFromMarkdown = (raw: unknown): string | undefined => {
+  if (typeof raw !== "string") return undefined;
+  // Ưu tiên Markdown: [text](url)
+  const md = /\((https?:\/\/[^\s)]+)\)/.exec(raw);
+  if (md?.[1]) return md[1];
+  // URL thuần
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return undefined;
+};
+
+const normalizeManualRefund = (raw: any): ManualRefundItem => {
+  return {
+    id: String(raw?.id || raw?._id || ""),
+    booking: {
+      bookingId: String(raw?.booking?.bookingId || ""),
+      status: String(raw?.booking?.status || "cancelled"),
+      startTime: String(raw?.booking?.startTime || ""),
+      endTime: String(raw?.booking?.endTime || ""),
+      depositStatus: String(raw?.booking?.depositStatus || "refunded"),
+      totalPaid: Number(raw?.booking?.totalPaid || 0),
+    },
+    amount: Number(raw?.amount || 0),
+    currency: String(raw?.currency || "VND"),
+    method: String(raw?.method || "bank_transfer"),
+    status: String(raw?.status || "done"),
+    reference: raw?.reference ?? null,
+    transferredAt: String(raw?.transferredAt || ""),
+    beneficiary: {
+      bankCode: raw?.beneficiary?.bankCode || undefined,
+      bankName: raw?.beneficiary?.bankName || undefined,
+      accountNumber: raw?.beneficiary?.accountNumber || undefined,
+      accountName: raw?.beneficiary?.accountName || undefined,
+    },
+    note: raw?.note ? String(raw?.note) : "",
+    staff: raw?.staff?._id
+      ? {
+          _id: String(raw?.staff?._id),
+          name: String(raw?.staff?.name || ""),
+          email: raw?.staff?.email ? String(raw?.staff?.email) : undefined,
+        }
+      : undefined,
+    attachments: Array.isArray(raw?.attachments)
+      ? raw.attachments.map((u: any) => String(u))
+      : [],
+    createdAt: String(raw?.createdAt || ""),
+    updatedAt: String(raw?.updatedAt || ""),
+  };
+};
+/**
+ * GET /api/bookings/me/cancelled-paid
+ * Danh sách booking đã hủy nhưng đã thanh toán (và đã refund)
+ */
+export const getMyCancelledPaidBookings = async (
+  params: { page?: number; limit?: number } = {}
+): Promise<Paginated<CancelledPaidItem>> => {
+  try {
+    const { page = 1, limit = 20 } = params;
+    const res = await api.get("/bookings/me/cancelled-paid", {
+      params: { page, limit },
+    });
+    const data = res.data || {};
+    const itemsRaw = Array.isArray(data.items) ? data.items : [];
+    const items = itemsRaw.map(normalizeCancelledPaid);
+    return {
+      page: Number(data.page || page),
+      limit: Number(data.limit || limit),
+      total: Number(data.total || items.length),
+      totalPages: Number(data.totalPages || 1),
+      items,
+    };
+  } catch (error) {
+    handleError(error, "getMyCancelledPaidBookings");
+    throw error;
+  }
+};
+
+/**
+ * GET /api/manual-refunds/me/manual-done
+ * Danh sách refund thủ công đã hoàn tất của user
+ */
+export const getMyManualRefundsDone = async (
+  params: { page?: number; limit?: number } = {}
+): Promise<Paginated<ManualRefundItem>> => {
+  try {
+    const { page = 1, limit = 20 } = params;
+    const res = await api.get("/manual-refunds/me/manual-done", {
+      params: { page, limit },
+    });
+    const data = res.data || {};
+    const itemsRaw = Array.isArray(data.items) ? data.items : [];
+    const items = itemsRaw.map(normalizeManualRefund);
+    return {
+      page: Number(data.page || page),
+      limit: Number(data.limit || limit),
+      total: Number(data.total || items.length),
+      totalPages: Number(data.totalPages || 1),
+      items,
+    };
+  } catch (error) {
+    handleError(error, "getMyManualRefundsDone");
+    throw error;
+  }
+};
+
 const profileApi = {
   getCurrentUser,
   updateUserProfile,
@@ -338,7 +595,9 @@ const profileApi = {
   uploadKYCDocuments,
   uploadAvatar,
   getRoleLabel,
-  getVietnameseBanks, // ✅ New
+  getVietnameseBanks,
+  getMyCancelledPaidBookings, // ✅ new
+  getMyManualRefundsDone, // ✅ New
 };
 
 export default profileApi;

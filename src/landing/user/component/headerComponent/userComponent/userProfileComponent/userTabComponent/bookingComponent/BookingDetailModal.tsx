@@ -12,7 +12,6 @@ import {
   AlertCircle,
   CheckCircle,
   Battery,
-  FileText,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import ConfirmModal from "./ConfirmModal";
@@ -21,6 +20,7 @@ import bookingApi from "../../../../../../../../service/apiBooking/API";
 import { getVehicleById } from "../../../../../../../../service/apiAdmin/apiVehicles/API";
 import ContractModal from "./ContractModal";
 import ExtendBookingModal from "./ExtendBookingModal";
+import ExtendPaymentModal from "./ExtendPaymentModal";
 
 type BookingDetailModalProps = {
   isOpen: boolean;
@@ -39,6 +39,36 @@ type VehicleDetails = {
   year?: number;
 };
 
+// Kiểu dữ liệu cho modal thanh toán gia hạn
+type ExtendPaymentData = {
+  bookingId: string;
+  status:
+    | "reserved"
+    | "active"
+    | "returning"
+    | "completed"
+    | "cancelled"
+    | "expired";
+  endTime: string;
+  feeEstimated: number;
+  pricingSnapshot?: {
+    baseMode?: "day+hour" | string;
+    days?: number;
+    hours?: number;
+    unitPriceDay?: number;
+    unitPriceHour?: number;
+    baseUnit?: string;
+    basePrice?: number;
+  };
+  payment?: {
+    provider: string;
+    type: "extension";
+    orderCode: number;
+    checkoutUrl: string;
+    qrCode: string;
+  };
+};
+
 const BookingDetailModal = ({
   isOpen,
   onClose,
@@ -51,12 +81,20 @@ const BookingDetailModal = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
 
+  // Cancel
   const [showConfirmCancel, setShowConfirmCancel] = useState<boolean>(false);
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
 
-  // Child modals state
+  // Return
+  const [showConfirmReturn, setShowConfirmReturn] = useState<boolean>(false);
+
+  // Child modals
   const [openContract, setOpenContract] = useState<boolean>(false);
   const [openExtend, setOpenExtend] = useState<boolean>(false);
+
+  // Payment modal for extension
+  const [openPay, setOpenPay] = useState<boolean>(false);
+  const [extendData, setExtendData] = useState<ExtendPaymentData | null>(null);
 
   const canExtend = useMemo(
     () =>
@@ -88,8 +126,8 @@ const BookingDetailModal = ({
             color: v.color,
             year: v.year,
           });
-        } catch (e) {
-          // silent; keep details null
+        } catch {
+          // ignore
         }
       }
     } catch (e: unknown) {
@@ -118,14 +156,22 @@ const BookingDetailModal = ({
         e.key === "Escape" &&
         !showConfirmCancel &&
         !openContract &&
-        !openExtend
+        !openExtend &&
+        !showConfirmReturn
       ) {
         onClose();
       }
     };
     if (isOpen) window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
-  }, [isOpen, showConfirmCancel, openContract, openExtend, onClose]);
+  }, [
+    isOpen,
+    showConfirmCancel,
+    openContract,
+    openExtend,
+    showConfirmReturn,
+    onClose,
+  ]);
 
   const handleCancelBooking = async () => {
     if (!booking) return;
@@ -139,6 +185,48 @@ const BookingDetailModal = ({
     } finally {
       setIsCancelling(false);
     }
+  };
+
+  // Nhận data từ ExtendBookingModal sau khi gọi API extend
+  const handleExtendedCreated = (payload: {
+    additionalCharge: number;
+    newEndTime: string;
+    // Cho phép truyền thêm raw để build modal thanh toán
+    raw?: {
+      bookingId?: string;
+      orderCode?: number;
+      checkoutUrl?: string;
+      qrCode?: string;
+      pricing?: {
+        days?: number;
+        hours?: number;
+        unitPriceDay?: number;
+        unitPriceHour?: number;
+      };
+    };
+  }) => {
+    const bid = payload.raw?.bookingId || bookingId;
+    const ext: ExtendPaymentData = {
+      bookingId: bid,
+      status: booking?.status || "reserved",
+      endTime: payload.newEndTime,
+      feeEstimated: payload.additionalCharge,
+      pricingSnapshot: {
+        days: payload.raw?.pricing?.days,
+        hours: payload.raw?.pricing?.hours,
+        unitPriceDay: payload.raw?.pricing?.unitPriceDay,
+        unitPriceHour: payload.raw?.pricing?.unitPriceHour,
+      },
+      payment: {
+        provider: "payos",
+        type: "extension",
+        orderCode: payload.raw?.orderCode || 0,
+        checkoutUrl: payload.raw?.checkoutUrl || "",
+        qrCode: payload.raw?.qrCode || "",
+      },
+    };
+    setExtendData(ext);
+    setOpenPay(true);
   };
 
   const formatDate = (dateString: string): string =>
@@ -208,34 +296,16 @@ const BookingDetailModal = ({
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  {/* View Contract */}
-                  <button
-                    onClick={() => setOpenContract(true)}
-                    className="px-3 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 flex items-center gap-2"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span className="hidden sm:inline">View Contract</span>
-                  </button>
-                  {/* Extend */}
-                  {canExtend && (
-                    <button
-                      onClick={() => setOpenExtend(true)}
-                      className="px-3 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
-                    >
-                      Extend
-                    </button>
-                  )}
-                  <motion.button
-                    whileHover={{ scale: 1.1, rotate: 90 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={onClose}
-                    className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
-                    aria-label="Close"
-                  >
-                    <X className="w-5 h-5" />
-                  </motion.button>
-                </div>
+                {/* Only close on header */}
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={onClose}
+                  className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </motion.button>
               </div>
 
               {/* Body */}
@@ -405,12 +475,6 @@ const BookingDetailModal = ({
                       </div>
                       <div className="space-y-4">
                         <Row
-                          label="Estimated Rental"
-                          value={bookingApi.formatCurrency(
-                            booking.amounts.rentalEstimated || 0
-                          )}
-                        />
-                        <Row
                           label="Deposit Amount"
                           value={bookingApi.formatCurrency(
                             booking.deposit.amount
@@ -455,18 +519,36 @@ const BookingDetailModal = ({
                 )}
               </div>
 
-              {/* Footer */}
+              {/* Footer actions */}
               <div className="bg-white px-8 py-6 flex flex-wrap justify-end gap-3 border-t border-gray-200 flex-shrink-0">
-                <button
-                  onClick={onClose}
-                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Close
-                </button>
+                {/* View Contract */}
+                {(booking?.status === "active" ||
+                  booking?.status === "returning" ||
+                  booking?.status === "completed") && (
+                  <button
+                    type="button"
+                    onClick={() => setOpenContract(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    View Contract
+                  </button>
+                )}
+
+                {/* Extend */}
+                {canExtend && (
+                  <button
+                    onClick={() => setOpenExtend(true)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  >
+                    Extend
+                  </button>
+                )}
+
+                {/* Cancel Booking when reserved */}
                 {booking?.status === "reserved" && (
                   <button
                     onClick={() => setShowConfirmCancel(true)}
-                    className="px-6 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors shadow-lg shadow-red-500/30"
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
                   >
                     Cancel Booking
                   </button>
@@ -481,13 +563,27 @@ const BookingDetailModal = ({
             onClose={() => setOpenContract(false)}
             bookingId={bookingId}
           />
+
           <ExtendBookingModal
             isOpen={openExtend}
             onClose={() => setOpenExtend(false)}
             bookingId={bookingId}
-            onExtended={() => {
-              // Refresh after extend
-              fetchBookingDetails();
+            onExtended={(info) => {
+              // info: { additionalCharge, newEndTime, ...optional raw}
+              handleExtendedCreated({
+                additionalCharge: info.additionalCharge,
+                newEndTime: info.newEndTime,
+                raw: info.raw,
+              });
+            }}
+          />
+
+          <ExtendPaymentModal
+            isOpen={openPay}
+            onClose={() => setOpenPay(false)}
+            extendResult={extendData}
+            onPaid={async () => {
+              await fetchBookingDetails();
             }}
           />
         </>
@@ -501,6 +597,8 @@ const BookingDetailModal = ({
         content,
         document.getElementById("modal-root") || document.body
       )}
+
+      {/* Confirm cancel */}
       <ConfirmModal
         isOpen={showConfirmCancel}
         onClose={() => setShowConfirmCancel(false)}
