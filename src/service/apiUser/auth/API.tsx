@@ -1,7 +1,6 @@
 // src/services/API.tsx
 import { AxiosError } from "axios";
 import api from "../../Utils";
-// import api from "../Utils";
 
 const handleError = (error: unknown) => {
   const err = error as AxiosError;
@@ -39,6 +38,8 @@ const handleError = (error: unknown) => {
   throw new Error(errorMessage);
 };
 
+// ============ Auth ============
+
 export const login = async (email: string, password: string) => {
   try {
     const payload = { email, password };
@@ -73,18 +74,58 @@ export const logout = async () => {
   }
 };
 
-export const forgotPassword = async (email: string) => {
+// ============ Forgot / Reset Password via Email OTP ============
+
+/**
+ * POST /api/users/forgot-password-email-otp
+ * Gửi OTP reset password tới email người dùng
+ */
+export const forgotPassword = async (
+  email: string
+): Promise<{ success?: boolean; ok?: boolean; message?: string }> => {
   try {
     const payload = { email };
     const response = await api.post(
       "/users/forgot-password-email-otp",
       payload
     );
-    return response.data;
+    // Backend mẫu trả: { success: true, ok: true }
+    return response.data as {
+      success?: boolean;
+      ok?: boolean;
+      message?: string;
+    };
   } catch (error) {
     handleError(error);
   }
+  return { success: false, ok: false, message: "Request failed" };
 };
+
+/**
+ * POST /api/users/reset-password-email-otp
+ * Xác thực OTP và đặt mật khẩu mới
+ */
+export const resetPassword = async (
+  email: string,
+  code: string,
+  newPassword: string
+): Promise<{ success?: boolean; ok?: boolean; message?: string }> => {
+  try {
+    const payload = { email, code, newPassword };
+    const response = await api.post("/users/reset-password-email-otp", payload);
+    // Backend mẫu trả: { success: true, ok: true }
+    return response.data as {
+      success?: boolean;
+      ok?: boolean;
+      message?: string;
+    };
+  } catch (error) {
+    handleError(error);
+  }
+  return { success: false, ok: false, message: "Request failed" };
+};
+
+// ============ Users ============
 
 export async function getAllUsers(params?: { page?: number; limit?: number }) {
   try {
@@ -95,20 +136,6 @@ export async function getAllUsers(params?: { page?: number; limit?: number }) {
   }
 }
 
-export const resetPassword = async (
-  email: string,
-  code: string,
-  newPassword: string
-) => {
-  try {
-    const payload = { email, code, newPassword };
-    const response = await api.post("/users/reset-password-email-otp", payload);
-
-    return response.data;
-  } catch (error) {
-    handleError(error);
-  }
-};
 export const getCurrentUser = async () => {
   try {
     const response = await api.get("/users/me", {
@@ -116,7 +143,6 @@ export const getCurrentUser = async () => {
         populate: ["avatarUrl", "station"],
       },
     });
-
     return response.data;
   } catch (error) {
     handleError(error);
