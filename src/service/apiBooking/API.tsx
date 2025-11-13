@@ -150,13 +150,13 @@ export type Booking = {
   __v?: number;
 };
 
-// ✅ Create booking request
+// ✅ Create booking request (theo API doc)
 export type CreateBookingRequest = {
   vehicleId: string;
   startTime: string;
   endTime: string;
   deposit: {
-    provider: "payos";
+    provider: "payos"; // ✅ Chỉ support PayOS
   };
 };
 
@@ -622,7 +622,14 @@ const normalizeBooking = (data: unknown): Booking => {
 
 /**
  * POST /api/bookings
- * Create new booking with PayOS deposit
+ * ✅ Tạo booking mới với PayOS deposit
+ *
+ * Steps theo API doc:
+ * 1. Kiểm tra xe có sẵn trong khoảng thời gian
+ * 2. Kiểm tra người dùng không có booking trùng
+ * 3. Tính toán giá thuê và tiền cọc (5% giá trị xe)
+ * 4. Tạo PayOS payment link tự động
+ * 5. Booking ở trạng thái "pending" với thời gian giữ 15 phút
  */
 export const createBooking = async (
   data: CreateBookingRequest
@@ -650,7 +657,6 @@ export const createBooking = async (
     return handleError(error, "createBooking");
   }
 };
-
 /**
  * GET /api/bookings/mine
  * Get user's bookings with pagination and filters

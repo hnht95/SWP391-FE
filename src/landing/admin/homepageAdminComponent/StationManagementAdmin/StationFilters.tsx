@@ -1,3 +1,4 @@
+// components/Stations/StationFilters.tsx
 import React from "react";
 import { MdSearch, MdFilterList, MdLocationCity } from "react-icons/md";
 import { getProvinceNames } from "../../../../data/provinceData";
@@ -21,8 +22,8 @@ const StationFilters: React.FC<StationFiltersProps> = ({
   onFiltersChange,
   totalResults,
 }) => {
-  // ✅ Get province list
-  const provinceList = getProvinceNames();
+  // ✅ Province list (chuẩn hoá để khớp so sánh)
+  const provinceList = getProvinceNames().map((p) => p.trim());
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onFiltersChange({
@@ -58,12 +59,11 @@ const StationFilters: React.FC<StationFiltersProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      {/* ✅ Single Row Layout - No Wrap */}
       <div className="flex items-center gap-6 overflow-x-auto">
-        {/* Search - Flexible width */}
+        {/* Search */}
         <div className="flex-1 min-w-[280px] max-w-md">
           <div className="relative">
-            <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
               placeholder="Search by station name or code..."
@@ -74,7 +74,7 @@ const StationFilters: React.FC<StationFiltersProps> = ({
           </div>
         </div>
 
-        {/* Status Filters - Fixed width */}
+        {/* Status */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center gap-2">
             <MdFilterList className="text-gray-500 w-5 h-5" />
@@ -117,7 +117,7 @@ const StationFilters: React.FC<StationFiltersProps> = ({
           </div>
         </div>
 
-        {/* Province Filter - Fixed width */}
+        {/* Province */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center gap-2">
             <MdLocationCity className="text-gray-500 w-5 h-5" />
@@ -140,7 +140,7 @@ const StationFilters: React.FC<StationFiltersProps> = ({
           </select>
         </div>
 
-        {/* Per Page - Fixed width */}
+        {/* Per page */}
         <div className="flex items-center gap-2 shrink-0 ml-auto">
           <span className="text-sm text-gray-600 whitespace-nowrap">Show:</span>
           <select
