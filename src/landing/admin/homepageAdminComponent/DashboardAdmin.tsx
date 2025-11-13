@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MdDirectionsCar,
@@ -16,6 +17,7 @@ import {
   MdClose,
   MdArrowForward,
 } from "react-icons/md";
+import { VscGraph } from "react-icons/vsc";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { PageTransition } from "../component/animations";
@@ -23,14 +25,18 @@ import PageTitle from "../component/PageTitle";
 import type { Station as StationType } from "../../../service/apiAdmin/apiStation/API";
 import { getAdminTransactions, formatCurrency } from "../../../service/apiBooking/API";
 import type { AdminTransactionItem } from "../../../service/apiBooking/API";
+import Bookedmanagement from "./BookingManagementComponent/Bookedmanagement";
 import {
   ResponsiveContainer,
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
 } from "recharts";
 
 // Import API functions
@@ -173,14 +179,14 @@ const StationCard: React.FC<StationCardProps> = ({
         <div className="flex justify-between items-baseline">
           <span className="text-sm font-medium text-gray-500">Vehicles</span>
           <span className="text-2xl font-bold text-gray-900">{totalVehicles}</span>
-        </div>
+          </div>
         <div className="space-y-2">
           <div className="flex justify-between text-xs text-gray-500">
             <span>Active</span>
             <span className="font-semibold text-emerald-600">{activeCount}</span>
           </div>
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <motion.div
+            <motion.div 
               className="h-full bg-gradient-to-r from-blue-500 to-indigo-500"
               initial={{ width: 0 }}
               animate={{ width: `${activeRatio}%` }}
@@ -190,7 +196,7 @@ const StationCard: React.FC<StationCardProps> = ({
           <div className="flex justify-between text-xs text-gray-500">
             <span>Maintenance</span>
             <span className="font-semibold text-rose-500">{maintenanceTotal}</span>
-          </div>
+        </div>
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-gradient-to-r from-rose-400 to-pink-500"
@@ -204,7 +210,7 @@ const StationCard: React.FC<StationCardProps> = ({
           <div>
             <p className="text-xs text-gray-500 font-medium uppercase">Location</p>
             <p className="text-gray-900 font-semibold text-sm truncate">
-              {station.location?.address || "Chưa cập nhật"}
+              {station.location?.address || "Not updated"}
             </p>
           </div>
           <div className="text-right">
@@ -220,16 +226,16 @@ const StationCard: React.FC<StationCardProps> = ({
         </div>
         <div className="flex flex-wrap items-center gap-2 pt-3">
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-[11px] font-semibold text-blue-600">
-            YC bảo trì: {pendingMaintenanceCount}
+            Maintenance Req: {pendingMaintenanceCount}
           </span>
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-purple-50 text-[11px] font-semibold text-purple-600">
-            YC xóa: {pendingDeletionCount}
+            Deletion Req: {pendingDeletionCount}
           </span>
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-[11px] font-semibold text-gray-600">
-            Tổng yêu cầu: {requestsTotal}
+            Total Requests: {requestsTotal}
           </span>
-        </div>
       </div>
+    </div>
     </button>
   );
 };
@@ -369,10 +375,10 @@ type BookingSummaryState = Record<
 >;
 
 const rangeLabels: Record<BookingRangeKey, string> = {
-  today: "Hôm nay",
-  week: "Tuần này",
-  month: "Tháng này",
-  year: "Năm nay",
+  today: "Today",
+  week: "This Week",
+  month: "This Month",
+  year: "This Year",
 };
 
 const DashboardAdmin: React.FC = () => {
@@ -400,11 +406,24 @@ const DashboardAdmin: React.FC = () => {
   });
   const [bookingSummaryLoading, setBookingSummaryLoading] = useState<boolean>(true);
   const [bookingSummaryError, setBookingSummaryError] = useState<string | null>(null);
-  const [selectedBookingRange, setSelectedBookingRange] = useState<BookingRangeKey>("today");
+  const [selectedBookingRange, setSelectedBookingRange] = useState<BookingRangeKey>("month");
   const bookingsCacheRef = useRef<Partial<Record<BookingRangeKey, AdminTransactionItem[]>>>({});
   const [bookingsByRange, setBookingsByRange] = useState<Partial<Record<BookingRangeKey, AdminTransactionItem[]>>>({});
   const [bookingRangeLoading, setBookingRangeLoading] = useState<boolean>(false);
   const [bookingRangeError, setBookingRangeError] = useState<string | null>(null);
+  
+  // Payment statistics state
+  const [paymentStats, setPaymentStats] = useState<{
+    totalCaptured: number;
+    totalCancelled: number;
+    monthlyData: Array<{ month: string; captured: number; cancelled: number }>;
+  }>({
+    totalCaptured: 0,
+    totalCancelled: 0,
+    monthlyData: [],
+  });
+  const [paymentStatsLoading, setPaymentStatsLoading] = useState<boolean>(false);
+  const [paymentStatsError, setPaymentStatsError] = useState<string | null>(null);
 
   const getRangeDates = useCallback((range: BookingRangeKey) => {
     const now = new Date();
@@ -467,11 +486,115 @@ const DashboardAdmin: React.FC = () => {
 
       setBookingSummary(summary);
     } catch (err: any) {
-      setBookingSummaryError(err?.message || "Không thể tải tổng quan booking");
+      setBookingSummaryError(err?.message || "Failed to load booking summary");
     } finally {
       setBookingSummaryLoading(false);
     }
   }, [getRangeDates]);
+
+  const fetchPaymentStatistics = useCallback(async () => {
+    setPaymentStatsLoading(true);
+    setPaymentStatsError(null);
+    try {
+      // Get last 6 months of data
+      const now = new Date();
+      const start = new Date(now);
+      start.setMonth(start.getMonth() - 5);
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+
+      // Fetch all transactions for the last 6 months
+      let allTransactions: AdminTransactionItem[] = [];
+      let page = 1;
+      const limit = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await getAdminTransactions({
+          from: start.toISOString(),
+          to: now.toISOString(),
+          dateField: "createdAt",
+          page,
+          limit,
+        });
+
+        if (response.items && response.items.length > 0) {
+          allTransactions = [...allTransactions, ...response.items];
+          hasMore = response.items.length === limit && page * limit < (response.total || 0);
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Calculate totals
+      let totalCaptured = 0;
+      let totalCancelled = 0;
+
+      // Group by month and calculate
+      const monthlyMap = new Map<string, { captured: number; cancelled: number }>();
+
+      allTransactions.forEach((transaction) => {
+        const date = new Date(transaction.createdAt);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+        if (!monthlyMap.has(monthKey)) {
+          monthlyMap.set(monthKey, { captured: 0, cancelled: 0 });
+        }
+
+        const monthData = monthlyMap.get(monthKey)!;
+        const amount = transaction.deposit?.amount || 0;
+        const depositStatus = transaction.deposit?.status;
+        const bookingStatus = transaction.status;
+
+        // Captured: All deposits with status "captured" (regardless of booking status)
+        if (depositStatus === "captured") {
+          totalCaptured += amount;
+          monthData.captured += amount;
+        }
+
+        // Cancelled: Bookings with status "cancelled" OR deposits with status "refunded"
+        // Count separately from captured (a booking can be captured first, then cancelled/refunded)
+        if (bookingStatus === "cancelled" || depositStatus === "refunded") {
+          totalCancelled += amount;
+          monthData.cancelled += amount;
+        }
+      });
+
+      // Convert to array and sort by month
+      // Ensure all months from start to endDate are included, even if no data
+      const monthlyData: Array<{ month: string; captured: number; cancelled: number }> = [];
+      const endDate = new Date(now);
+      const startDate = new Date(now);
+      startDate.setMonth(startDate.getMonth() - 5);
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+
+      for (let i = 0; i < 6; i++) {
+        const currentMonth = new Date(startDate);
+        currentMonth.setMonth(startDate.getMonth() + i);
+        const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
+        const dataForMonth = monthlyMap.get(monthKey) || { captured: 0, cancelled: 0 };
+        
+        monthlyData.push({
+          month: currentMonth.toLocaleDateString("vi-VN", { month: "short", year: "numeric" }),
+          captured: dataForMonth.captured,
+          cancelled: dataForMonth.cancelled,
+        });
+      }
+
+      setPaymentStats({
+        totalCaptured,
+        totalCancelled,
+        monthlyData,
+      });
+    } catch (err: any) {
+      console.error("Error fetching payment statistics:", err);
+      setPaymentStatsError(err?.message || "Failed to load payment statistics");
+    } finally {
+      setPaymentStatsLoading(false);
+    }
+  }, []);
 
   const fetchBookingsForRange = useCallback(
     async (range: BookingRangeKey) => {
@@ -494,7 +617,7 @@ const DashboardAdmin: React.FC = () => {
         };
         setBookingsByRange({ ...bookingsCacheRef.current });
       } catch (err: any) {
-        setBookingRangeError(err?.message || "Không thể tải danh sách booking");
+        setBookingRangeError(err?.message || "Failed to load booking list");
       } finally {
         setBookingRangeLoading(false);
       }
@@ -747,6 +870,11 @@ const DashboardAdmin: React.FC = () => {
     fetchDashboardData();
   }, []);
 
+  // Fetch payment statistics on mount
+  useEffect(() => {
+    fetchPaymentStatistics();
+  }, [fetchPaymentStatistics]);
+
   // Fetch notifications when vehicles are loaded
   useEffect(() => {
     if (vehicles.length > 0) {
@@ -780,6 +908,18 @@ const DashboardAdmin: React.FC = () => {
     }
   }, [showNotifications]);
 
+  // Lock body scroll when station modal is open
+  useEffect(() => {
+    if (showStationModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showStationModal]);
+
   // Calculate statistics
   const totalVehicles = vehicles.length;
   const activeCustomers = users.filter(user => user.role === 'renter' || user.role === 'regular' || user.role === 'vip').length;
@@ -804,12 +944,12 @@ const DashboardAdmin: React.FC = () => {
     return stations.map((station: StationType) => {
       const stationVehicles = vehicles.filter((v) => {
         if (typeof v.station === "string") {
-          return v.station === station._id;
+        return v.station === station._id;
         }
         if (v.station && typeof v.station === "object") {
-          return v.station._id === station._id;
-        }
-        return false;
+        return v.station._id === station._id;
+      }
+      return false;
       });
 
       const activeCount = stationVehicles.filter((v) => activeStatuses.has(v.status)).length;
@@ -820,9 +960,9 @@ const DashboardAdmin: React.FC = () => {
       const pendingDeletionCount = stationVehicles.filter(
         (v) => v.status === "pending_deletion"
       ).length;
-
-      return {
-        station,
+    
+    return {
+      station,
         totalVehicles: stationVehicles.length,
         activeCount,
         maintenanceCount,
@@ -963,17 +1103,17 @@ const DashboardAdmin: React.FC = () => {
           >
             <PageTitle
               title="Admin Dashboard"
-              subtitle={`Quản lý ${totalVehicles} xe, ${activeCustomers} khách hàng và ${totalStations} trạm đang hoạt động`}
+              subtitle={`Managing ${totalVehicles} vehicles, ${activeCustomers} customers and ${totalStations} active stations`}
               icon={<MdDirectionsCar className="w-7 h-7 text-gray-700" />}
             />
             <div className="flex items-center gap-3">
-              <motion.button
+              <motion.button 
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow transition-shadow text-sm font-medium text-gray-700"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <MdTrendingUp className="w-5 h-5 text-blue-600" />
-                Xuất báo cáo
+                Export Report
               </motion.button>
               <div className="relative notification-container">
                 <motion.button
@@ -982,13 +1122,42 @@ const DashboardAdmin: React.FC = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <MdNotifications className="w-5 h-5 text-gray-700" />
+                  {/* Bell ringing animation - reng reng effect */}
+                  <motion.div
+                    animate={
+                      notifications.length > 0
+                        ? {
+                            rotate: [-15, 15, -15, 15, -10, 10, -10, 10, -5, 5, 0],
+                          }
+                        : {}
+                    }
+                    transition={
+                      notifications.length > 0
+                        ? {
+                            duration: 0.6,
+                            repeat: Infinity,
+                            repeatDelay: 1.5,
+                            ease: "easeInOut",
+                          }
+                        : {}
+                    }
+                    style={{ transformOrigin: "top center" }}
+                  >
+                    <MdNotifications className="w-5 h-5 text-black" />
+                  </motion.div>
                   {notifications.length > 0 && (
                     <motion.span
-                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white font-bold"
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white font-bold z-10 shadow-lg"
                       initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                      animate={{
+                        scale: [1, 1.2, 1],
+                      }}
+                      transition={{
+                        duration: 0.6,
+                        repeat: Infinity,
+                        repeatDelay: 1.5,
+                        ease: "easeInOut",
+                      }}
                     >
                       {notifications.length > 99 ? "99+" : notifications.length}
                     </motion.span>
@@ -1007,7 +1176,7 @@ const DashboardAdmin: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <MdNotifications className="w-5 h-5 text-gray-700" />
-                            <h3 className="font-semibold text-gray-900">Thông báo</h3>
+                            <h3 className="font-semibold text-gray-900">Notifications</h3>
                             {notifications.length > 0 && (
                               <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-medium rounded-full">
                                 {notifications.length}
@@ -1022,77 +1191,77 @@ const DashboardAdmin: React.FC = () => {
                           </button>
                         </div>
                       </div>
-                      <div className="overflow-y-auto flex-1">
-                        {notificationLoading ? (
-                          <div className="p-8 flex items-center justify-center">
-                            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                          </div>
-                        ) : notifications.length === 0 ? (
-                          <div className="p-8 text-center">
-                            <MdNotifications className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500 font-medium">Chưa có thông báo mới</p>
-                          </div>
-                        ) : (
-                          <div className="divide-y divide-gray-100">
-                            {notifications.map((notif, index) => (
-                              <motion.div
-                                key={notif.id}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                                className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
+                        <div className="overflow-y-auto flex-1">
+                          {notificationLoading ? (
+                            <div className="p-8 flex items-center justify-center">
+                              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          ) : notifications.length === 0 ? (
+                            <div className="p-8 text-center">
+                              <MdNotifications className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                              <p className="text-gray-500 font-medium">No new notifications</p>
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-gray-100">
+                              {notifications.map((notif, index) => (
+                                <motion.div
+                                  key={notif.id}
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.05 }}
+                                  className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
                                   notif.priority === "high" ? "bg-red-50/60" : ""
-                                }`}
-                                onClick={() => {
-                                  if (notif.type === "maintenance") {
-                                    window.location.href = "/admin/vehicles?tab=requests";
-                                  } else if (notif.type === "kyc") {
-                                    window.location.href = "/admin/users/verification";
-                                  }
-                                  setShowNotifications(false);
-                                }}
-                              >
-                                <div className="flex items-start space-x-3">
-                                  <div
-                                    className={`p-2 rounded-lg flex-shrink-0 ${
-                                      notif.type === "maintenance"
-                                        ? "bg-orange-100 text-orange-600"
-                                        : "bg-blue-100 text-blue-600"
-                                    }`}
-                                  >
-                                    {notif.type === "maintenance" ? (
-                                      <MdBuild className="w-5 h-5" />
-                                    ) : (
-                                      <MdVerifiedUser className="w-5 h-5" />
-                                    )}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <p className="font-semibold text-gray-900 text-sm mb-1">
-                                          {notif.title}
-                                        </p>
-                                        <p className="text-xs text-gray-600 line-clamp-2">
-                                          {notif.message}
-                                        </p>
-                                      </div>
-                                      {notif.priority === "high" && (
-                                        <span className="ml-2 w-2 h-2 bg-red-500 rounded-full flex-shrink-0 mt-1" />
+                                  }`}
+                                  onClick={() => {
+                                    if (notif.type === "maintenance") {
+                                      window.location.href = "/admin/vehicles?tab=requests";
+                                    } else if (notif.type === "kyc") {
+                                      window.location.href = "/admin/users/verification";
+                                    }
+                                    setShowNotifications(false);
+                                  }}
+                                >
+                                  <div className="flex items-start space-x-3">
+                                    <div
+                                      className={`p-2 rounded-lg flex-shrink-0 ${
+                                        notif.type === "maintenance"
+                                          ? "bg-orange-100 text-orange-600"
+                                          : "bg-blue-100 text-blue-600"
+                                      }`}
+                                    >
+                                      {notif.type === "maintenance" ? (
+                                        <MdBuild className="w-5 h-5" />
+                                      ) : (
+                                        <MdVerifiedUser className="w-5 h-5" />
                                       )}
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-2">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                          <p className="font-semibold text-gray-900 text-sm mb-1">
+                                            {notif.title}
+                                          </p>
+                                          <p className="text-xs text-gray-600 line-clamp-2">
+                                            {notif.message}
+                                          </p>
+                                        </div>
+                                        {notif.priority === "high" && (
+                                          <span className="ml-2 w-2 h-2 bg-red-500 rounded-full flex-shrink-0 mt-1" />
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-gray-400 mt-2">
                                       {notif.timestamp.toLocaleTimeString("vi-VN", {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </p>
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </p>
+                                    </div>
                                   </div>
-                                </div>
-                              </motion.div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                                </motion.div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       {notifications.length > 0 && (
                         <div className="p-3 border-t border-gray-100 bg-gray-50">
                           <button
@@ -1106,7 +1275,7 @@ const DashboardAdmin: React.FC = () => {
                             }}
                             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
                           >
-                            Xem tất cả
+                            View All
                             <MdArrowForward className="w-4 h-4" />
                           </button>
                         </div>
@@ -1119,59 +1288,12 @@ const DashboardAdmin: React.FC = () => {
           </motion.div>
 
           <motion.div
-            className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
+            className="mt-4"
           >
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Overall Booking</h2>
-                <p className="text-sm text-gray-500">
-                  Theo dõi số lượng booking mới theo từng giai đoạn và trạng thái xử lý.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {(["today", "week", "month", "year"] as BookingRangeKey[]).map((range) => (
-                  <button
-                    key={range}
-                    onClick={() => setSelectedBookingRange(range)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-semibold transition ${
-                      selectedBookingRange === range
-                        ? "bg-blue-600 text-white shadow shadow-blue-200"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    {rangeLabels[range]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-              {(["today", "week", "month", "year"] as BookingRangeKey[]).map((range) => (
-                <div
-                  key={range}
-                  className={`rounded-2xl border ${
-                    selectedBookingRange === range
-                      ? "border-blue-200 bg-blue-50/60"
-                      : "border-gray-100 bg-gray-50"
-                  } p-4 shadow-sm`}
-                >
-                  <p className="text-xs font-semibold uppercase text-gray-500">
-                    {rangeLabels[range]}
-                  </p>
-                  {bookingSummaryLoading ? (
-                    <div className="mt-3 h-8 rounded-lg bg-gray-200 animate-pulse" />
-                  ) : (
-                    <p className="mt-2 text-3xl font-bold text-gray-900">
-                      {bookingSummary[range]?.count ?? 0}
-                    </p>
-                  )}
-                  <p className="mt-1 text-xs text-gray-500">Booking mới</p>
-                </div>
-              ))}
-            </div>
+            <h2 className="text-2xl font-bold text-gray-900">Overall Booking</h2>
 
             {bookingSummaryError && (
               <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
@@ -1179,36 +1301,36 @@ const DashboardAdmin: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-5">
-              <div className="lg:col-span-3">
-                <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm h-full">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <div className="rounded-2xl border border-gray-100 bg-white p-3 lg:p-4 shadow-sm h-full">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-2 sm:mb-3">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">Booking Volume</h3>
-                      <p className="text-sm text-gray-500">
+                      <h3 className="text-base lg:text-lg font-semibold text-gray-900">Booking Volume</h3>
+                      <p className="text-xs lg:text-sm text-gray-500">
                         {rangeLabels[selectedBookingRange]} · {selectedBookings.length} booking
                       </p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                      </div>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 lg:gap-6">
                       <div className="text-right">
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
                           Total deposit
                         </p>
-                        <p className="text-base font-semibold text-gray-900">
+                        <p className="text-sm lg:text-base font-semibold text-gray-900">
                           {formatCurrency(totalRangeRevenue, "VND")}
                         </p>
-                      </div>
-                      <div className="text-right">
+                    </div>
+                    <div className="text-right">
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
                           Total paid
                         </p>
-                        <p className="text-base font-semibold text-gray-900">
+                        <p className="text-sm lg:text-base font-semibold text-gray-900">
                           {formatCurrency(totalRangePaid, "VND")}
                         </p>
-                      </div>
                     </div>
                   </div>
-                  <div className="h-80">
+                  </div>
+                  <div className="h-72 lg:h-80 xl:h-96">
                     {bookingChartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart
@@ -1273,13 +1395,13 @@ const DashboardAdmin: React.FC = () => {
                       </ResponsiveContainer>
                     ) : (
                       <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500">
-                        Chưa có dữ liệu booking để hiển thị biểu đồ.
+                        No booking data available to display chart.
                       </div>
                     )}
                   </div>
                   {bookingRangeLoading && (
                     <p className="mt-3 text-xs text-gray-400">
-                      Đang cập nhật dữ liệu booking...
+                      Updating booking data...
                     </p>
                   )}
                   {bookingRangeError && !bookingRangeLoading && (
@@ -1287,50 +1409,21 @@ const DashboardAdmin: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="lg:col-span-2">
-                <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm h-full flex flex-col">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">Bản đồ trạm</h3>
-                      <p className="text-sm text-gray-500">
-                        {activeStationsCount} / {totalStationsCount} trạm đang hoạt động
-                      </p>
-                    </div>
-                    <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
-                      Tổng {totalStationsCount}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex-1 rounded-2xl border border-gray-100 overflow-hidden">
-                    {stations.length === 0 ? (
-                      <div className="flex h-full items-center justify-center bg-gray-50 text-sm text-gray-500">
-                        Chưa có dữ liệu trạm
-                      </div>
-                    ) : (
-                      <MiniStationMap stations={stations} />
-                    )}
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-xl border border-gray-100 bg-emerald-50/70 px-3 py-2">
-                      <p className="text-xs font-semibold uppercase text-emerald-600">Active</p>
-                      <p className="text-lg font-bold text-gray-900">{activeStationsCount}</p>
-                    </div>
-                    <div className="rounded-xl border border-gray-100 bg-rose-50/70 px-3 py-2">
-                      <p className="text-xs font-semibold uppercase text-rose-600">Inactive</p>
-                      <p className="text-lg font-bold text-gray-900">{inactiveStationsCount}</p>
-                    </div>
-                  </div>
+              <div className="lg:col-span-1">
+                <div className="rounded-2xl border border-gray-100 bg-white p-2.5 lg:p-3 shadow-sm h-full flex flex-col">
+                  <Bookedmanagement />
                 </div>
               </div>
-            </div>
+                  </div>
           </motion.div>
 
-          <motion.div
+            <motion.div
             className="grid gap-6 xl:grid-cols-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <div className="xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+            <div className="xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col h-full">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <MdEvStation className="w-5 h-5 text-blue-600" />
@@ -1340,24 +1433,24 @@ const DashboardAdmin: React.FC = () => {
                   onClick={() => setShowStationModal(true)}
                   className="text-xs inline-flex items-center gap-2 text-blue-600 font-semibold hover:underline"
                 >
-                  Xem chi tiết
+                  View Details
                   <MdArrowForward className="w-4 h-4" />
                 </button>
-              </div>
+                  </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
                   {
                     key: "all" as const,
-                    label: "Tất cả",
+                    label: "All",
                     value: totalStationsCount,
-                    subLabel: `${activeStationsCount} hoạt động`,
+                    subLabel: `${activeStationsCount} active`,
                     bg: "bg-indigo-50",
                     text: "text-indigo-600",
                   },
                   {
                     key: "active" as const,
-                    label: "Đang hoạt động",
+                    label: "Active",
                     value: activeStationsCount,
                     subLabel: `${Math.round(
                       (activeStationsCount / Math.max(totalStationsCount, 1)) * 100
@@ -1367,9 +1460,11 @@ const DashboardAdmin: React.FC = () => {
                   },
                   {
                     key: "inactive" as const,
-                    label: "Bảo trì",
+                    label: "Inactive",
                     value: inactiveStationsCount,
-                    subLabel: "Cần kiểm tra",
+                    subLabel: `${Math.round(
+                      (inactiveStationsCount / Math.max(totalStationsCount, 1)) * 100
+                    )}%`,
                     bg: "bg-rose-50",
                     text: "text-rose-600",
                   },
@@ -1396,7 +1491,7 @@ const DashboardAdmin: React.FC = () => {
                   <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white">
                     <AnimatePresence mode="wait">
                       {highlightedStation ? (
-                        <motion.div
+                    <motion.div
                           key={highlightedStation.station._id}
                           initial={{ opacity: 0, x: 30 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -1413,22 +1508,22 @@ const DashboardAdmin: React.FC = () => {
                             pendingDeletionCount={highlightedStation.pendingDeletionCount}
                             isHighlighted
                           />
-                        </motion.div>
+                    </motion.div>
                       ) : (
                         <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           className="p-6 text-center text-sm text-gray-500"
                         >
-                          Không có trạm phù hợp với bộ lọc.
+                          No stations match the filter.
                         </motion.div>
                       )}
                     </AnimatePresence>
-                  </div>
+                </div>
                   {filteredStationSummaries.length > 1 && (
                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                       <MdEvStation className="w-5 h-5 text-indigo-300" />
-                    </div>
+              </div>
                   )}
                 </div>
                 {filteredStationSummaries.length > 1 && (
@@ -1443,7 +1538,7 @@ const DashboardAdmin: React.FC = () => {
                         }
                         className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition"
                       >
-                        Trước
+                        Previous
                       </button>
                       <button
                         type="button"
@@ -1452,7 +1547,7 @@ const DashboardAdmin: React.FC = () => {
                         }
                         className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition"
                       >
-                        Tiếp
+                        Next
                       </button>
                     </div>
                     <div className="flex gap-1">
@@ -1473,73 +1568,131 @@ const DashboardAdmin: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="xl:col-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Tình trạng đội xe</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Sẵn sàng</span>
-                  <span className="text-sm font-semibold text-emerald-600">
-                    {vehicles.filter((v) => v.status === "available").length}
-                  </span>
+            <div className="xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col h-full">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <VscGraph className="w-5 h-5 text-gray-700" />
+                  <h3 className="text-lg font-semibold text-gray-900">analytical graph</h3>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Đang sử dụng</span>
-                  <span className="text-sm font-semibold text-blue-600">
-                    {vehicles.filter((v) => v.status === "rented" || v.status === "reserved").length}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Bảo trì</span>
-                  <span className="text-sm font-semibold text-rose-600">
-                    {vehicles.filter((v) => v.status === "maintenance" || v.status === "pending_maintenance").length}
-                  </span>
-                </div>
-                <div className="pt-4 mt-4 border-t border-dashed border-gray-200">
-                  <BatteryStatus
-                    vehicleModel={featuredVehicles[0]?.vehicleModel || "Đang cập nhật"}
-                    batteryLevel={featuredVehicles[0]?.batteryLevel ?? 0}
-                    range={featuredVehicles[0]?.range ?? 0}
-                    status={featuredVehicles[0]?.status || "available"}
-                    licensePlate={featuredVehicles[0]?.licensePlate || "--"}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="xl:col-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Lịch điều phối</h3>
-              <div className="space-y-4">
-                {["Sáng", "Chiều", "Tối"].map((shift, index) => (
-                  <div key={shift} className="p-4 rounded-2xl border border-gray-100 bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900">{shift}</p>
-                      <span className="text-xs px-2 py-1 rounded-full bg-white border border-gray-200">
-                        {String(10 + index * 5)} kWh
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">Xe ưu tiên: {featuredVehicles[index]?.vehicleModel || "—"}</p>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span className="text-xs text-gray-600">Captured</span>
                   </div>
-                ))}
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <span className="text-xs text-gray-600">Cancelled</span>
+                  </div>
+                </div>
               </div>
-              <button className="mt-6 w-full text-sm font-semibold text-blue-600 hover:underline">
-                + Thêm lịch mới
-              </button>
-            </div>
-          </motion.div>
+
+              {paymentStatsError && (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {paymentStatsError}
+                </div>
+              )}
+
+              <div className="mt-6 flex-1 flex flex-col min-h-0">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Total Captured</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">
+                      {formatCurrency(paymentStats.totalCaptured, "VND")}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Total Cancelled</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">
+                      {formatCurrency(paymentStats.totalCancelled, "VND")}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-h-0">
+                  {paymentStatsLoading ? (
+                    <div className="flex h-full items-center justify-center">
+                      <div className="text-sm text-gray-500">Loading data...</div>
+                    </div>
+                  ) : paymentStats.monthlyData.length === 0 ? (
+                    <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500">
+                      No payment data available to display chart.
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={paymentStats.monthlyData}
+                        margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
+                        barCategoryGap="20%"
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis
+                          dataKey="month"
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fontSize: 12, fill: "#6b7280" }}
+                        />
+                        <YAxis
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fontSize: 12, fill: "#6b7280" }}
+                          tickFormatter={(value: number) => {
+                            if (value >= 1000000) {
+                              return `${(value / 1000000).toFixed(1)}M`;
+                            }
+                            if (value >= 1000) {
+                              return `${(value / 1000).toFixed(0)}K`;
+                            }
+                            return value.toString();
+                          }}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "rgba(0, 0, 0, 0.05)" }}
+                          formatter={(value: number, name: string) => {
+                            if (name === "captured" || name === "Captured") {
+                              return [formatCurrency(value, "VND"), "Captured"];
+                            }
+                            if (name === "cancelled" || name === "Cancelled") {
+                              return [formatCurrency(value, "VND"), "Cancelled"];
+                            }
+                            return [formatCurrency(value, "VND"), name];
+                          }}
+                        />
+                        <Bar
+                          dataKey="captured"
+                          fill="#3b82f6"
+                          radius={[4, 4, 0, 0]}
+                          name="Captured"
+                          minPointSize={2}
+                        />
+                        <Bar
+                          dataKey="cancelled"
+                          fill="#eab308"
+                          radius={[4, 4, 0, 0]}
+                          name="Cancelled"
+                          minPointSize={2}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+                </div>
+              </div>
+            </motion.div>
 
             {featuredVehicles.length > 0 && (
-              <motion.div
+            <motion.div
                 className="grid gap-6 lg:grid-cols-2"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
               >
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Theo dõi pin đội xe</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Fleet Battery Monitoring</h3>
                     <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-600 rounded-full font-semibold">
                       Live
                     </span>
-                  </div>
+              </div>
                   <div className="grid sm:grid-cols-2 gap-4">
                     {featuredVehicles.map((vehicle, index) => (
                       <motion.div
@@ -1555,145 +1708,174 @@ const DashboardAdmin: React.FC = () => {
                 </div>
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Hoạt động gần đây</h3>
-                    <span className="text-xs text-gray-500">Cập nhật theo thời gian thực</span>
+                    <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                    <span className="text-xs text-gray-500">Real-time updates</span>
                   </div>
-                  <div className="space-y-3">
-                    {recentActivities.map((alert, index) => (
-                      <motion.div
+                <div className="space-y-3">
+                  {recentActivities.map((alert, index) => (
+                    <motion.div
                         key={`${alert.title}-${index}`}
                         className={`flex items-start gap-4 p-4 rounded-2xl border ${alert.color.replace("border-2", "border")} hover:shadow-sm transition`}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.8 + index * 0.1 }}
-                      >
+                    >
                         <div className={`p-2 rounded-xl ${alert.iconBg}`}>
-                          {alert.icon}
-                        </div>
+                        {alert.icon}
+                      </div>
                         <div className="flex-1">
                           <p className="font-semibold text-gray-900">{alert.title}</p>
                           <p className="text-sm text-gray-600 mt-1">{alert.details}</p>
                           <p className="text-xs text-gray-400 mt-2">{alert.time}</p>
-                        </div>
+                      </div>
                         <button className="text-gray-300 hover:text-gray-500 transition-colors">
-                          <MdClose className="w-4 h-4" />
-                        </button>
-                      </motion.div>
-                    ))}
-                  </div>
+                        <MdClose className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  ))}
                 </div>
-              </motion.div>
-            )}
-        </div>
-      </PageTransition>
-      <AnimatePresence>
-        {showStationModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden"
-            >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">Danh sách trạm</h3>
-                  <p className="text-sm text-gray-500">
-                    Theo dõi tổng số xe, trạng thái hoạt động và yêu cầu bảo trì tại mỗi trạm.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowStationModal(false)}
-                  className="p-2 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300 transition"
-                >
-                  <MdClose className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="max-h-[70vh] overflow-y-auto">
-                <div className="min-w-[780px]">
-                  <div className="grid grid-cols-[2.2fr_repeat(5,1fr)] gap-4 px-6 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100 bg-gray-50">
-                    <span>Trạm</span>
-                    <span className="text-right">Tổng xe</span>
-                    <span className="text-right">Đang hoạt động</span>
-                    <span className="text-right">Bảo trì</span>
-                    <span className="text-right">YC bảo trì</span>
-                    <span className="text-right">YC xóa</span>
-                  </div>
-                  {stationSummaries.length === 0 ? (
-                    <div className="px-6 py-12 text-center text-sm text-gray-500">
-                      Không tìm thấy dữ liệu trạm.
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-100">
-                      {stationSummaries.map((summary) => (
-                        <div
-                          key={summary.station._id}
-                          className="grid grid-cols-[2.2fr_repeat(5,1fr)] gap-4 px-6 py-4 items-center hover:bg-gray-50 transition text-sm"
-                        >
-                          <div className="space-y-1.5">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="font-semibold text-gray-900 truncate pr-6">
-                                {summary.station.name}
-                              </p>
-                              <span
-                                className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                                  summary.station.isActive
-                                    ? "bg-emerald-50 text-emerald-600"
-                                    : "bg-rose-50 text-rose-600"
-                                }`}
-                              >
-                                {summary.station.isActive ? "Active" : "Inactive"}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-gray-500 leading-tight line-clamp-1">
-                              {summary.station.location?.address || "Chưa cập nhật"}
-                            </p>
-                          </div>
-                          <div className="text-right tabular-nums font-semibold text-gray-900">
-                            {summary.totalVehicles}
-                          </div>
-                          <div className="text-right tabular-nums font-semibold text-emerald-600">
-                            {summary.activeCount}
-                          </div>
-                          <div className="text-right tabular-nums font-semibold text-rose-500">
-                            {summary.maintenanceCount}
-                          </div>
-                          <div className="text-right tabular-nums font-semibold text-blue-600">
-                            {summary.pendingMaintenanceCount}
-                          </div>
-                          <div className="text-right tabular-nums font-semibold text-purple-600">
-                            {summary.pendingDeletionCount}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-                <div className="text-xs text-gray-500">
-                  Tổng cộng {stationSummaries.length} trạm · {activeStationsCount} đang hoạt động · {inactiveStationsCount} bảo trì
-                </div>
-                <button
-                  onClick={() => {
-                    window.location.href = "/admin/stations";
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition"
-                >
-                  Quản lý trạm
-                  <MdArrowForward className="w-4 h-4" />
-                </button>
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+      </PageTransition>
+      {createPortal(
+        <AnimatePresence>
+          {showStationModal && (
+            <>
+              <motion.div
+                className="fixed inset-0 bg-black/40 z-[9999]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                onClick={() => setShowStationModal(false)}
+              />
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96, y: 20 }}
+                  transition={{ 
+                    type: "spring", 
+                    damping: 25, 
+                    stiffness: 300,
+                    mass: 0.8
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] min-h-[600px] overflow-hidden flex flex-col pointer-events-auto"
+                >
+                  {/* Modal Header - Dark Gradient */}
+                  <div className="sticky top-0 z-20 flex items-center justify-between p-4 border-b border-gray-800 bg-gradient-to-r from-black via-gray-900 to-gray-800/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/80">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-11 h-11 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-md">
+                        <MdEvStation className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-white">All Stations</h2>
+                        <p className="text-xs text-gray-200">View all stations list and detailed information</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowStationModal(false)}
+                      className="text-gray-400 hover:text-white hover:bg-gray-800 rounded-full p-1.5 transition-all duration-200 ease-in-out"
+                    >
+                      <MdClose className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Modal Content */}
+                  <div className="flex-1 overflow-y-auto p-5 min-h-0 flex flex-col scroll-smooth">
+                    {stationSummaries.length === 0 ? (
+                      <div className="flex items-center justify-center flex-1">
+                        <div className="text-sm text-gray-500">No station data found</div>
+                      </div>
+                    ) : (
+                      <div className="min-w-[780px]">
+                        <div className="grid grid-cols-[2.2fr_repeat(5,1fr)] gap-4 px-6 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 bg-gray-50 rounded-t-lg">
+                          <span>Station</span>
+                          <span className="text-right">Total Vehicles</span>
+                          <span className="text-right">Active</span>
+                          <span className="text-right">Maintenance</span>
+                          <span className="text-right">Maint. Req</span>
+                          <span className="text-right">Del. Req</span>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {stationSummaries.map((summary, index) => (
+                            <motion.div
+                              key={summary.station._id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ 
+                                duration: 0.3,
+                                delay: index * 0.03,
+                                ease: "easeOut"
+                              }}
+                              className="grid grid-cols-[2.2fr_repeat(5,1fr)] gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-all duration-200 text-sm"
+                            >
+                              <div className="space-y-1.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="font-semibold text-gray-900 truncate pr-6">
+                                    {summary.station.name}
+                                  </p>
+                                  <span
+                                    className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                                      summary.station.isActive
+                                        ? "bg-emerald-50 text-emerald-600"
+                                        : "bg-rose-50 text-rose-600"
+                                    }`}
+                                  >
+                                    {summary.station.isActive ? "Active" : "Inactive"}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-gray-500 leading-tight line-clamp-1">
+                                  {summary.station.location?.address || "Not updated"}
+                                </p>
+                              </div>
+                              <div className="text-right tabular-nums font-semibold text-gray-900">
+                                {summary.totalVehicles}
+                              </div>
+                              <div className="text-right tabular-nums font-semibold text-emerald-600">
+                                {summary.activeCount}
+                              </div>
+                              <div className="text-right tabular-nums font-semibold text-rose-500">
+                                {summary.maintenanceCount}
+                              </div>
+                              <div className="text-right tabular-nums font-semibold text-blue-600">
+                                {summary.pendingMaintenanceCount}
+                              </div>
+                              <div className="text-right tabular-nums font-semibold text-purple-600">
+                                {summary.pendingDeletionCount}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="border-t border-gray-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0 bg-gray-50">
+                    <div className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                      Total {stationSummaries.length} stations · {activeStationsCount} active · {inactiveStationsCount} inactive
+                    </div>
+                    <button
+                      onClick={() => {
+                        window.location.href = "/admin/stations";
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-all duration-200 ease-in-out"
+                    >
+                      Manage Stations
+                      <MdArrowForward className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 };
