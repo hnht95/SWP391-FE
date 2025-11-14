@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useVehicles, useVehicleOperations } from "../../../hooks/useVehicles";
+import { useVehicleOperations } from "../../../hooks/useVehicles";
+import { staffAPI } from "../../../service/apiStaff/API";
+import type { RawApiVehicle } from "../../../types/vehicle";
 
 import {
   MdDirectionsCar,
@@ -31,16 +33,21 @@ const VehicleImageCarousel = ({
     ...(vehicle?.defaultPhotos?.exterior || []),
     ...(vehicle?.defaultPhotos?.interior || []),
   ];
-  const hasPhotos = allPhotos.length > 0;
+  const allPhotoUrls: string[] = allPhotos
+    .map((p: { url?: string } | string) =>
+      typeof p === "string" ? p : p && typeof p.url === "string" ? p.url : ""
+    )
+    .filter((u: string) => u.length > 0);
+  const hasPhotos = allPhotoUrls.length > 0;
 
   React.useEffect(() => {
     if (!hasPhotos) return;
     const id = setInterval(
-      () => setCurrentImageIndex((i) => (i + 1) % allPhotos.length),
+      () => setCurrentImageIndex((i) => (i + 1) % allPhotoUrls.length),
       3000
     );
     return () => clearInterval(id);
-  }, [hasPhotos, allPhotos.length]);
+  }, [hasPhotos, allPhotoUrls.length]);
 
   return (
     <div className="space-y-3">
@@ -51,7 +58,7 @@ const VehicleImageCarousel = ({
           </div>
         ) : hasPhotos ? (
           <img
-            src={String(allPhotos[currentImageIndex])}
+            src={allPhotoUrls[currentImageIndex]}
             alt="Vehicle"
             className="w-full h-full object-cover"
           />
@@ -69,9 +76,9 @@ const VehicleImageCarousel = ({
           </div>
         )}
       </div>
-      {hasPhotos && allPhotos.length > 1 && (
+      {hasPhotos && allPhotoUrls.length > 1 && (
         <div className="grid grid-cols-4 gap-2">
-          {allPhotos.slice(0, 8).map((_, idx) => (
+          {allPhotoUrls.slice(0, 8).map((url, idx) => (
             <button
               key={idx}
               onClick={() => setCurrentImageIndex(idx)}
@@ -81,9 +88,11 @@ const VehicleImageCarousel = ({
                   : "border-transparent hover:border-gray-300"
               }`}
             >
-              <div className="w-full h-full bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center">
-                <span className="text-xs text-gray-500">{idx + 1}</span>
-              </div>
+              <img
+                src={url}
+                alt={`thumb-${idx + 1}`}
+                className="w-full h-full object-cover"
+              />
             </button>
           ))}
         </div>
@@ -94,7 +103,7 @@ const VehicleImageCarousel = ({
 
 const VehiclesStaff = () => {
   const [activeTab, setActiveTab] = useState<
-    "all" | "available" | "booked" | "deleted" | "maintenance" | "returning"
+    "all" | "available" | "booked" | "maintenance" | "returning"
   >("all");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -108,29 +117,22 @@ const VehiclesStaff = () => {
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
   const [loadingDetail, setLoadingDetail] = useState(false);
-
-  // Memoize initial params to prevent hook re-initialization
-  const initialParams = useMemo(
-    () => ({
-      page: 1,
-      limit: 10,
-    }),
-    []
-  );
-
-  // Use API hook to fetch vehicles
-  const {
-    vehicles: apiVehicles,
-    loading,
-    error,
-    pagination,
-    fetchVehicles,
-  } = useVehicles(initialParams);
+  const [stats, setStats] = useState({
+    total: 0,
+    available: 0,
+    booked: 0,
+    rented: 0,
+    maintenance: 0,
+  });
 
   // Hook for vehicle operations (get detail, update status, etc.)
   const { getVehicleDetail } = useVehicleOperations();
+
+  // Loading and error states
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const getPlateNumber = (detailedV: ApiVehicle | null, selectedV: Vehicle) => {
     if (detailedV && "plateNumber" in detailedV) {
@@ -139,66 +141,140 @@ const VehiclesStaff = () => {
     return selectedV.licensePlate;
   };
 
-  const vehicles: Vehicle[] =
-    apiVehicles?.map((vehicle: ApiVehicle) => {
-      const normalizedStatus = (
-        vehicle.status === "maintenance"
-          ? "pending_maintenance"
-          : vehicle.status
-      ) as Vehicle["status"];
+  const [rawVehicles, setRawVehicles] = useState<RawApiVehicle[]>([]);
+  const [totalVehicles, setTotalVehicles] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
-      return {
-        id: vehicle.id,
-        licensePlate: vehicle.licensePlate,
-        vin: vehicle.vin,
-        type: "standard" as const,
-        brand: vehicle.brand,
-        model: vehicle.model,
-        year: vehicle.year,
-        color: vehicle.color,
-        status: normalizedStatus,
-        batteryLevel: vehicle.batteryLevel,
-        batteryCapacity: vehicle.batteryCapacity,
-        mileage: vehicle.mileage,
-        pricePerDay: vehicle.pricePerDay,
-        pricePerHour: vehicle.pricePerHour,
-        lastMaintenance:
-          vehicle.maintenanceHistory && vehicle.maintenanceHistory.length > 0
-            ? vehicle.maintenanceHistory[
-                vehicle.maintenanceHistory.length - 1
-              ].reportedAt.split("T")[0]
-            : new Date().toISOString().split("T")[0],
-        rentalHistory: Math.floor(Math.random() * 100),
-        location: vehicle.station?.location?.address || "N/A",
-        station: vehicle.station,
-        owner: vehicle.owner,
-        company: vehicle.company,
-        valuation: vehicle.valuation,
-        defaultPhotos: vehicle.defaultPhotos,
-        ratingAvg: vehicle.ratingAvg,
-        ratingCount: vehicle.ratingCount,
-        tags: vehicle.tags || [],
-        maintenanceHistory: vehicle.maintenanceHistory || [],
-        createdAt: vehicle.createdAt,
-        updatedAt: vehicle.updatedAt,
-        image: vehicle.imageUrl,
-        notes: `VIN: ${vehicle.vin} | Mileage: ${vehicle.mileage}km | Rating: ${vehicle.ratingAvg}/5`,
+  const vehicles: Vehicle[] = rawVehicles.map((vehicle: RawApiVehicle) => {
+    // Backend returns: available, reserved, rented, maintenance
+    // Frontend expects: available, reserved, rented, pending_maintenance, pending_deletion
+    let normalizedStatus: Vehicle["status"] = "available";
+    if (vehicle.status === "maintenance") {
+      normalizedStatus = "pending_maintenance";
+    } else if (vehicle.status === "available" || vehicle.status === "rented") {
+      normalizedStatus = vehicle.status;
+    } else {
+      // Handle reserved or any other status
+      normalizedStatus = "reserved";
+    }
+
+    const pickUrl = (p?: string | { url?: string }) =>
+      typeof p === "string" ? p : p?.url;
+
+    return {
+      id: vehicle._id,
+      licensePlate: vehicle.plateNumber,
+      vin: vehicle.vin || "N/A",
+      type: "standard" as const,
+      brand: vehicle.brand,
+      model: vehicle.model,
+      year: vehicle.year,
+      color: vehicle.color,
+      status: normalizedStatus,
+      batteryLevel: vehicle.batteryCapacity,
+      batteryCapacity: vehicle.batteryCapacity,
+      mileage: vehicle.mileage,
+      pricePerDay: vehicle.pricePerDay,
+      pricePerHour: vehicle.pricePerHour,
+      lastMaintenance:
+        vehicle.updatedAt || new Date().toISOString().split("T")[0],
+      rentalHistory: 0,
+      location: vehicle.station?.name || "N/A",
+      station: vehicle.station,
+      owner: vehicle.owner,
+      company: vehicle.company,
+      valuation: vehicle.valuation,
+      defaultPhotos: vehicle.defaultPhotos,
+      ratingAvg: vehicle.ratingAvg || 0,
+      ratingCount: vehicle.ratingCount || 0,
+      tags: vehicle.tags || [],
+      maintenanceHistory: [],
+      createdAt: vehicle.createdAt,
+      updatedAt: vehicle.updatedAt,
+      image:
+        pickUrl(vehicle.defaultPhotos?.exterior?.[0]) ||
+        pickUrl(vehicle.defaultPhotos?.interior?.[0]) ||
+        undefined,
+      notes: `Mileage: ${vehicle.mileage}km`,
+    };
+  });
+
+  // Fetch vehicles based on active tab
+  const fetchVehiclesByStatus = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let response;
+      const params = {
+        page: currentPage,
+        limit: pageSize,
       };
-    }) || [];
 
-  // Fetch all vehicles only once on mount and when page/pageSize changes
+      // Fetch based on active tab
+      switch (activeTab) {
+        case "available":
+          response = await staffAPI.getAvailableVehicles(params);
+          break;
+        case "booked":
+          response = await staffAPI.getReservedVehicles(params);
+          break;
+        case "returning":
+          response = await staffAPI.getRentedVehicles(params);
+          break;
+        case "maintenance":
+          response = await staffAPI.getVehicles({
+            ...params,
+            status: "maintenance",
+          });
+          break;
+        default:
+          // "all" - fetch all vehicles
+          response = await staffAPI.getVehicles(params);
+      }
+
+      setRawVehicles(response.items || []);
+      setTotalVehicles(response.total || 0);
+      setTotalPages(response.totalPages || 0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch vehicles");
+      console.error("Error fetching vehicles:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, currentPage, pageSize]);
+
+  // Fetch stats for all tabs
+  const fetchStats = React.useCallback(async () => {
+    try {
+      const [availableRes, reservedRes, rentedRes, allRes] = await Promise.all([
+        staffAPI.getAvailableVehicles({ page: 1, limit: 1 }),
+        staffAPI.getReservedVehicles({ page: 1, limit: 1 }),
+        staffAPI.getRentedVehicles({ page: 1, limit: 1 }),
+        staffAPI.getVehicles({ page: 1, limit: 1 }),
+      ]);
+
+      setStats({
+        available: availableRes.total || 0,
+        booked: reservedRes.total || 0,
+        rented: rentedRes.total || 0,
+        total: allRes.total || 0,
+        maintenance: 0, // Will be calculated from all vehicles if needed
+      });
+    } catch (err) {
+      console.error("Error fetching stats:", err);
+    }
+  }, []);
+
+  // Fetch vehicles when tab, page, or pageSize changes
   React.useEffect(() => {
-    const filterParams: {
-      page?: number;
-      limit?: number;
-    } = {};
+    fetchVehiclesByStatus();
+  }, [fetchVehiclesByStatus]);
 
-    filterParams.page = currentPage;
-    filterParams.limit = pageSize;
-
-    // Fetch all vehicles without status filter - we'll filter on client side
-    fetchVehicles(filterParams);
-  }, [currentPage, pageSize, fetchVehicles]);
+  // Fetch stats on mount
+  React.useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   // Reset to first page when search or tab changes (match VehicleHandover behavior)
   React.useEffect(() => {
@@ -211,21 +287,7 @@ const VehiclesStaff = () => {
       vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // Filter based on active tab
-    let matchesStatus = true;
-    if (activeTab === "available") {
-      matchesStatus = vehicle.status === "available";
-    } else if (activeTab === "booked") {
-      matchesStatus = vehicle.status === "rented";
-    } else if (activeTab === "maintenance") {
-      matchesStatus = vehicle.status === "pending_maintenance";
-    } else if (activeTab === "deleted") {
-      matchesStatus = String(vehicle.status) === "pending_deletion";
-    } else if (activeTab === "returning") {
-      matchesStatus = vehicle.status === "rented";
-    }
-
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   const getStatusInfo = (status: string) => {
@@ -269,17 +331,7 @@ const VehiclesStaff = () => {
     }
   };
 
-  // Stats based on all vehicles data from API
-  const stats = {
-    total: pagination?.total ?? vehicles?.length ?? 0,
-    available: vehicles?.filter((v) => v.status === "available")?.length || 0,
-    booked: vehicles?.filter((v) => v.status === "reserved")?.length || 0,
-    maintenance:
-      vehicles?.filter((v) => v.status === "pending_maintenance")?.length || 0,
-    returning: vehicles?.filter((v) => v.status === "rented")?.length || 0,
-    deleted:
-      vehicles?.filter((v) => v.status === "pending_deletion")?.length || 0,
-  };
+  // Stats are now managed by state and fetched from API
 
   const handleVehicleClick = async (vehicle: Vehicle) => {
     setSelectedVehicle(vehicle);
@@ -327,10 +379,8 @@ const VehiclesStaff = () => {
           </div>
           <button
             onClick={() => {
-              const filterParams: { page?: number; limit?: number } = {};
-              filterParams.page = currentPage;
-              filterParams.limit = 20;
-              fetchVehicles(filterParams);
+              fetchVehiclesByStatus();
+              fetchStats();
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
           >
@@ -381,8 +431,7 @@ const VehiclesStaff = () => {
                   label: "Maintenance",
                   count: stats.maintenance,
                 },
-                { id: "deleted", label: "Deleted", count: stats.deleted },
-                { id: "returning", label: "Returning", count: stats.returning },
+                { id: "returning", label: "Returning", count: stats.rented },
               ] as Array<{ id: typeof activeTab; label: string; count: number }>
             ).map((tab) => (
               <button
@@ -981,13 +1030,12 @@ const VehiclesStaff = () => {
       </AnimatePresence>
 
       {/* Pagination */}
-      {!loading && pagination && (pagination.total ?? 0) > 0 && (
+      {!loading && totalVehicles > 0 && (
         <div className="mt-6 flex items-center justify-between border-t pt-4 bg-white rounded-lg p-4">
           <div className="text-sm text-gray-600">
-            Showing{" "}
-            {pagination.total === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
-            {Math.min(currentPage * pageSize, pagination.total)} of{" "}
-            {pagination.total}
+            Showing {totalVehicles === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+            -{Math.min(currentPage * pageSize, totalVehicles)} of{" "}
+            {totalVehicles}
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -998,14 +1046,12 @@ const VehiclesStaff = () => {
               Prev
             </button>
             <span className="text-sm text-gray-700">
-              Page {currentPage} / {pagination.totalPages}
+              Page {currentPage} / {totalPages}
             </span>
             <button
               className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50 transition-colors"
-              onClick={() =>
-                setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
-              }
-              disabled={currentPage >= pagination.totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
             >
               Next
             </button>
@@ -1039,8 +1085,9 @@ const VehiclesStaff = () => {
           onSuccess={() => {
             setSuccessMessage("Maintenance request submitted successfully!");
             setShowSuccessNotification(true);
-            // Refresh vehicle list
-            fetchVehicles();
+            // Refresh vehicle list and stats
+            fetchVehiclesByStatus();
+            fetchStats();
           }}
         />
       )}
@@ -1056,7 +1103,8 @@ const VehiclesStaff = () => {
           onSuccess={() => {
             setSuccessMessage("Deletion request submitted successfully!");
             setShowSuccessNotification(true);
-            fetchVehicles();
+            fetchVehiclesByStatus();
+            fetchStats();
           }}
         />
       )}
