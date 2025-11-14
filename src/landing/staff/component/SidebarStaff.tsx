@@ -76,10 +76,10 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
       path: "/staff/vehicles",
     },
     {
-      id: "contracts",
-      label: "Contracts",
+      id: "manual-refunds",
+      label: "Manual Refunds",
       icon: <TbContract className="w-5 h-5" />,
-      path: "/staff/contracts",
+      path: "/staff/manual-refunds",
     },
     {
       id: "reports",
