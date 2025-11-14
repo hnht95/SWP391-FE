@@ -7,7 +7,6 @@ import {
   MdClose,
   MdLocationOn,
   MdSearch,
-  MdFilterList,
   MdViewModule,
   MdViewList,
 } from "react-icons/md";
@@ -22,6 +21,7 @@ import type { RawApiVehicle } from "../../../types/vehicle";
 import { getAllStations } from "../../../service/apiAdmin/apiStation/API";
 import { formatDateTime } from "../../../utils/dateUtils";
 import useDebounce from "../../../hooks/useDebounce";
+import BookingWorkflow from "../bookingWorkflow";
 
 const VehicleHandover = () => {
   // List state
@@ -68,7 +68,6 @@ const VehicleHandover = () => {
   const [createError, setCreateError] = useState<string | null>(null);
   // success toast (optional): omitted in UI to keep screen clean
 
-  const openCreateModal = () => setIsCreateOpen(true);
   const closeCreateModal = () => setIsCreateOpen(false);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -90,16 +89,35 @@ const VehicleHandover = () => {
             sort: "-createdAt",
           });
         } else {
-          const paramsTx: Record<string, string | number> = {
-            page,
-            limit,
-            provider: "payos",
-          };
-          if (statusFilter && statusFilter !== "all") {
-            paramsTx.status = statusFilter;
+          const params = { page, limit };
+          // Call specific endpoint based on status filter
+          switch (statusFilter) {
+            case "pending":
+              res = await staffAPI.getPendingBookings(params);
+              break;
+            case "reserved":
+              res = await staffAPI.getReservedBookings(params);
+              break;
+            case "active":
+              res = await staffAPI.getActiveBookings(params);
+              break;
+            case "completed":
+              res = await staffAPI.getCompletedBookings(params);
+              break;
+            case "cancelled":
+              res = await staffAPI.getCancelledBookings(params);
+              break;
+            case "expired":
+              res = await staffAPI.getExpiredBookings(params);
+              break;
+            default: // "all"
+              res = await staffAPI.getAdminBookingTransactions({
+                ...params,
+                provider: "payos",
+                sort: "-createdAt",
+              });
+              break;
           }
-          paramsTx.sort = "-createdAt";
-          res = await staffAPI.getAdminBookingTransactions(paramsTx);
         }
         if (!active) return;
         setItems(res.items || []);
@@ -154,16 +172,12 @@ const VehicleHandover = () => {
   const stats = useMemo(() => {
     return {
       all: items.length,
-      successful: items.filter((it) => it.status === "completed").length,
-      failed: items.filter((it) => it.status === "cancelled").length,
-      pending: items.filter(
-        (it) =>
-          it.deposit?.status === "pending" ||
-          it.status === "pending" ||
-          it.status === "confirmed"
-      ).length,
-      expired: items.filter((it) => it.status === "expired").length,
+      pending: items.filter((it) => it.status === "pending").length,
+      reserved: items.filter((it) => it.status === "reserved").length,
+      active: items.filter((it) => it.status === "active").length,
+      completed: items.filter((it) => it.status === "completed").length,
       cancelled: items.filter((it) => it.status === "cancelled").length,
+      expired: items.filter((it) => it.status === "expired").length,
     };
   }, [items]);
 
@@ -271,15 +285,6 @@ const VehicleHandover = () => {
               Manage all vehicle bookings and reservations.
             </p>
           </div>
-          <motion.button
-            onClick={openCreateModal}
-            className="bg-gray-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <MdCalendarToday className="w-5 h-5" />
-            <span>New Booking</span>
-          </motion.button>
         </div>
       </motion.div>
 
@@ -291,112 +296,96 @@ const VehicleHandover = () => {
 
       {/* Status Tabs */}
       <motion.div
-        className="mb-6"
+        className="mb-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.1 }}
       >
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="flex flex-wrap items-center gap-2 px-6 py-4 border-b">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8">
             {[
               { value: "all", label: "All", count: stats.all },
+              { value: "pending", label: "Pending", count: stats.pending },
+              { value: "reserved", label: "Reserved", count: stats.reserved },
+              { value: "active", label: "Active", count: stats.active },
               {
-                value: "successful",
-                label: "Successful",
-                count: stats.successful,
-              },
-              { value: "failed", label: "Failed", count: stats.failed },
-              {
-                value: "pending",
-                label: "Pending Payment",
-                count: stats.pending,
-              },
-              {
-                value: "expired",
-                label: "Payment Expired",
-                count: stats.expired,
+                value: "completed",
+                label: "Completed",
+                count: stats.completed,
               },
               {
                 value: "cancelled",
                 label: "Cancelled",
                 count: stats.cancelled,
               },
-            ].map((tab, idx) => (
-              <motion.button
+              { value: "expired", label: "Expired", count: stats.expired },
+            ].map((tab) => (
+              <button
                 key={tab.value}
                 onClick={() => setStatusFilter(tab.value)}
-                className={`px-4 py-2 text-sm font-medium transition-all relative ${
+                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors relative ${
                   statusFilter === tab.value
-                    ? "text-gray-900"
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "border-black text-black"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + idx * 0.05 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
               >
-                {tab.label} <span className="ml-1">{tab.count}</span>
-                {statusFilter === tab.value && (
-                  <motion.div
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
-                    layoutId="activeTab"
-                  />
-                )}
-              </motion.button>
+                <span>{tab.label}</span>
+                <span className="ml-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">
+                  {tab.count}
+                </span>
+              </button>
             ))}
+          </nav>
+        </div>
+      </motion.div>
+
+      {/* Search and Filters Row */}
+      <motion.div
+        className="mb-6 bg-white rounded-lg shadow-sm p-4 relative"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 md:w-80">
+              <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search booking ID, customer, vehicle..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
 
-          {/* Search and View Toggle */}
-          <div className="p-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-700">
-                  All bookings {stats.all}
-                </span>
-                <div className="relative flex-1 md:w-80">
-                  <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Search booking ID, customer, vehicle..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                  <MdFilterList className="w-5 h-5 text-gray-600" />
-                </button>
-                <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                  <motion.button
-                    onClick={() => setViewMode("grid")}
-                    className={`p-1.5 rounded ${
-                      viewMode === "grid"
-                        ? "bg-white text-gray-900 shadow"
-                        : "text-gray-500"
-                    }`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <MdViewModule className="w-5 h-5" />
-                  </motion.button>
-                  <motion.button
-                    onClick={() => setViewMode("list")}
-                    className={`p-1.5 rounded ${
-                      viewMode === "list"
-                        ? "bg-white text-gray-900 shadow"
-                        : "text-gray-500"
-                    }`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <MdViewList className="w-5 h-5" />
-                  </motion.button>
-                </div>
-              </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <motion.button
+                onClick={() => setViewMode("grid")}
+                className={`p-1.5 rounded ${
+                  viewMode === "grid"
+                    ? "bg-white text-gray-900 shadow"
+                    : "text-gray-500"
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <MdViewModule className="w-5 h-5" />
+              </motion.button>
+              <motion.button
+                onClick={() => setViewMode("list")}
+                className={`p-1.5 rounded ${
+                  viewMode === "list"
+                    ? "bg-white text-gray-900 shadow"
+                    : "text-gray-500"
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <MdViewList className="w-5 h-5" />
+              </motion.button>
             </div>
           </div>
         </div>
@@ -457,6 +446,9 @@ const VehicleHandover = () => {
 
               const statusBadge = getStatusBadge();
 
+              const startDisplay = booking.startTime || booking.createdAt;
+              const endDisplay = booking.endTime || booking.updatedAt;
+
               return (
                 <motion.div
                   key={booking._id}
@@ -472,7 +464,9 @@ const VehicleHandover = () => {
                     <div>
                       <p className="text-xs text-gray-500 mb-1">Booking ID</p>
                       <h3 className="font-semibold text-gray-900">
-                        BK-{booking._id.substring(0, 8).toUpperCase()}
+                        {booking.bookingId
+                          ? booking.bookingId
+                          : `BK-${booking._id.substring(0, 8).toUpperCase()}`}
                       </h3>
                     </div>
                     <span
@@ -507,7 +501,7 @@ const VehicleHandover = () => {
                       <div className="flex items-center mt-1">
                         <MdCalendarToday className="w-3 h-3 mr-1 text-gray-400" />
                         <span className="font-medium text-gray-900">
-                          {new Date(booking.createdAt).toLocaleDateString()}
+                          {new Date(startDisplay).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
@@ -516,7 +510,7 @@ const VehicleHandover = () => {
                       <div className="flex items-center mt-1">
                         <MdCalendarToday className="w-3 h-3 mr-1 text-gray-400" />
                         <span className="font-medium text-gray-900">
-                          {new Date(booking.updatedAt).toLocaleDateString()}
+                          {new Date(endDisplay).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
@@ -527,13 +521,16 @@ const VehicleHandover = () => {
                     <div>
                       <span className="text-gray-500">Total Amount</span>
                       <p className="font-semibold text-gray-900 mt-1">
-                        ${booking.amounts?.totalPaid?.toLocaleString() || "0"}
+                        {booking.amounts?.totalPaid?.toLocaleString() || "0"}{" "}
+                        VND
                       </p>
                     </div>
                     <div>
                       <span className="text-gray-500">Payment Method</span>
                       <p className="font-medium text-gray-900 mt-1">
-                        {booking.deposit?.status === "captured"
+                        {booking.deposit?.payos
+                          ? "PayOS"
+                          : booking.deposit?.status === "captured"
                           ? "Credit Card"
                           : booking.deposit?.status === "pending"
                           ? "Pending"
@@ -589,6 +586,11 @@ const VehicleHandover = () => {
                 {items.map((booking) => {
                   const getStatusBadge = () => {
                     switch (booking.status) {
+                      case "active":
+                        return {
+                          color: "bg-blue-100 text-blue-800",
+                          label: "active",
+                        };
                       case "completed":
                         return {
                           color: "bg-green-100 text-green-800",
@@ -627,7 +629,9 @@ const VehicleHandover = () => {
                       onClick={() => openDetail(booking)}
                     >
                       <td className="px-4 py-4 text-sm text-gray-900">
-                        BK-{booking._id.substring(0, 8).toUpperCase()}
+                        {booking.bookingId
+                          ? booking.bookingId
+                          : `BK-${booking._id.substring(0, 8).toUpperCase()}`}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
                         {booking.renterInfo?.name || "N/A"}
@@ -637,13 +641,18 @@ const VehicleHandover = () => {
                         {booking.vehicleInfo?.model}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
-                        {new Date(booking.createdAt).toLocaleDateString()}
+                        {new Date(
+                          booking.startTime || booking.createdAt
+                        ).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
-                        {new Date(booking.updatedAt).toLocaleDateString()}
+                        {new Date(
+                          booking.endTime || booking.updatedAt
+                        ).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
-                        ${booking.amounts?.totalPaid?.toLocaleString() || "0"}
+                        {booking.amounts?.totalPaid?.toLocaleString() || "0"}{" "}
+                        VND
                       </td>
                       <td className="px-4 py-4">
                         <span
@@ -966,6 +975,40 @@ const VehicleHandover = () => {
 
               {/* Content */}
               <div className="p-6 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                {/* Booking Workflow */}
+                <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                    Booking Workflow
+                  </h3>
+                  <BookingWorkflow
+                    booking={selected}
+                    onUpdate={async () => {
+                      // Refresh the specific booking data
+                      try {
+                        const res = await staffAPI.searchBookings({
+                          q: selected._id,
+                          page: 1,
+                          limit: 1,
+                        });
+                        if (res.items && res.items.length > 0) {
+                          const updatedBooking = res.items[0];
+                          setSelected(updatedBooking);
+                          // Update in the list as well
+                          setItems((prev) =>
+                            prev.map((item) =>
+                              item._id === updatedBooking._id
+                                ? updatedBooking
+                                : item
+                            )
+                          );
+                        }
+                      } catch (err) {
+                        console.error("Failed to refresh booking:", err);
+                      }
+                    }}
+                  />
+                </div>
+
                 {/* Renter Info */}
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 shadow-sm">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">

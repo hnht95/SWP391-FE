@@ -1,24 +1,23 @@
-import { useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MdSearch,
-  MdAdd,
   MdBusiness,
   MdDirectionsCar,
   MdWarning,
   MdClose,
   MdAssignment,
   MdPerson,
-  MdSend,
   MdStar,
   MdStarBorder,
   MdNotifications,
   MdSupport,
-  MdLocationOn,
-  MdFilterList,
   MdViewModule,
   MdViewList,
 } from "react-icons/md";
+import { staffAPI } from "../../../service/apiStaff/API";
+import type { StationRequestItem } from "../../../service/apiStaff/API";
+import { useAuth } from "../../../hooks/useAuth";
 
 interface Ticket {
   id: string;
@@ -77,116 +76,137 @@ type TicketType =
 type TicketStatus = "new" | "in_progress" | "resolved" | "closed";
 
 const StaffReport = () => {
+  const [activeSection, setActiveSection] = useState<
+    "maintenance" | "deletion"
+  >("maintenance");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<TicketType | "all">("all");
-  const [newMessage, setNewMessage] = useState("");
 
-  // New UI states for Station Requests layout
-  const [selectedStation, setSelectedStation] = useState("downtown");
   const [statusFilter, setStatusFilter] = useState<
     "all" | "approved" | "pending" | "rejected"
   >("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const { user } = useAuth();
+  const myUserId = user?._id;
 
-  // Mock data with English content
-  const tickets: Ticket[] = [
-    {
-      id: "TK001",
-      title: "Vehicle breakdown on the road",
-      description:
-        "Vehicle shows low battery but displays 30%. Customer is stranded in District 1.",
-      type: "vehicle_breakdown",
-      status: "in_progress",
-      priority: "urgent",
-      customer: {
-        id: "CUS001",
-        name: "John Smith",
-        phone: "+84901234567",
-        email: "john.smith@email.com",
-        company: "ABC Logistics",
-      },
-      vehicle: {
-        id: "VH001",
-        model: "VinFast VF e34",
-        licensePlate: "51H-123.45",
-      },
-      assignedTo: {
-        id: "ST001",
-        name: "Mike Johnson",
-        role: "Technical Support",
-      },
-      createdAt: "2024-12-24 14:30",
-      updatedAt: "2024-12-24 15:15",
-      slaDeadline: "2024-12-24 16:30",
-      isOverdue: false,
-      messages: [
-        {
-          id: "MSG001",
-          sender: { id: "CUS001", name: "John Smith", type: "customer" },
-          message:
-            "My vehicle broke down on Le Loi Street, District 1. Battery shows 30% but won't start.",
-          timestamp: "2024-12-24 14:30",
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [rawRequests, setRawRequests] = useState<StationRequestItem[]>([]);
+  const [selectedRawRequest, setSelectedRawRequest] =
+    useState<StationRequestItem | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const limit = 20;
+  const [statusCounts, setStatusCounts] = useState({
+    all: 0,
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+  });
+
+  const mapRequestToTicket = useCallback(
+    (item: StationRequestItem): Ticket => {
+      const map: Record<string, TicketStatus> = {
+        approved: "resolved",
+        rejected: "closed",
+        pending: "new",
+      };
+      const mappedStatus: TicketStatus = map[item.status] || "in_progress";
+      return {
+        id: item._id,
+        title:
+          activeSection === "maintenance"
+            ? "Maintenance Request"
+            : "Deletion Request",
+        description: item.reportText || "",
+        type: activeSection === "maintenance" ? "vehicle_breakdown" : "other",
+        status: mappedStatus,
+        priority: "medium",
+        customer: {
+          id: item.reportedBy?._id || "",
+          name: item.reportedBy?.name || "Unknown",
+          phone: "",
+          email: item.reportedBy?.email || "",
         },
-        {
-          id: "MSG002",
-          sender: { id: "ST001", name: "Mike Johnson", type: "staff" },
-          message:
-            "Hello, we've received your request. Roadside assistance will arrive within 30 minutes.",
-          timestamp: "2024-12-24 14:45",
-        },
-      ],
+        vehicle: item.vehicle
+          ? {
+              id: item.vehicle._id,
+              model: `${item.vehicle.brand} ${item.vehicle.model}`.trim(),
+              licensePlate: item.vehicle.plateNumber,
+            }
+          : undefined,
+        assignedTo: undefined,
+        createdAt: new Date(item.createdAt).toLocaleString(),
+        updatedAt: new Date(item.updatedAt).toLocaleString(),
+        slaDeadline: "",
+        isOverdue: false,
+        messages: [],
+      };
     },
-    {
-      id: "TK002",
-      title: "Unable to unlock vehicle",
-      description:
-        "App cannot connect to the vehicle. Multiple attempts failed to unlock.",
-      type: "unlock_issue",
-      status: "new",
-      priority: "high",
-      customer: {
-        id: "CUS002",
-        name: "Sarah Wilson",
-        phone: "+84912345678",
-        email: "sarah.wilson@email.com",
-      },
-      vehicle: {
-        id: "VH002",
-        model: "Honda Lead",
-        licensePlate: "59C-678.90",
-      },
-      createdAt: "2024-12-24 16:00",
-      updatedAt: "2024-12-24 16:00",
-      slaDeadline: "2024-12-24 16:30",
-      isOverdue: true,
-      messages: [],
-    },
-    {
-      id: "TK003",
-      title: "Contract refund request",
-      description:
-        "Company wants to cancel contract and refund remaining fees.",
-      type: "payment_refund",
-      status: "resolved",
-      priority: "medium",
-      customer: {
-        id: "CUS003",
-        name: "David Brown",
-        phone: "+84923456789",
-        email: "david.brown@email.com",
-        company: "XYZ Transport",
-      },
-      createdAt: "2024-12-23 10:00",
-      updatedAt: "2024-12-24 09:30",
-      slaDeadline: "2024-12-24 10:00",
-      isOverdue: false,
-      messages: [],
-      rating: 5,
-      feedback: "Quick and professional service. Very satisfied!",
-    },
-  ];
+    [activeSection]
+  );
+
+  const fetchCounts = useCallback(async () => {
+    try {
+      const api =
+        activeSection === "maintenance"
+          ? staffAPI.getMaintenanceRequests
+          : staffAPI.getDeletionRequests;
+      const [allRes, approvedRes, pendingRes, rejectedRes] = await Promise.all([
+        api({ page: 1, limit: 1 }),
+        api({ status: "approved", page: 1, limit: 1 }),
+        api({ status: "pending", page: 1, limit: 1 }),
+        api({ status: "rejected", page: 1, limit: 1 }),
+      ]);
+      setStatusCounts({
+        all: allRes.pagination?.total || 0,
+        approved: approvedRes.pagination?.total || 0,
+        pending: pendingRes.pagination?.total || 0,
+        rejected: rejectedRes.pagination?.total || 0,
+      });
+    } catch {
+      // Silent fail for counts
+    }
+  }, [activeSection]);
+
+  const fetchTickets = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const api =
+        activeSection === "maintenance"
+          ? staffAPI.getMaintenanceRequests
+          : staffAPI.getDeletionRequests;
+      const res = await api({
+        status: statusFilter === "all" ? undefined : statusFilter,
+        q: searchQuery || undefined,
+        page,
+        limit,
+        sort: "-createdAt",
+      });
+      const items = res.items || [];
+      setRawRequests(items);
+      const mapped: Ticket[] = items.map(mapRequestToTicket);
+      setTickets(mapped);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load requests");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    activeSection,
+    statusFilter,
+    searchQuery,
+    page,
+    limit,
+    mapRequestToTicket,
+  ]);
+
+  useEffect(() => {
+    fetchTickets();
+    fetchCounts();
+  }, [fetchTickets, fetchCounts]);
 
   const ticketTypes = [
     {
@@ -257,25 +277,6 @@ const StaffReport = () => {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "bg-red-100 text-red-800";
-      case "high":
-        return "bg-orange-100 text-orange-800";
-      case "medium":
-        return "bg-yellow-100 text-yellow-800";
-      case "low":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getPriorityLabel = (priority: string) => {
-    return priority.charAt(0).toUpperCase() + priority.slice(1);
-  };
-
   const filteredTickets = tickets.filter((ticket) => {
     const matchesSearch =
       ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -288,17 +289,9 @@ const StaffReport = () => {
         : "pending";
     const matchesStatusCategory =
       statusFilter === "all" || toCategory(ticket) === statusFilter;
-    const matchesType = filterType === "all" || ticket.type === filterType;
-
+    const matchesType = true;
     return matchesSearch && matchesStatusCategory && matchesType;
   });
-
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedTicket) return;
-
-    // Add message logic here
-    setNewMessage("");
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -307,7 +300,6 @@ const StaffReport = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
@@ -318,190 +310,152 @@ const StaffReport = () => {
               your station
             </p>
           </div>
-          <motion.button
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <MdAdd className="w-4 h-4" />
-            <span>New Request</span>
-          </motion.button>
         </div>
 
-        {/* Station Selector */}
-        <motion.div
-          className="mb-4 bg-white rounded-lg shadow-sm p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.05 }}
-        >
-          <div className="flex items-center gap-4">
-            <MdLocationOn className="w-5 h-5 text-gray-400" />
-            <label className="text-sm text-gray-600">Select Station:</label>
-            <select
-              value={selectedStation}
-              onChange={(e) => setSelectedStation(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="downtown">Downtown Station</option>
-              <option value="suburb">Suburb Station</option>
-              <option value="airport">Airport Station</option>
-            </select>
-            <span className="text-sm text-gray-500">
-              Showing requests from{" "}
-              {selectedStation === "downtown"
-                ? "Downtown Station"
-                : selectedStation === "suburb"
-                ? "Suburb Station"
-                : "Airport Station"}
-            </span>
-          </div>
-        </motion.div>
-
-        {/* Status Tabs */}
         <motion.div
           className="mb-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.05 }}
         >
-          {(() => {
-            const toCategory = (
-              t: Ticket
-            ): "approved" | "pending" | "rejected" =>
-              t.status === "resolved"
-                ? "approved"
-                : t.status === "closed"
-                ? "rejected"
-                : "pending";
-            const counts = {
-              all: tickets.length,
-              approved: tickets.filter((t) => toCategory(t) === "approved")
-                .length,
-              pending: tickets.filter((t) => toCategory(t) === "pending")
-                .length,
-              rejected: tickets.filter((t) => toCategory(t) === "rejected")
-                .length,
-            };
-            return (
-              <div className="bg-white rounded-lg shadow-sm">
-                <div className="flex flex-wrap items-center gap-2 px-4 py-4 border-b">
-                  {(
-                    [
-                      { value: "all", label: "All", count: counts.all },
-                      {
-                        value: "approved",
-                        label: "Approved",
-                        count: counts.approved,
-                      },
-                      {
-                        value: "pending",
-                        label: "Pending",
-                        count: counts.pending,
-                      },
-                      {
-                        value: "rejected",
-                        label: "Rejected",
-                        count: counts.rejected,
-                      },
-                    ] as Array<{
-                      value: "all" | "approved" | "pending" | "rejected";
-                      label: string;
-                      count: number;
-                    }>
-                  ).map((tab, idx) => (
-                    <motion.button
-                      key={tab.value}
-                      onClick={() => setStatusFilter(tab.value)}
-                      className={`px-4 py-2 text-sm font-medium transition-all relative ${
-                        statusFilter === tab.value
-                          ? "text-gray-900"
-                          : "text-gray-500 hover:text-gray-700"
-                      }`}
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 + idx * 0.05 }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {tab.label} <span className="ml-1">{tab.count}</span>
-                      {statusFilter === tab.value && (
-                        <motion.div
-                          className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
-                          layoutId="activeTab"
-                        />
-                      )}
-                    </motion.button>
-                  ))}
-                </div>
+          <div className="bg-white rounded-lg shadow-sm">
+            <div className="flex items-center gap-4 px-4 py-3 border-b">
+              {(
+                [
+                  { id: "maintenance", label: "Maintenance Requests" },
+                  { id: "deletion", label: "Deletion Requests" },
+                ] as Array<{ id: "maintenance" | "deletion"; label: string }>
+              ).map((tab, idx) => (
+                <motion.button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveSection(tab.id);
+                    setPage(1);
+                  }}
+                  className={`px-4 py-2 text-sm font-medium transition-all relative ${
+                    activeSection === tab.id
+                      ? "text-gray-900"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 + idx * 0.05 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {tab.label}
+                  {activeSection === tab.id && (
+                    <motion.div
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
+                      layoutId="activeSectionTab"
+                    />
+                  )}
+                </motion.button>
+              ))}
+            </div>
+            {(() => {
+              const counts = statusCounts;
+              return (
+                <div className="bg-white rounded-lg shadow-sm">
+                  <div className="flex flex-wrap items-center gap-2 px-4 py-4 border-b">
+                    {(
+                      [
+                        { value: "all", label: "All", count: counts.all },
+                        {
+                          value: "approved",
+                          label: "Approved",
+                          count: counts.approved,
+                        },
+                        {
+                          value: "pending",
+                          label: "Pending",
+                          count: counts.pending,
+                        },
+                        {
+                          value: "rejected",
+                          label: "Rejected",
+                          count: counts.rejected,
+                        },
+                      ] as Array<{
+                        value: "all" | "approved" | "pending" | "rejected";
+                        label: string;
+                        count: number;
+                      }>
+                    ).map((tab, idx) => (
+                      <motion.button
+                        key={tab.value}
+                        onClick={() => setStatusFilter(tab.value)}
+                        className={`px-4 py-2 text-sm font-medium transition-all relative ${
+                          statusFilter === tab.value
+                            ? "text-gray-900"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 + idx * 0.05 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        {tab.label} <span className="ml-1">{tab.count}</span>
+                        {statusFilter === tab.value && (
+                          <motion.div
+                            className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
+                            layoutId="activeTab"
+                          />
+                        )}
+                      </motion.button>
+                    ))}
+                  </div>
 
-                {/* Search and Controls */}
-                <div className="p-4">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex-1 md:w-80">
-                        <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <input
-                          type="text"
-                          placeholder="Search reports..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                  <div className="p-4">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative flex-1 md:w-80">
+                          <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <input
+                            type="text"
+                            placeholder="Search reports..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
                       </div>
-                      <select
-                        value={filterType}
-                        onChange={(e) =>
-                          setFilterType(e.target.value as TicketType | "all")
-                        }
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="all">All Types</option>
-                        {ticketTypes.map((t) => (
-                          <option key={t.value} value={t.value}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
-                      <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 flex items-center gap-2 text-sm">
-                        <MdFilterList className="w-4 h-4" /> Filters
-                      </button>
-                    </div>
 
-                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                      <motion.button
-                        onClick={() => setViewMode("grid")}
-                        className={`p-1.5 rounded ${
-                          viewMode === "grid"
-                            ? "bg-white text-gray-900 shadow"
-                            : "text-gray-500"
-                        }`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <MdViewModule className="w-5 h-5" />
-                      </motion.button>
-                      <motion.button
-                        onClick={() => setViewMode("list")}
-                        className={`p-1.5 rounded ${
-                          viewMode === "list"
-                            ? "bg-white text-gray-900 shadow"
-                            : "text-gray-500"
-                        }`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <MdViewList className="w-5 h-5" />
-                      </motion.button>
+                      <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                        <motion.button
+                          onClick={() => setViewMode("grid")}
+                          className={`p-1.5 rounded ${
+                            viewMode === "grid"
+                              ? "bg-white text-gray-900 shadow"
+                              : "text-gray-500"
+                          }`}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <MdViewModule className="w-5 h-5" />
+                        </motion.button>
+                        <motion.button
+                          onClick={() => setViewMode("list")}
+                          className={`p-1.5 rounded ${
+                            viewMode === "list"
+                              ? "bg-white text-gray-900 shadow"
+                              : "text-gray-500"
+                          }`}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <MdViewList className="w-5 h-5" />
+                        </motion.button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
+          </div>
         </motion.div>
 
-        {/* Requests Display */}
         <motion.div
           className="bg-white rounded-lg shadow-sm p-4"
           initial={{ opacity: 0, y: 10 }}
@@ -521,13 +475,22 @@ const StaffReport = () => {
               statusFilter === "all" ? true : toCategory(t) === statusFilter
             );
 
-            if (items.length === 0) {
+            if (loading)
+              return (
+                <div className="text-center py-12 text-gray-600">
+                  Loading requests...
+                </div>
+              );
+            if (error)
+              return (
+                <div className="text-center py-12 text-red-600">{error}</div>
+              );
+            if (items.length === 0)
               return (
                 <div className="text-center py-12 text-gray-600">
                   No requests found
                 </div>
               );
-            }
 
             const StatusPill = ({
               cat,
@@ -558,7 +521,6 @@ const StaffReport = () => {
             };
 
             if (viewMode === "list") {
-              // Simple table view fallback
               return (
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -615,7 +577,17 @@ const StaffReport = () => {
                               <StatusPill cat={cat} />
                             </td>
                             <td className="px-4 py-3">
-                              <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                              <button
+                                onClick={() => {
+                                  setSelectedTicket(t);
+                                  const found = rawRequests.find(
+                                    (r) => r._id === t.id
+                                  );
+                                  setSelectedRawRequest(found || null);
+                                  setIsTicketModalOpen(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              >
                                 View details
                               </button>
                             </td>
@@ -628,95 +600,121 @@ const StaffReport = () => {
               );
             }
 
-            // Grid view
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {items.map((t, idx) => {
                   const cat = toCategory(t);
-                  const typeMeta = ticketTypes.find((x) => x.value === t.type);
-                  const typeLabel = typeMeta?.label || "Request";
+                  const typeLabel =
+                    activeSection === "maintenance"
+                      ? "Maintenance Request"
+                      : "Deletion Request";
+                  const raw = rawRequests.find((r) => r._id === t.id);
+                  const previewUrl = raw?.evidencePhotos?.[0]?.url;
                   return (
                     <motion.div
                       key={t.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow bg-white"
+                      className="border border-gray-200 rounded-lg hover:shadow-lg transition-shadow bg-white overflow-hidden"
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.03 * idx }}
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">
-                            Report ID
-                          </p>
-                          <h3 className="font-semibold text-gray-900">
-                            RPT-{t.id}
-                          </h3>
+                      <div className="relative h-40 w-full bg-gray-100">
+                        {previewUrl ? (
+                          <img
+                            src={previewUrl}
+                            alt="evidence"
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200">
+                            <MdDirectionsCar className="w-10 h-10 text-gray-300" />
+                          </div>
+                        )}
+                        <div className="absolute top-2 right-2">
+                          <StatusPill cat={cat} />
                         </div>
-                        <StatusPill cat={cat} />
                       </div>
 
-                      <div className="mb-3">
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          {typeLabel}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                        <div className="col-span-2 flex items-center text-gray-700">
-                          <MdDirectionsCar className="w-4 h-4 mr-2 text-gray-400" />
-                          <span className="text-xs text-gray-500 mr-1">
-                            Vehicle:
-                          </span>
-                          <span className="font-medium text-gray-900">
-                            {t.vehicle ? `${t.vehicle.model}` : "N/A"}
-                          </span>
-                        </div>
-                        <div className="col-span-2 flex items-center text-gray-700">
-                          <MdPerson className="w-4 h-4 mr-2 text-gray-400" />
-                          <span className="text-xs text-gray-500 mr-1">
-                            Requested by:
-                          </span>
-                          <span className="font-medium text-gray-900">
-                            {t.customer.name}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-xs text-gray-500">
-                            Request Date
-                          </span>
-                          <div className="mt-1 px-3 py-2 border rounded bg-gray-50 text-gray-900 text-xs">
-                            {t.createdAt}
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">
+                              Report ID
+                            </p>
+                            <h3 className="font-semibold text-gray-900">
+                              RPT-{t.id}
+                            </h3>
                           </div>
                         </div>
-                        <div>
-                          <span className="text-xs text-gray-500">
-                            Review Date
+
+                        <div className="mb-3">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            {typeLabel}
                           </span>
-                          <div className="mt-1 px-3 py-2 border rounded bg-gray-50 text-gray-900 text-xs">
-                            {t.updatedAt}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                          <div className="col-span-2 flex items-center text-gray-700">
+                            <MdDirectionsCar className="w-4 h-4 mr-2 text-gray-400" />
+                            <span className="text-xs text-gray-500 mr-1">
+                              Vehicle:
+                            </span>
+                            <span className="font-medium text-gray-900">
+                              {t.vehicle ? `${t.vehicle.model}` : "N/A"}
+                            </span>
+                          </div>
+                          <div className="col-span-2 flex items-center text-gray-700">
+                            <MdPerson className="w-4 h-4 mr-2 text-gray-400" />
+                            <span className="text-xs text-gray-500 mr-1">
+                              Requested by:
+                            </span>
+                            <span className="font-medium text-gray-900">
+                              {t.customer.name}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-500">
+                              Request Date
+                            </span>
+                            <div className="mt-1 px-3 py-2 border rounded bg-gray-50 text-gray-900 text-xs">
+                              {t.createdAt}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-500">
+                              Review Date
+                            </span>
+                            <div className="mt-1 px-3 py-2 border rounded bg-gray-50 text-gray-900 text-xs">
+                              {t.updatedAt}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="mb-3">
-                        <span className="text-xs text-gray-500 block mb-1">
-                          Reason
-                        </span>
-                        <div className="px-3 py-2 border rounded bg-gray-50 text-sm text-gray-700 line-clamp-3">
-                          {t.description}
+                        <div className="mb-3">
+                          <span className="text-xs text-gray-500 block mb-1">
+                            Reason
+                          </span>
+                          <div className="px-3 py-2 border rounded bg-gray-50 text-sm text-gray-700 line-clamp-3">
+                            {t.description}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="pt-2">
-                        <button
-                          onClick={() => {
-                            setSelectedTicket(t);
-                            setIsTicketModalOpen(true);
-                          }}
-                          className="w-full py-2 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors font-medium"
-                        >
-                          View details
-                        </button>
+                        <div className="pt-2">
+                          <button
+                            onClick={() => {
+                              setSelectedTicket(t);
+                              const found = rawRequests.find(
+                                (r) => r._id === t.id
+                              );
+                              setSelectedRawRequest(found || null);
+                              setIsTicketModalOpen(true);
+                            }}
+                            className="w-full py-2 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors font-medium"
+                          >
+                            View details
+                          </button>
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -727,7 +725,6 @@ const StaffReport = () => {
         </motion.div>
       </motion.div>
 
-      {/* Ticket Detail Modal */}
       <AnimatePresence>
         {isTicketModalOpen && selectedTicket && (
           <motion.div
@@ -743,13 +740,17 @@ const StaffReport = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
             >
-              {/* Modal Header */}
               <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900">
-                    Ticket #{selectedTicket.id}
+                    {activeSection === "maintenance"
+                      ? "Maintenance Request"
+                      : "Deletion Request"}{" "}
+                    #{selectedTicket.id}
                   </h2>
-                  <p className="text-gray-600 mt-1">{selectedTicket.title}</p>
+                  <p className="text-gray-600 mt-1">
+                    Submitted by {selectedTicket.customer.name}
+                  </p>
                 </div>
                 <button
                   onClick={() => setIsTicketModalOpen(false)}
@@ -759,28 +760,22 @@ const StaffReport = () => {
                 </button>
               </div>
 
-              {/* Modal Content */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Ticket Details */}
                   <div className="lg:col-span-2 space-y-6">
-                    {/* Basic Info */}
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h3 className="font-medium text-gray-900 mb-3">
-                        Basic Information
+                        Request Information
                       </h3>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="text-gray-500">Customer:</span>
+                          <span className="text-gray-500">Requested By</span>
                           <div className="font-medium">
                             {selectedTicket.customer.name}
                           </div>
-                          <div className="text-gray-600">
-                            {selectedTicket.customer.phone}
-                          </div>
                         </div>
                         <div>
-                          <span className="text-gray-500">Status:</span>
+                          <span className="text-gray-500">Status</span>
                           <div
                             className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-1 ${getStatusColor(
                               selectedTicket.status
@@ -790,123 +785,100 @@ const StaffReport = () => {
                           </div>
                         </div>
                         <div>
-                          <span className="text-gray-500">Issue Type:</span>
+                          <span className="text-gray-500">Submitted At</span>
                           <div className="font-medium">
-                            {
-                              ticketTypes.find(
-                                (t) => t.value === selectedTicket.type
-                              )?.label
-                            }
+                            {selectedTicket.createdAt}
                           </div>
                         </div>
-                        <div>
-                          <span className="text-gray-500">Priority:</span>
-                          <div
-                            className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-1 ${getPriorityColor(
-                              selectedTicket.priority
-                            )}`}
-                          >
-                            {getPriorityLabel(selectedTicket.priority)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-3">
-                        Detailed Description
-                      </h3>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-gray-700">
-                          {selectedTicket.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Messages */}
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-3">
-                        Messages
-                      </h3>
-                      <div className="space-y-4 max-h-64 overflow-y-auto">
-                        {selectedTicket.messages.map((message) => (
-                          <div
-                            key={message.id}
-                            className={`flex ${
-                              message.sender.type === "staff"
-                                ? "justify-end"
-                                : "justify-start"
-                            }`}
-                          >
-                            <div
-                              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                                message.sender.type === "staff"
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-gray-100 text-gray-900"
-                              }`}
-                            >
-                              <div className="text-sm font-medium mb-1">
-                                {message.sender.name}
-                              </div>
-                              <div className="text-sm">{message.message}</div>
-                              <div
-                                className={`text-xs mt-1 ${
-                                  message.sender.type === "staff"
-                                    ? "text-blue-100"
-                                    : "text-gray-500"
-                                }`}
-                              >
-                                {message.timestamp}
-                              </div>
+                        {activeSection === "maintenance" && (
+                          <div>
+                            <span className="text-gray-500">Urgency</span>
+                            <div className="font-medium capitalize">
+                              {(selectedRawRequest &&
+                                (
+                                  selectedRawRequest as unknown as {
+                                    urgency?: string;
+                                  }
+                                ).urgency) ||
+                                "medium"}
                             </div>
                           </div>
-                        ))}
-                      </div>
-
-                      {/* Message Input */}
-                      <div className="mt-4 flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          placeholder="Type message..."
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          onKeyPress={(e) =>
-                            e.key === "Enter" && handleSendMessage()
-                          }
-                        />
-                        <button
-                          onClick={handleSendMessage}
-                          className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <MdSend className="w-4 h-4" />
-                        </button>
+                        )}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Sidebar */}
-                  <div className="space-y-6">
-                    {/* Actions */}
                     <div>
                       <h3 className="font-medium text-gray-900 mb-3">
-                        Actions
+                        Description
                       </h3>
-                      <div className="space-y-2">
-                        <button className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                          Update Status
-                        </button>
-                        <button className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                          Assign to Staff
-                        </button>
-                        <button className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors">
-                          Add Note
-                        </button>
+                      <div className="bg-gray-50 rounded-lg p-4 text-gray-700">
+                        {selectedRawRequest?.reportText ||
+                          selectedTicket.description ||
+                          "No description"}
                       </div>
                     </div>
+                    {selectedRawRequest?.evidencePhotos?.length ? (
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-3">
+                          Evidence
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {selectedRawRequest.evidencePhotos!.map((ph) => (
+                            <img
+                              key={ph._id}
+                              src={ph.url}
+                              alt="evidence"
+                              className="w-full h-40 object-cover rounded-lg border"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
 
-                    {/* Vehicle Info */}
+                  <div className="space-y-6">
+                    {/* Actions for both Maintenance and Deletion requests */}
+                    {selectedRawRequest &&
+                      myUserId &&
+                      selectedRawRequest.reportedBy?._id === myUserId &&
+                      selectedRawRequest.status === "pending" && (
+                        <div>
+                          <h3 className="font-medium text-gray-900 mb-3">
+                            Actions
+                          </h3>
+                          {activeSection === "maintenance" ? (
+                            <MaintenanceRequestActions
+                              requestId={selectedRawRequest._id}
+                              currentUrgency={
+                                (selectedRawRequest &&
+                                  (
+                                    selectedRawRequest as unknown as {
+                                      urgency?: string;
+                                    }
+                                  ).urgency) ||
+                                "medium"
+                              }
+                              currentDesc={selectedRawRequest.reportText || ""}
+                              onDone={() => {
+                                setIsTicketModalOpen(false);
+                                fetchTickets();
+                                fetchCounts();
+                              }}
+                            />
+                          ) : (
+                            <DeletionRequestActions
+                              requestId={selectedRawRequest._id}
+                              currentDesc={selectedRawRequest.reportText || ""}
+                              onDone={() => {
+                                setIsTicketModalOpen(false);
+                                fetchTickets();
+                                fetchCounts();
+                              }}
+                            />
+                          )}
+                        </div>
+                      )}
+
                     {selectedTicket.vehicle && (
                       <div>
                         <h3 className="font-medium text-gray-900 mb-3">
@@ -933,7 +905,6 @@ const StaffReport = () => {
                       </div>
                     )}
 
-                    {/* Timeline */}
                     <div>
                       <h3 className="font-medium text-gray-900 mb-3">
                         Timeline
@@ -942,29 +913,15 @@ const StaffReport = () => {
                         <div className="flex items-center space-x-3">
                           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                           <div className="text-sm">
-                            <div className="font-medium">Ticket created</div>
+                            <div className="font-medium">Request created</div>
                             <div className="text-gray-500">
                               {selectedTicket.createdAt}
                             </div>
                           </div>
                         </div>
-                        {selectedTicket.assignedTo && (
-                          <div className="flex items-center space-x-3">
-                            <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                            <div className="text-sm">
-                              <div className="font-medium">
-                                Assigned to {selectedTicket.assignedTo.name}
-                              </div>
-                              <div className="text-gray-500">
-                                {selectedTicket.updatedAt}
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
 
-                    {/* Rating */}
                     {selectedTicket.rating && (
                       <div>
                         <h3 className="font-medium text-gray-900 mb-3">
@@ -1005,3 +962,234 @@ const StaffReport = () => {
 };
 
 export default StaffReport;
+
+const MaintenanceRequestActions = ({
+  requestId,
+  currentUrgency,
+  currentDesc,
+  onDone,
+}: {
+  requestId: string;
+  currentUrgency: string;
+  currentDesc: string;
+  onDone: () => void;
+}) => {
+  const [editOpen, setEditOpen] = useState(false);
+  const [desc, setDesc] = useState(currentDesc);
+  const [urgency, setUrgency] = useState(currentUrgency || "medium");
+  const [files, setFiles] = useState<FileList | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    try {
+      setLoading(true);
+      await staffAPI.updateMaintenanceRequest(requestId, {
+        description: desc,
+        urgency,
+        evidencePhotos: files ? Array.from(files) : undefined,
+      });
+      setEditOpen(false);
+      onDone();
+    } catch (e) {
+      alert(
+        e instanceof Error ? e.message : "Failed to update maintenance request"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!confirm("Delete this maintenance request?")) return;
+    try {
+      setLoading(true);
+      await staffAPI.deleteMaintenanceRequest(requestId);
+      onDone();
+    } catch (e) {
+      alert(
+        e instanceof Error ? e.message : "Failed to delete maintenance request"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!editOpen)
+    return (
+      <div className="space-y-2">
+        <button
+          onClick={() => setEditOpen(true)}
+          className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+          disabled={loading}
+        >
+          Update Request
+        </button>
+        <button
+          onClick={remove}
+          className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60"
+          disabled={loading}
+        >
+          Delete Request
+        </button>
+      </div>
+    );
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-sm text-gray-600">Description</label>
+        <textarea
+          className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows={4}
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="text-sm text-gray-600">Urgency</label>
+        <select
+          className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={urgency}
+          onChange={(e) => setUrgency(e.target.value)}
+        >
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+      <div>
+        <label className="text-sm text-gray-600">Evidence Photos</label>
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          className="w-full mt-1"
+          onChange={(e) => setFiles(e.target.files)}
+        />
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={submit}
+          className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60"
+          disabled={loading}
+        >
+          {loading ? "Saving..." : "Save"}
+        </button>
+        <button
+          onClick={() => setEditOpen(false)}
+          className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Actions component for Deletion requests
+const DeletionRequestActions = ({
+  requestId,
+  currentDesc,
+  onDone,
+}: {
+  requestId: string;
+  currentDesc: string;
+  onDone: () => void;
+}) => {
+  const [editOpen, setEditOpen] = useState(false);
+  const [desc, setDesc] = useState(currentDesc);
+  const [files, setFiles] = useState<FileList | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    try {
+      setLoading(true);
+      await staffAPI.updateDeletionRequest(requestId, {
+        description: desc,
+        evidencePhotos: files ? Array.from(files) : undefined,
+      });
+      setEditOpen(false);
+      onDone();
+    } catch (e) {
+      alert(
+        e instanceof Error ? e.message : "Failed to update deletion request"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!confirm("Delete this deletion request?")) return;
+    try {
+      setLoading(true);
+      await staffAPI.deleteDeletionRequest(requestId);
+      onDone();
+    } catch (e) {
+      alert(
+        e instanceof Error ? e.message : "Failed to delete deletion request"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!editOpen)
+    return (
+      <div className="space-y-2">
+        <button
+          onClick={() => setEditOpen(true)}
+          className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+          disabled={loading}
+        >
+          Update Request
+        </button>
+        <button
+          onClick={remove}
+          className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60"
+          disabled={loading}
+        >
+          Delete Request
+        </button>
+      </div>
+    );
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-sm text-gray-600">Description</label>
+        <textarea
+          className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows={4}
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="text-sm text-gray-600">Evidence Photos</label>
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          className="w-full mt-1"
+          onChange={(e) => setFiles(e.target.files)}
+        />
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={submit}
+          className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60"
+          disabled={loading}
+        >
+          {loading ? "Saving..." : "Save"}
+        </button>
+        <button
+          onClick={() => setEditOpen(false)}
+          className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};
