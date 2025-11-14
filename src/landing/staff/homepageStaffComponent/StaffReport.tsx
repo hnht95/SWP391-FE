@@ -2,7 +2,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MdSearch,
-  MdAdd,
   MdBusiness,
   MdDirectionsCar,
   MdWarning,
@@ -311,14 +310,6 @@ const StaffReport = () => {
               your station
             </p>
           </div>
-          <motion.button
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <MdAdd className="w-4 h-4" />
-            <span>New Request</span>
-          </motion.button>
         </div>
 
         <motion.div

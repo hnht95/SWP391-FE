@@ -68,7 +68,6 @@ const VehicleHandover = () => {
   const [createError, setCreateError] = useState<string | null>(null);
   // success toast (optional): omitted in UI to keep screen clean
 
-  const openCreateModal = () => setIsCreateOpen(true);
   const closeCreateModal = () => setIsCreateOpen(false);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -286,15 +285,6 @@ const VehicleHandover = () => {
               Manage all vehicle bookings and reservations.
             </p>
           </div>
-          <motion.button
-            onClick={openCreateModal}
-            className="bg-gray-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <MdCalendarToday className="w-5 h-5" />
-            <span>New Booking</span>
-          </motion.button>
         </div>
       </motion.div>
 
