@@ -1107,14 +1107,7 @@ const DashboardAdmin: React.FC = () => {
               icon={<MdDirectionsCar className="w-7 h-7 text-gray-700" />}
             />
             <div className="flex items-center gap-3">
-              <motion.button 
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow transition-shadow text-sm font-medium text-gray-700"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <MdTrendingUp className="w-5 h-5 text-blue-600" />
-                Export Report
-              </motion.button>
+              
               <div className="relative notification-container">
                 <motion.button
                   onClick={() => setShowNotifications(!showNotifications)}

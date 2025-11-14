@@ -43,6 +43,16 @@ const SidebarUser = ({
       label: "Booking History",
       icon: <FaCar className="w-5 h-5" />,
     },
+    {
+      id: "cancelled-paid",
+      label: "Cancelled & Paid",
+      icon: <FaCar className="w-5 h-5" />,
+    },
+    {
+      id: "manual-refunds",
+      label: "Manual Refunds",
+      icon: <FaCar className="w-5 h-5" />,
+    },
   ];
 
   const handleMenuClick = (item: (typeof menuItems)[0]) => {

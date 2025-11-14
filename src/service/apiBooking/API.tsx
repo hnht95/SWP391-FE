@@ -1,4 +1,3 @@
-// service/apiBooking/API.tsx
 import axios from "axios";
 import api from "../Utils";
 
@@ -20,7 +19,6 @@ export type DepositStatus =
   | "failed"
   | "refunded";
 
-// ✅ Renter info (populated)
 export type Renter = {
   _id: string;
   name: string;
@@ -30,7 +28,6 @@ export type Renter = {
   id?: string;
 };
 
-// ✅ Vehicle info (populated)
 export type VehicleInBooking = {
   _id: string;
   plateNumber: string;
@@ -47,7 +44,6 @@ export type VehicleInBooking = {
   };
 };
 
-// ✅ Station info (populated)
 export type StationInfo = {
   _id: string;
   name: string;
@@ -59,7 +55,6 @@ export type StationInfo = {
   };
 };
 
-// ✅ PayOS Last Webhook
 export type PayOSLastWebhook = {
   code: string;
   desc: string;
@@ -68,7 +63,6 @@ export type PayOSLastWebhook = {
   signature: string;
 };
 
-// ✅ Deposit info with PayOS details
 export type DepositInfo = {
   amount: number;
   currency: string;
@@ -86,14 +80,12 @@ export type DepositInfo = {
   };
 };
 
-// ✅ Pricing snapshot
 export type PricingSnapshot = {
   baseUnit: "hour" | "day";
   basePrice: number;
   computedQty?: number;
 };
 
-// ✅ Booking amounts
 export type BookingAmounts = {
   rentalEstimated?: number;
   overKmFee: number;
@@ -107,13 +99,11 @@ export type BookingAmounts = {
   totalPaid: number;
 };
 
-// ✅ Cancellation policy
 export type CancellationPolicy = {
   windows: Array<Record<string, unknown>>;
   specialCases: Array<Record<string, unknown>>;
 };
 
-// ✅ Main Booking interface
 export type Booking = {
   _id: string;
   bookingId?: string;
@@ -126,11 +116,8 @@ export type Booking = {
   status: BookingStatus;
   deposit: DepositInfo;
   holdExpiresAt: string | null;
-
-  // ✅ Payment URLs (from createBooking response)
   checkoutUrl?: string;
   qrCode?: string;
-
   counterCheck: {
     licenseSnapshot: string[];
     contractPhotos: string[];
@@ -150,23 +137,20 @@ export type Booking = {
   __v?: number;
 };
 
-// ✅ Create booking request (theo API doc)
 export type CreateBookingRequest = {
   vehicleId: string;
   startTime: string;
   endTime: string;
   deposit: {
-    provider: "payos"; // ✅ Chỉ support PayOS
+    provider: "payos";
   };
 };
 
-// ✅ Create booking response (has extra fields)
 export type CreateBookingResponse = Booking & {
   checkoutUrl: string;
   qrCode: string;
 };
 
-// ✅ Paginated response
 export type PaginatedBookingsResponse = {
   success: boolean;
   page: number;
@@ -176,38 +160,66 @@ export type PaginatedBookingsResponse = {
   items: Booking[];
 };
 
-// ✅ Payment status response
 export type PaymentStatusResponse = {
   success?: boolean;
   current: Booking;
   deposit?: DepositInfo;
 };
 
-// ✅ NEW: Mark Returned Response
 export type MarkReturnedResponse = {
   success: boolean;
   message: string;
   booking: Booking;
 };
 
-// ✅ NEW: Extend Booking Request
 export type ExtendBookingRequest = {
   addHours?: number;
   addDays?: number;
 };
 
-// ✅ NEW: Extend Booking Response
 export type ExtendBookingResponse = {
   success: boolean;
   message: string;
-  booking: Booking;
+  booking?: Booking; // không bắt buộc
   additionalCharge: number;
   newEndTime: string;
+  payment?: {
+    provider: string;
+    type: "extension";
+    orderCode: number;
+    checkoutUrl: string;
+    qrCode: string;
+  };
 };
 
-// ✅ NEW: Contract Response
-export type ContractResponse = {
-  success: boolean;
+export type BookingQueryParams = {
+  page?: number;
+  limit?: number;
+  status?: BookingStatus;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+};
+
+// Contract types aligned with backend
+export type ContractData = {
+  bookingId: string;
+  status: string;
+  vehicle: {
+    plateNumber: string;
+    brand: string;
+    model: string;
+    id?: string;
+    isPartnerVehicle?: boolean;
+  };
+  renter: {
+    _id: string;
+    name: string;
+    email: string;
+    phone: string;
+    id?: string;
+  };
   contract: {
     _id: string;
     url: string;
@@ -219,9 +231,17 @@ export type ContractResponse = {
     createdAt: string;
     updatedAt: string;
   };
+  startTime: string;
+  endTime: string;
+  createdAt: string;
 };
 
-// ✅ Generic API response wrapper
+export type ContractResponse = {
+  success: boolean;
+  data: ContractData;
+  message?: string;
+};
+
 type ApiResponseWrapper<T> = {
   success?: boolean;
   data?: T;
@@ -229,7 +249,6 @@ type ApiResponseWrapper<T> = {
   error?: string;
 };
 
-// ==== Admin Transactions types ====
 export type AdminTransactionStatus =
   | "none"
   | "pending"
@@ -280,17 +299,6 @@ export type AdminTransactionsResponse = {
   items: AdminTransactionItem[];
 };
 
-// ✅ Query params
-export type BookingQueryParams = {
-  page?: number;
-  limit?: number;
-  status?: BookingStatus;
-  startDate?: string;
-  endDate?: string;
-  sortBy?: "startTime" | "createdAt" | "status";
-  sortOrder?: "asc" | "desc";
-};
-
 // ============ ERROR HANDLER ============
 
 const handleError = (error: unknown, context: string): never => {
@@ -321,9 +329,6 @@ const handleError = (error: unknown, context: string): never => {
 
 // ============ HELPER FUNCTIONS FOR NORMALIZATION ============
 
-/**
- * Type guard to check if object has a property
- */
 const hasProperty = <T extends object, K extends PropertyKey>(
   obj: T,
   key: K
@@ -331,9 +336,6 @@ const hasProperty = <T extends object, K extends PropertyKey>(
   return key in obj;
 };
 
-/**
- * Normalize deposit info from various response formats
- */
 const normalizeDepositInfo = (deposit: unknown): DepositInfo => {
   if (!deposit || typeof deposit !== "object") {
     return {
@@ -395,9 +397,6 @@ const normalizeDepositInfo = (deposit: unknown): DepositInfo => {
   };
 };
 
-/**
- * Normalize booking amounts
- */
 const normalizeAmounts = (
   amounts: unknown,
   amountEstimated?: number
@@ -440,9 +439,6 @@ const normalizeAmounts = (
   };
 };
 
-/**
- * Normalize pricing snapshot
- */
 const normalizePricingSnapshot = (
   pricingSnapshot: unknown
 ): PricingSnapshot => {
@@ -464,9 +460,6 @@ const normalizePricingSnapshot = (
   };
 };
 
-/**
- * Normalize full booking object
- */
 const normalizeBooking = (data: unknown): Booking => {
   if (!data || typeof data !== "object") {
     throw new Error("Invalid booking data: not an object");
@@ -622,47 +615,22 @@ const normalizeBooking = (data: unknown): Booking => {
 
 // ============ API FUNCTIONS ============
 
-/**
- * POST /api/bookings
- * ✅ Tạo booking mới với PayOS deposit
- *
- * Steps theo API doc:
- * 1. Kiểm tra xe có sẵn trong khoảng thời gian
- * 2. Kiểm tra người dùng không có booking trùng
- * 3. Tính toán giá thuê và tiền cọc (5% giá trị xe)
- * 4. Tạo PayOS payment link tự động
- * 5. Booking ở trạng thái "pending" với thời gian giữ 15 phút
- */
 export const createBooking = async (
   data: CreateBookingRequest
 ): Promise<CreateBookingResponse> => {
   try {
-    console.log("🔄 Creating booking with data:", data);
-
     const response = await api.post<
       ApiResponseWrapper<Record<string, unknown>>
     >("/bookings", data);
-
-    console.log("✅ Create booking raw response:", response.data);
-
-    if (!response.data) {
-      throw new Error("Invalid booking response: empty data");
-    }
-
+    if (!response.data) throw new Error("Invalid booking response: empty data");
     const bookingData = response.data.data || response.data;
     const normalized = normalizeBooking(bookingData);
-
-    console.log("✅ Normalized booking response:", normalized);
-
     return normalized as CreateBookingResponse;
   } catch (error) {
     return handleError(error, "createBooking");
   }
 };
-/**
- * GET /api/bookings/mine
- * Get user's bookings with pagination and filters
- */
+
 export const getUserBookings = async (
   params: BookingQueryParams = {}
 ): Promise<PaginatedBookingsResponse> => {
@@ -676,8 +644,6 @@ export const getUserBookings = async (
       sortBy,
       sortOrder,
     } = params;
-
-    console.log("Fetching user bookings with params:", params);
 
     const response = await api.get<
       ApiResponseWrapper<{
@@ -699,8 +665,6 @@ export const getUserBookings = async (
         ...(sortOrder && { sortOrder }),
       },
     });
-
-    console.log("✅ Get bookings raw response:", response.data);
 
     const data = response.data.data || response.data;
 
@@ -728,19 +692,11 @@ export const getUserBookings = async (
   }
 };
 
-/**
- * GET /api/bookings/{id}
- * Get booking details by ID
- */
 export const getBookingById = async (bookingId: string): Promise<Booking> => {
   try {
-    console.log("Fetching booking:", bookingId);
-
     const response = await api.get<ApiResponseWrapper<Record<string, unknown>>>(
       `/bookings/${bookingId}`
     );
-
-    console.log("✅ Get booking response:", response.data);
 
     let bookingData: unknown;
 
@@ -768,21 +724,13 @@ export const getBookingById = async (bookingId: string): Promise<Booking> => {
   }
 };
 
-/**
- * POST /api/bookings/{id}/payment/link
- * Create new payment link (when old link expired)
- */
 export const createPaymentLink = async (
   bookingId: string
 ): Promise<{ checkoutUrl: string; qrCode: string }> => {
   try {
-    console.log("Creating payment link for:", bookingId);
-
     const response = await api.post<
       ApiResponseWrapper<{ checkoutUrl: string; qrCode: string }>
     >(`/bookings/${bookingId}/payment/link`);
-
-    console.log("✅ Payment link response:", response.data);
 
     const data = response.data.data || response.data;
 
@@ -790,39 +738,25 @@ export const createPaymentLink = async (
       !data ||
       typeof data !== "object" ||
       !("checkoutUrl" in data) ||
-      !("qrCode" in data) ||
-      typeof data.checkoutUrl !== "string" ||
-      typeof data.qrCode !== "string"
+      !("qrCode" in data)
     ) {
       throw new Error("Invalid payment link response: missing URLs");
     }
 
     return {
-      checkoutUrl: data.checkoutUrl,
-      qrCode: data.qrCode,
+      checkoutUrl: data.checkoutUrl as string,
+      qrCode: data.qrCode as string,
     };
   } catch (error) {
     return handleError(error, "createPaymentLink");
   }
 };
 
-/**
- * GET /api/bookings/{id}/payment
- * Get payment status for booking - THEN fetch full booking
- */
 export const getPaymentStatus = async (
   bookingId: string
 ): Promise<PaymentStatusResponse> => {
   try {
-    console.log("📡 Fetching full booking for payment status:", bookingId);
-
     const fullBooking = await getBookingById(bookingId);
-
-    console.log("✅ Full booking with QR code:", {
-      hasQrCode: !!fullBooking.deposit?.payos?.qrCode,
-      qrCode: fullBooking.deposit?.payos?.qrCode,
-    });
-
     return {
       success: true,
       current: fullBooking,
@@ -833,24 +767,15 @@ export const getPaymentStatus = async (
   }
 };
 
-/**
- * POST /api/bookings/{id}/cancel
- * Cancel booking (pending/reserved -> cancelled)
- */
 export const cancelBooking = async (
   bookingId: string,
   reason?: string
 ): Promise<{ success: boolean; message: string }> => {
   try {
-    console.log("Cancelling booking:", bookingId);
-
     const response = await api.post<{ success: boolean; message: string }>(
       `/bookings/${bookingId}/cancel`,
       { reason }
     );
-
-    console.log("✅ Cancel booking response:", response.data);
-
     return {
       success: response.data.success !== false,
       message: response.data.message || "Booking cancelled successfully",
@@ -860,22 +785,13 @@ export const cancelBooking = async (
   }
 };
 
-/**
- * POST /api/bookings/{id}/refund
- * Refund deposit for booking
- */
 export const refundBooking = async (
   bookingId: string
 ): Promise<{ success: boolean; message: string }> => {
   try {
-    console.log("Refunding booking:", bookingId);
-
     const response = await api.post<{ success: boolean; message: string }>(
       `/bookings/${bookingId}/refund`
     );
-
-    console.log("✅ Refund booking response:", response.data);
-
     return {
       success: response.data.success !== false,
       message: response.data.message || "Refund processed successfully",
@@ -885,17 +801,10 @@ export const refundBooking = async (
   }
 };
 
-/**
- * ✅ NEW: PUT /api/bookings/{id}/mark-returned
- * Mark vehicle as returned - Renter only (waiting for staff verification)
- * Changes: active → returning
- */
 export const markVehicleReturned = async (
   bookingId: string
 ): Promise<MarkReturnedResponse> => {
   try {
-    console.log("🔄 Marking vehicle as returned:", bookingId);
-
     const response = await api.put<
       ApiResponseWrapper<{
         success: boolean;
@@ -903,8 +812,6 @@ export const markVehicleReturned = async (
         booking: Booking;
       }>
     >(`/bookings/${bookingId}/mark-returned`);
-
-    console.log("✅ Mark returned response:", response.data);
 
     const rawData = response.data.data || response.data;
 
@@ -936,138 +843,136 @@ export const markVehicleReturned = async (
   }
 };
 
-/**
- * ✅ NEW: POST /api/bookings/{id}/extend
- * Extend booking time - Add hours or days
- * Booking must be active or reserved
- */
 export const extendBooking = async (
   bookingId: string,
   data: ExtendBookingRequest
 ): Promise<ExtendBookingResponse> => {
   try {
-    console.log("🔄 Extending booking:", bookingId, data);
-
     const response = await api.post<
       ApiResponseWrapper<{
         success: boolean;
         message: string;
-        booking: Booking;
-        additionalCharge: number;
-        newEndTime: string;
+        booking?: unknown; // có thể undefined
+        additionalCharge?: number;
+        newEndTime?: string;
+        payment?: {
+          provider: string;
+          type: "extension";
+          orderCode: number;
+          checkoutUrl: string;
+          qrCode: string;
+        };
       }>
     >(`/bookings/${bookingId}/extend`, data);
 
-    console.log("✅ Extend booking response:", response.data);
+    const payload = response.data?.data || response.data;
 
-    const rawResponseData = response.data.data || response.data;
-
-    if (!rawResponseData || typeof rawResponseData !== "object") {
-      throw new Error("Invalid extend booking response");
+    const bookingRaw = payload?.booking;
+    if (!bookingRaw || typeof bookingRaw !== "object") {
+      // Không có booking object trong response → trả kết quả tối thiểu cho modal thanh toán,
+      // tránh gọi normalizeBooking để không ném lỗi.
+      return {
+        success: payload?.success !== false,
+        message:
+          typeof payload?.message === "string"
+            ? payload.message
+            : "Booking extended successfully",
+        booking: {
+          // dựng booking tối thiểu để đáp ứng type nếu cần, hoặc bạn có thể đổi type cho phép null
+          _id: bookingId,
+          renter: "",
+          vehicle: "",
+          station: "",
+          company: null,
+          startTime: "",
+          endTime: payload?.newEndTime || "",
+          status: "active",
+          deposit: {
+            amount: 0,
+            currency: "VND",
+            provider: "payos",
+            providerRef: null,
+            status: "none",
+          },
+          holdExpiresAt: null,
+          counterCheck: { licenseSnapshot: [], contractPhotos: [] },
+          handoverPhotos: {
+            exteriorBefore: [],
+            interiorBefore: [],
+            exteriorAfter: [],
+            interiorAfter: [],
+          },
+          cancellationPolicySnapshot: { windows: [], specialCases: [] },
+          amounts: {
+            overKmFee: 0,
+            lateFee: 0,
+            batteryFee: 0,
+            damageCharge: 0,
+            discounts: 0,
+            subtotal: 0,
+            tax: 0,
+            grandTotal: 0,
+            totalPaid: 0,
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as Booking,
+        additionalCharge:
+          typeof payload?.additionalCharge === "number"
+            ? payload.additionalCharge
+            : 0,
+        newEndTime:
+          typeof payload?.newEndTime === "string" ? payload.newEndTime : "",
+        payment: payload?.payment,
+      };
     }
 
-    // Type guard to check if responseData has required properties
-    const responseData = rawResponseData as {
-      success?: boolean;
-      message?: string;
-      booking: Booking | Record<string, unknown>;
-      additionalCharge?: number;
-      newEndTime?: string;
-    };
-
-    if (!responseData.booking || typeof responseData.booking !== "object") {
-      throw new Error("Invalid extend booking response: missing booking");
-    }
-
+    // Có booking object → normalize như cũ
     return {
-      success: responseData.success !== false,
+      success: payload.success !== false,
       message:
-        typeof responseData.message === "string"
-          ? responseData.message
+        typeof payload.message === "string"
+          ? payload.message
           : "Booking extended successfully",
-      booking: normalizeBooking(responseData.booking),
+      booking: normalizeBooking(bookingRaw),
       additionalCharge:
-        typeof responseData.additionalCharge === "number"
-          ? responseData.additionalCharge
+        typeof payload.additionalCharge === "number"
+          ? payload.additionalCharge
           : 0,
       newEndTime:
-        typeof responseData.newEndTime === "string"
-          ? responseData.newEndTime
-          : "",
+        typeof payload.newEndTime === "string" ? payload.newEndTime : "",
+      payment: payload?.payment,
     };
   } catch (error) {
     return handleError(error, "extendBooking");
   }
 };
 
-/**
- * ✅ NEW: GET /api/bookings/{id}/contract
- * Get uploaded contract for booking - Renter/Staff/Admin
- */
 export const getBookingContract = async (
   bookingId: string
 ): Promise<ContractResponse> => {
   try {
-    console.log("📄 Fetching booking contract:", bookingId);
+    const response = await api.get<ApiResponseWrapper<ContractData>>(
+      `/bookings/${bookingId}/contract`
+    );
 
-    const response = await api.get<
-      ApiResponseWrapper<{
-        success: boolean;
-        contract: {
-          _id: string;
-          url: string;
-          publicId: string;
-          type: string;
-          provider: string;
-          tags: string[];
-          uploadedBy: string;
-          createdAt: string;
-          updatedAt: string;
-        };
-      }>
-    >(`/bookings/${bookingId}/contract`);
+    const outer = response.data;
+    const inner = outer?.data;
 
-    console.log("✅ Get contract response:", response.data);
-
-    const rawData = response.data.data || response.data;
-
-    if (!rawData || typeof rawData !== "object") {
-      throw new Error("Contract not found for this booking");
-    }
-
-    // Type guard to check if data has contract property
-    const data = rawData as {
-      success?: boolean;
-      contract?: {
-        _id: string;
-        url: string;
-        publicId: string;
-        type: string;
-        provider: string;
-        tags: string[];
-        uploadedBy: string;
-        createdAt: string;
-        updatedAt: string;
-      };
-    };
-
-    if (!data.contract || typeof data.contract !== "object") {
+    if (!inner || typeof inner !== "object" || !("contract" in inner)) {
       throw new Error("Contract not found for this booking");
     }
 
     return {
-      success: data.success !== false,
-      contract: data.contract,
+      success: outer.success !== false,
+      data: inner,
+      message: outer.message,
     };
   } catch (error) {
     return handleError(error, "getBookingContract");
   }
 };
 
-/**
- * GET /api/bookings/admin/transactions
- * Admin list payment transactions with filters
- */
 export const getAdminTransactions = async (
   params: {
     provider?: string;
@@ -1441,7 +1346,6 @@ export const getBookingStatusColor = (status: BookingStatus): string => {
     cancelled: "bg-red-100 text-red-800",
     expired: "bg-gray-100 text-gray-800",
   };
-
   return statusColors[status] || "bg-gray-100 text-gray-800";
 };
 
@@ -1455,7 +1359,6 @@ export const getBookingStatusLabel = (status: BookingStatus): string => {
     cancelled: "Cancelled",
     expired: "Expired",
   };
-
   return statusLabels[status] || status;
 };
 
@@ -1467,7 +1370,6 @@ export const getDepositStatusColor = (status: DepositStatus): string => {
     failed: "bg-red-100 text-red-800",
     refunded: "bg-blue-100 text-blue-800",
   };
-
   return statusColors[status] || "bg-gray-100 text-gray-800";
 };
 

@@ -6,8 +6,10 @@ import EditProfileModal from "./userProfileComponent/userTabComponent/profileCom
 import profileApi, {
   type UserProfile as UserProfileType,
 } from "../../../../../service/apiUser/profile/API";
+import CancelledPaidBookingsPage from "./userProfileComponent/userTabComponent/CancelledPaidBookingsPage";
+import ManualRefundsDonePage from "./userProfileComponent/userTabComponent/ManualRefundsDonePage";
 
-type TabType = "profile" | "booking";
+type TabType = "profile" | "booking" | "cancelled-paid" | "manual-refunds";
 
 const UserProfile = () => {
   const [user, setUser] = useState<UserProfileType | null>(null);
@@ -22,6 +24,8 @@ const UserProfile = () => {
   const tabs = [
     { id: "profile", label: "Profile" },
     { id: "booking", label: "Booking History" },
+    { id: "cancelled-paid", label: "Cancelled Paid Bookings" },
+    { id: "manual-refunds", label: "Manual Refunds" },
   ] as const;
 
   const fetchUserProfile = async () => {
@@ -67,6 +71,10 @@ const UserProfile = () => {
         return <ProfileTab user={user} onRefresh={handleRefresh} />;
       case "booking":
         return <BookingHistoryTab />;
+      case "cancelled-paid":
+        return <CancelledPaidBookingsPage />;
+      case "manual-refunds":
+        return <ManualRefundsDonePage />;
       default:
         return <ProfileTab user={user} onRefresh={handleRefresh} />;
     }

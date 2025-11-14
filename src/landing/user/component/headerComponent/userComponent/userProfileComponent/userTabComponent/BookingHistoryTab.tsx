@@ -39,6 +39,13 @@ const StatusBadge = ({ status }: { status: string }) => {
           border: "border-blue-200",
           label: "Reserved",
         };
+      case "returning":
+        return {
+          bg: "bg-yellow-100",
+          text: "text-yellow-700",
+          border: "border-yellow-200",
+          label: "Returning",
+        };
       case "active":
         return {
           bg: "bg-green-100",
@@ -48,9 +55,9 @@ const StatusBadge = ({ status }: { status: string }) => {
         };
       case "completed":
         return {
-          bg: "bg-gray-100",
-          text: "text-gray-700",
-          border: "border-gray-200",
+          bg: "bg-purple-100",
+          text: "text-purple-700",
+          border: "border-purple-200",
           label: "Completed",
         };
       case "cancelled":
