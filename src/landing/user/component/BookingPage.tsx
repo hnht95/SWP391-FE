@@ -30,10 +30,14 @@ const BookingPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [formError, setFormError] = useState<string>(""); // ✅ Form error state
+  const [formError, setFormError] = useState<string>("");
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [bookingData, setBookingData] = useState<any>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [bookingData, setBookingData] = useState<CreateBookingResponse | null>(
+    null
+  );
 
   const [pickupDate, setPickupDate] = useState("");
   const [pickupTime, setPickupTime] = useState("10:00");
@@ -65,13 +69,39 @@ const BookingPage: React.FC = () => {
     fetchVehicle();
   }, [vehicleId]);
 
-  const calculateDuration = () => {
-    if (!pickupDate || !returnDate) return 0;
+  // ✅ NEW: Calculate duration with days + hours
+  const calculateDurationDetails = () => {
+    if (!pickupDate || !returnDate) {
+      return { totalHours: 0, days: 0, hours: 0 };
+    }
+
     const start = new Date(`${pickupDate}T${pickupTime}`);
     const end = new Date(`${returnDate}T${returnTime}`);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+
+    // Calculate total hours difference
+    const diffMs = Math.abs(end.getTime() - start.getTime());
+    const totalHours = diffMs / (1000 * 60 * 60); // Convert ms to hours
+
+    // Calculate full days and remaining hours
+    const days = Math.floor(totalHours / 24);
+    const hours = Math.ceil(totalHours % 24); // Round up remaining hours
+
+    return { totalHours, days, hours };
+  };
+
+  // ✅ NEW: Calculate rental cost based on days + hours
+  const calculateRentalCost = () => {
+    if (!vehicle) return 0;
+
+    const { days, hours } = calculateDurationDetails();
+
+    // Calculate cost for full days
+    const dayCost = days * vehicle.pricePerDay;
+
+    // Calculate cost for remaining hours (if any)
+    const hourCost = hours > 0 ? hours * vehicle.pricePerHour : 0;
+
+    return dayCost + hourCost;
   };
 
   const calculateDeposit = () => {
@@ -79,14 +109,14 @@ const BookingPage: React.FC = () => {
     return Math.round(vehicle.valuation.valueVND * 0.015);
   };
 
-  const duration = calculateDuration();
+  const durationDetails = calculateDurationDetails();
   const depositAmount = calculateDeposit();
-  const totalPrice = vehicle ? duration * vehicle.pricePerDay : 0;
+  const totalPrice = calculateRentalCost();
   const grandTotal = totalPrice + depositAmount;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(""); // ✅ Clear previous errors
+    setFormError("");
 
     if (!pickupDate || !returnDate) {
       setFormError("Please select pickup and return dates");
@@ -155,7 +185,9 @@ const BookingPage: React.FC = () => {
         vehicle: vehicle,
         calculatedTotals: {
           dailyRate: vehicle?.pricePerDay || 0,
-          duration: duration,
+          hourlyRate: vehicle?.pricePerHour || 0,
+          durationDays: durationDetails.days,
+          durationHours: durationDetails.hours,
           rentalCost: totalPrice,
           deposit: depositAmount,
           total: grandTotal,
@@ -250,7 +282,6 @@ const BookingPage: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Vehicle Badge Overlay */}
                       <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
                         <h3 className="font-bold text-xl text-gray-900">
                           {vehicle.brand} {vehicle.model}
@@ -258,12 +289,14 @@ const BookingPage: React.FC = () => {
                         <p className="text-sm text-gray-600">{vehicle.year}</p>
                       </div>
 
-                      {/* Price Badge Overlay */}
+                      {/* ✅ Updated Price Badge - Show both rates */}
                       <div className="absolute bottom-4 right-4 bg-black/90 backdrop-blur-sm rounded-xl px-5 py-3 shadow-lg">
-                        <p className="text-2xl font-bold text-white">
-                          {vehicle.pricePerDay.toLocaleString()}đ
+                        <p className="text-xl font-bold text-white">
+                          {vehicle.pricePerDay.toLocaleString()}đ/day
                         </p>
-                        <p className="text-xs text-white/70">per day</p>
+                        <p className="text-sm text-white/90">
+                          {vehicle.pricePerHour.toLocaleString()}đ/hour
+                        </p>
                       </div>
                     </motion.div>
 
@@ -274,7 +307,7 @@ const BookingPage: React.FC = () => {
                       transition={{ delay: 0.2 }}
                       className="grid grid-cols-2 sm:grid-cols-4 gap-4"
                     >
-                      <div className=" rounded-xl p-4 border border-slate-100 shadow">
+                      <div className="rounded-xl p-4 border border-slate-100 shadow">
                         <p className="text-xs text-blue-600 font-medium mb-1">
                           Plate Number
                         </p>
@@ -282,7 +315,7 @@ const BookingPage: React.FC = () => {
                           {vehicle.plateNumber}
                         </p>
                       </div>
-                      <div className=" rounded-xl p-4 border border-slate-100 shadow">
+                      <div className="rounded-xl p-4 border border-slate-100 shadow">
                         <p className="text-xs text-purple-600 font-medium mb-1">
                           Year
                         </p>
@@ -290,7 +323,7 @@ const BookingPage: React.FC = () => {
                           {vehicle.year}
                         </p>
                       </div>
-                      <div className=" rounded-xl p-4 border border-slate-100 shadow">
+                      <div className="rounded-xl p-4 border border-slate-100 shadow">
                         <div className="flex items-center gap-2">
                           <FaBatteryFull className="text-green-600" />
                           <div>
@@ -303,7 +336,7 @@ const BookingPage: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <div className=" rounded-xl p-4 border border-slate-100 shadow">
+                      <div className="rounded-xl p-4 border border-slate-100 shadow">
                         <p className="text-xs text-orange-600 font-medium mb-1">
                           Mileage
                         </p>
@@ -326,13 +359,13 @@ const BookingPage: React.FC = () => {
                             <FaMapMarkerAlt className="text-white text-xl" />
                           </div>
                           <div className="flex-1">
-                            <p className="text-sm  font-medium mb-1">
+                            <p className="text-sm font-medium mb-1">
                               Pickup Location
                             </p>
-                            <p className="font-bold  text-lg mb-1">
+                            <p className="font-bold text-lg mb-1">
                               {station.name}
                             </p>
-                            <p className="text-sm ">
+                            <p className="text-sm">
                               {station.location.address}
                             </p>
                           </div>
@@ -353,10 +386,10 @@ const BookingPage: React.FC = () => {
                             <FaMoneyBillWave className="text-white text-xl" />
                           </div>
                           <div className="flex-1">
-                            <p className="text-sm  font-medium mb-1">
+                            <p className="text-sm font-medium mb-1">
                               Security Deposit
                             </p>
-                            <p className="font-bold  text-lg">
+                            <p className="font-bold text-lg">
                               1.5% of vehicle value
                             </p>
                             <p className="text-sm mt-1">
@@ -369,7 +402,7 @@ const BookingPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Booking Form - Takes 1 column */}
+                {/* Booking Form */}
                 <div className="lg:col-span-1">
                   <motion.div
                     initial={{ opacity: 0, x: 20 }}
@@ -457,31 +490,77 @@ const BookingPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Booking Summary */}
+                      {/* ✅ UPDATED Booking Summary */}
                       <div className="shadow border-slate-200 rounded-2xl p-6 text-black">
                         <h3 className="font-bold mb-4 text-lg flex items-center gap-2">
                           <FaCreditCard className="text-black text-lg" />
                           Booking Summary
                         </h3>
                         <div className="space-y-3 text-sm">
+                          {/* Daily Rate */}
                           <div className="flex justify-between items-center pb-3 border-b border-black/10">
                             <span className="text-black/70">Daily Rate</span>
                             <span className="font-semibold">
                               {vehicle.pricePerDay.toLocaleString()}đ
                             </span>
                           </div>
+
+                          {/* Hourly Rate */}
+                          <div className="flex justify-between items-center pb-3 border-b border-black/10">
+                            <span className="text-black/70">Hourly Rate</span>
+                            <span className="font-semibold">
+                              {vehicle.pricePerHour.toLocaleString()}đ
+                            </span>
+                          </div>
+
+                          {/* Duration Breakdown */}
                           <div className="flex justify-between items-center pb-3 border-b border-black/10">
                             <span className="text-black/70">Duration</span>
-                            <span className="font-semibold">
-                              {duration || 0} day{duration !== 1 ? "s" : ""}
-                            </span>
+                            <div className="text-right">
+                              {durationDetails.days > 0 && (
+                                <div className="font-semibold">
+                                  {durationDetails.days} day
+                                  {durationDetails.days !== 1 ? "s" : ""}
+                                </div>
+                              )}
+                              {durationDetails.hours > 0 && (
+                                <div className="font-semibold text-blue-600">
+                                  + {durationDetails.hours} hour
+                                  {durationDetails.hours !== 1 ? "s" : ""}
+                                </div>
+                              )}
+                              {durationDetails.days === 0 &&
+                                durationDetails.hours === 0 && (
+                                  <span className="font-semibold text-gray-400">
+                                    Select dates
+                                  </span>
+                                )}
+                            </div>
                           </div>
+
+                          {/* Rental Cost Breakdown */}
                           <div className="flex justify-between items-center pb-3 border-b border-black/10">
                             <span className="text-black/70">Rental Cost</span>
-                            <span className="font-semibold">
-                              {totalPrice.toLocaleString()}đ
-                            </span>
+                            <div className="text-right">
+                              {durationDetails.days > 0 && (
+                                <div className="text-xs text-gray-600">
+                                  {durationDetails.days} ×{" "}
+                                  {vehicle.pricePerDay.toLocaleString()}đ
+                                </div>
+                              )}
+                              {durationDetails.hours > 0 && (
+                                <div className="text-xs text-blue-600">
+                                  + {durationDetails.hours} ×{" "}
+                                  {vehicle.pricePerHour.toLocaleString()}đ
+                                </div>
+                              )}
+                              <div className="font-semibold">
+                                {totalPrice.toLocaleString()}đ
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Deposit */}
                           <div className="flex justify-between items-center pb-3 border-b border-black/10">
                             <span className="text-black/70">
                               Security Deposit (1.5%)
@@ -490,6 +569,8 @@ const BookingPage: React.FC = () => {
                               {depositAmount.toLocaleString()}đ
                             </span>
                           </div>
+
+                          {/* Total */}
                           <div className="flex justify-between items-center pt-2">
                             <span className="text-lg font-bold">Total</span>
                             <span className="text-2xl font-bold text-green-400">
@@ -547,10 +628,10 @@ const BookingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Spacing */}
         <div className="h-20"></div>
       </div>
 
+      {/* Success Modal */}
       <AnimatePresence>
         {showSuccessModal && bookingData && (
           <motion.div
@@ -566,7 +647,6 @@ const BookingPage: React.FC = () => {
               transition={{ type: "spring", duration: 0.5 }}
               className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden"
             >
-              {/* Header with gradient */}
               <div className="bg-white border-b border-slate-200 p-8 text-center">
                 <motion.div
                   initial={{ scale: 0 }}
@@ -584,7 +664,6 @@ const BookingPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Content */}
               <div className="p-8">
                 <div className="bg-gray-50 rounded-2xl p-6 mb-6">
                   <h3 className="font-bold text-gray-900 mb-4 text-lg">
@@ -607,6 +686,16 @@ const BookingPage: React.FC = () => {
                       <span className="text-gray-600">Vehicle</span>
                       <span className="font-semibold text-gray-900">
                         {vehicle?.brand} {vehicle?.model}
+                      </span>
+                    </div>
+                    {/* ✅ Show duration breakdown in modal */}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                      <span className="text-gray-600">Duration</span>
+                      <span className="font-semibold text-gray-900">
+                        {durationDetails.days > 0 &&
+                          `${durationDetails.days}d `}
+                        {durationDetails.hours > 0 &&
+                          `${durationDetails.hours}h`}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2">

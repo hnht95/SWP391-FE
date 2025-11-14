@@ -35,6 +35,7 @@ import BookingSuccessPage from "../landing/user/component/bookingComponent/Booki
 import StationManagement from "../landing/admin/homepageAdminComponent/StationManagementAdmin/StationManagement";
 import { StationDetailPage, StationsListPage } from "../landing/user/component";
 import ManualRefunds from "../landing/staff/homepageStaffComponent/ManualRefunds";
+import ExtendPaymentPage from "../landing/user/component/headerComponent/userComponent/userProfileComponent/userTabComponent/bookingComponent/ExtendPaymentPage";
 
 const AllRouter = () => {
   return (
@@ -86,6 +87,10 @@ const AllRouter = () => {
         <Route
           path="/booking-success/:bookingId"
           element={<BookingSuccessPage />}
+        />
+        <Route
+          path="/booking/:bookingId/extend-pay"
+          element={<ExtendPaymentPage />}
         />
       </Route>
 

@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Car,
   Calendar,
@@ -8,6 +9,7 @@ import {
   Clock,
   Loader2,
   AlertCircle,
+  ArrowRight,
 } from "lucide-react";
 import BookingDetailModal from "./bookingComponent/BookingDetailModal";
 import type { Booking } from "../../../../../../../service/apiBooking/API";
@@ -28,7 +30,7 @@ const StatusBadge = ({ status }: { status: string }) => {
           bg: "bg-yellow-100",
           text: "text-yellow-700",
           border: "border-yellow-200",
-          label: "Pending",
+          label: "Pending Payment",
         };
       case "reserved":
         return {
@@ -36,6 +38,13 @@ const StatusBadge = ({ status }: { status: string }) => {
           text: "text-blue-700",
           border: "border-blue-200",
           label: "Reserved",
+        };
+      case "returning":
+        return {
+          bg: "bg-yellow-100",
+          text: "text-yellow-700",
+          border: "border-yellow-200",
+          label: "Returning",
         };
       case "active":
         return {
@@ -46,9 +55,9 @@ const StatusBadge = ({ status }: { status: string }) => {
         };
       case "completed":
         return {
-          bg: "bg-gray-100",
-          text: "text-gray-700",
-          border: "border-gray-200",
+          bg: "bg-purple-100",
+          text: "text-purple-700",
+          border: "border-purple-200",
           label: "Completed",
         };
       case "cancelled":
@@ -87,6 +96,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const BookingHistoryTab = () => {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [vehicleImages, setVehicleImages] = useState<
     Record<string, string | null>
@@ -217,6 +227,12 @@ const BookingHistoryTab = () => {
     fetchBookings();
   }, [fetchVehicleThumbnail]);
 
+  // ✅ Handle payment page navigation
+  const handleReturnToPayment = (e: React.MouseEvent, bookingId: string) => {
+    e.stopPropagation(); // Prevent opening detail modal
+    navigate(`/payment/${bookingId}`);
+  };
+
   const handleViewDetails = (bookingId: string) => {
     setSelectedBookingId(bookingId);
     setIsModalOpen(true);
@@ -314,6 +330,9 @@ const BookingHistoryTab = () => {
           const vehicleImage = vehicleImages[vehicleId];
           const imageLoading = loadingImages && !vehicleImage;
 
+          // ✅ Check if booking is pending
+          const isPending = booking.status === "pending";
+
           return (
             <motion.div
               key={booking._id}
@@ -374,7 +393,7 @@ const BookingHistoryTab = () => {
                     <StatusBadge status={booking.status} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                     <div className="flex items-center text-gray-600">
                       <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
                       <span className="truncate">
@@ -398,8 +417,42 @@ const BookingHistoryTab = () => {
                       </span>
                     </div>
                   </div>
+
+                  {/* ✅ Payment Button for Pending Status */}
+                  {isPending && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={(e) => handleReturnToPayment(e, booking._id)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>Complete Payment</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </motion.button>
+                  )}
                 </div>
               </div>
+
+              {/* ✅ Pending Payment Warning */}
+              {isPending && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="mt-3 pt-3 border-t border-yellow-200 bg-yellow-50 -mx-5 -mb-5 px-5 py-3 rounded-b-xl"
+                >
+                  <div className="flex items-start gap-2 text-xs text-yellow-800">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                      <span className="font-semibold">Payment Required:</span>{" "}
+                      This booking is waiting for payment completion. Click the
+                      button above to proceed with payment.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           );
         })}

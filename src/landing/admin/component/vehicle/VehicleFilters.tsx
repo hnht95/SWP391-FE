@@ -80,13 +80,13 @@ const VehicleFilters: React.FC<VehicleFiltersProps> = ({
                   transition={{ duration: 0.22, ease: 'easeOut' }}
                   className="absolute z-20 mt-2 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
                 >
-                  {['all','available','reserved','rented','maintenance'].map((st) => (
+                  {['all','available','reserved','rented','maintenance','pending_deletion','pending_maintenance'].map((st) => (
                     <li
                       key={st}
                       onClick={() => { onStatusChange(st); setOpen(false); }}
                       className={`px-4 py-2 cursor-pointer select-none transition-colors ${selectedStatus === st ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-800'}`}
                     >
-                      {st === 'all' ? 'All Status' : st.charAt(0).toUpperCase() + st.slice(1)}
+                      {st === 'all' ? 'All Status' : st.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                     </li>
                   ))}
                 </motion.ul>

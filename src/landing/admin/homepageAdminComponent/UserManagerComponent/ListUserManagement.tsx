@@ -7,7 +7,9 @@ import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
 import { getAllUsers, type UserListFilters, type UserStats as UserStatsType } from "../../../../service/apiAdmin/apiListUser/API";
 import { getAllStaffs, createStaff, updateStaff, deleteStaff, type Staff as APIStaff } from "../../../../service/apiAdmin/StaffAPI/API";
+import type { DeleteStaffResponse } from "../../../../service/apiAdmin/StaffAPI/API";
 import type { RawApiUser } from "../../../../types/userTypes";
+import useDebounce from "../../../../hooks/useDebounce";
 import UserDetailModal from "./UserDetailModal";
 import UpdateUserModal from "./UpdateUserModal";
 import AddStaffModal from "./AddStaffModal";
@@ -39,6 +41,7 @@ interface CombinedUser {
 
 const ListUserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce search by 500ms
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all"); // all, user, staff
@@ -66,22 +69,27 @@ const ListUserManagement: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const filters: UserListFilters = {
-        page,
-        limit,
+      // Prepare filters for users API
+      const userFilters: UserListFilters = {
+        // Don't pass page/limit to API, we'll handle pagination client-side
+        // because we need to combine with staff
       };
 
-      if (selectedRole !== "all") {
-        filters.role = selectedRole as any;
+      // Only filter by role if it's NOT "staff" (staff has separate API)
+      // If role is "staff", we'll only show staff from staff API
+      // If role is "renter", filter users by renter role
+      if (selectedRole !== "all" && selectedRole !== "staff") {
+        userFilters.role = selectedRole as any;
       }
 
+      // Filter users by status
       if (selectedStatus !== "all") {
-        filters.isActive = selectedStatus === "active";
+        userFilters.isActive = selectedStatus === "active";
       }
 
-      // Fetch both users and staff
+      // Fetch both users and staff in parallel
       const [usersResponse, staffsResponse] = await Promise.all([
-        getAllUsers(filters),
+        getAllUsers(userFilters),
         getAllStaffs()
       ]);
 
@@ -106,8 +114,8 @@ const ListUserManagement: React.FC = () => {
         station: typeof user.station === 'object' ? user.station?.name : user.station
       }));
 
-      // Convert staff to CombinedUser format
-      const staffs: CombinedUser[] = (staffsResponse || []).map(staff => ({
+      // Convert staff to CombinedUser format and apply filters
+      let staffs: CombinedUser[] = (staffsResponse || []).map(staff => ({
         id: staff._id,
         name: staff.name,
         email: staff.email,
@@ -125,32 +133,88 @@ const ListUserManagement: React.FC = () => {
         gender: staff.gender
       }));
 
-      // Combine and de-duplicate by id (users API may already include staff)
+      // Filter staff by status (client-side since staff API doesn't support filters)
+      if (selectedStatus !== "all") {
+        staffs = staffs.filter(staff => {
+          return selectedStatus === "active" ? staff.isActive : !staff.isActive;
+        });
+      }
+
+      // Combine users and staff
       const byId = new Map<string, CombinedUser>();
-      [...users, ...staffs].forEach((item) => {
-        // If both exist, prefer the staff entry for richer staff fields
-        if (!byId.has(item.id) || item.type === "staff") {
-          byId.set(item.id, item);
-        }
-      });
-      let combined = Array.from(byId.values());
       
+      // If role filter is "staff", only include staff
+      // If role filter is "renter", only include users (renters)
+      // If role is "all", include both
+      if (selectedRole === "staff") {
+        staffs.forEach((item) => byId.set(item.id, item));
+      } else if (selectedRole === "renter") {
+        users.forEach((item) => byId.set(item.id, item));
+      } else {
+        // Include all users
+        users.forEach((item) => byId.set(item.id, item));
+        
+        // Only include staff if role is "all" or if we want to show both
+        // Remove staff from users array if they exist (to avoid duplicates)
+        staffs.forEach((item) => {
+          // Don't add if user already exists with same ID
+          if (!byId.has(item.id)) {
+            byId.set(item.id, item);
+          } else if (item.type === "staff") {
+            // Prefer staff entry if it exists
+            byId.set(item.id, item);
+          }
+        });
+      }
+
+      let combined = Array.from(byId.values());
+
+      // Filter by type if needed
       if (selectedType !== "all") {
         combined = combined.filter(item => item.type === selectedType);
       }
 
-      setCombinedUsers(combined);
-      setTotal(combined.length);
+      // Apply search filter
+      if (debouncedSearchTerm.trim()) {
+        const searchLower = debouncedSearchTerm.toLowerCase().trim();
+        combined = combined.filter((user) => {
+          return (
+            user.name.toLowerCase().includes(searchLower) ||
+            user.email.toLowerCase().includes(searchLower) ||
+            user.phone.includes(debouncedSearchTerm) ||
+            user.id.toLowerCase().includes(searchLower)
+          );
+        });
+      }
+
+      // Calculate total before pagination
+      const totalCount = combined.length;
+
+      // Apply pagination
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedUsers = combined.slice(startIndex, endIndex);
+
+      setCombinedUsers(paginatedUsers);
+      setTotal(totalCount);
       
-      // Update stats based on actual data
+      // Update stats - fetch without filters to get accurate stats
+      const statsResponse = await getAllUsers({});
+      const allStaffs = await getAllStaffs();
+      
+      const allUsersFromStats = (statsResponse.items || []).map(u => ({
+        isActive: u.isActive,
+        role: u.role
+      }));
+
       setStats({
-        total: users.length,
-        active: users.filter(u => u.isActive).length,
+        total: allUsersFromStats.length,
+        active: allUsersFromStats.filter(u => u.isActive).length,
         byRole: {
-          admin: users.filter(u => u.role === "admin").length,
-          staff: staffs.length,
-          renter: users.filter(u => u.role === "renter").length,
-          partner: users.filter(u => u.role === "partner").length,
+          admin: allUsersFromStats.filter(u => u.role === "admin").length,
+          staff: allStaffs.length,
+          renter: allUsersFromStats.filter(u => u.role === "renter").length,
+          partner: allUsersFromStats.filter(u => u.role === "partner").length,
         }
       });
     } catch (e) {
@@ -161,20 +225,17 @@ const ListUserManagement: React.FC = () => {
     }
   };
 
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedRole, selectedStatus, selectedType, debouncedSearchTerm]);
+
   useEffect(() => {
     fetchData();
-  }, [page, limit, selectedRole, selectedStatus, selectedType]);
+  }, [page, limit, selectedRole, selectedStatus, selectedType, debouncedSearchTerm]);
 
-  // Filter combined users by search term
-  const filteredUsers = useMemo(() => {
-    return combinedUsers.filter((user) => {
-      const matchesSearch =
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.phone.includes(searchTerm);
-      return matchesSearch;
-    });
-  }, [combinedUsers, searchTerm]);
+  // No need for separate filteredUsers useMemo since filtering is done in fetchData
+  const filteredUsers = combinedUsers;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -239,6 +300,35 @@ const ListUserManagement: React.FC = () => {
     setSelectedUser(null);
     setShowSuccessModal(true);
     setSuccessMessage("Staff updated successfully!");
+  };
+
+  const handleDeleteStaff = async (user: CombinedUser) => {
+    if (user.type !== "staff" || !user._id) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response: DeleteStaffResponse = await deleteStaff(user._id);
+      
+      // Close detail modal
+      setIsDetailModalOpen(false);
+      setSelectedUser(null);
+
+      // Show success message
+      setShowSuccessModal(true);
+      setSuccessMessage(
+        `Staff deleted successfully! Deleted: ${response.deletedStaff?.name || user.name}`
+      );
+
+      // Refresh data
+      await fetchData();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to delete staff");
+      console.error("Delete staff error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -368,7 +458,10 @@ const ListUserManagement: React.FC = () => {
                       {['all','staff','renter'].map((r) => (
                         <li
                           key={r}
-                          onClick={() => { setSelectedRole(r); setPage(1); setOpenRole(false); }}
+                          onClick={() => { 
+                            setSelectedRole(r); 
+                            setOpenRole(false); 
+                          }}
                           className={`px-4 py-2 cursor-pointer select-none transition-colors ${selectedRole === r ? 'bg-black text-white' : 'hover:bg-gray-50 text-gray-800'}`}
                         >
                           {r === 'all' ? 'All Roles' : r.charAt(0).toUpperCase() + r.slice(1)}
@@ -402,7 +495,10 @@ const ListUserManagement: React.FC = () => {
                       {['all','active','inactive'].map((s) => (
                         <li
                           key={s}
-                          onClick={() => { setSelectedStatus(s); setPage(1); setOpenStatus(false); }}
+                          onClick={() => { 
+                            setSelectedStatus(s); 
+                            setOpenStatus(false); 
+                          }}
                           className={`px-4 py-2 cursor-pointer select-none transition-colors ${selectedStatus === s ? 'bg-black text-white' : 'hover:bg-gray-50 text-gray-800'}`}
                         >
                           {s === 'all' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -589,6 +685,7 @@ const ListUserManagement: React.FC = () => {
         isOpen={isDetailModalOpen && !isEditModalOpen && !isUpdateStaffModalOpen}
         onClose={handleCloseDetail}
         onEdit={handleEdit}
+        onDelete={handleDeleteStaff}
       />
 
       <UpdateUserModal

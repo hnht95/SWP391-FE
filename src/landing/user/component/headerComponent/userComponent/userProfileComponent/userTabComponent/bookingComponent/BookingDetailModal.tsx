@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   X,
   Car,
@@ -17,15 +18,17 @@ import ConfirmModal from "./ConfirmModal";
 import type { Booking } from "../../../../../../../../service/apiBooking/API";
 import bookingApi from "../../../../../../../../service/apiBooking/API";
 import { getVehicleById } from "../../../../../../../../service/apiAdmin/apiVehicles/API";
+import ContractModal from "./ContractModal";
+import ExtendBookingModal from "./ExtendBookingModal";
+import ExtendPaymentModal from "./ExtendPaymentModal";
 
-interface BookingDetailModalProps {
+type BookingDetailModalProps = {
   isOpen: boolean;
   onClose: () => void;
   bookingId: string;
-}
+};
 
-// ✅ Enhanced vehicle details type
-interface VehicleDetails {
+type VehicleDetails = {
   defaultPhotos?: {
     exterior?: Array<{ url: string }>;
     interior?: Array<{ url: string }>;
@@ -34,7 +37,37 @@ interface VehicleDetails {
   mileage?: number;
   color?: string;
   year?: number;
-}
+};
+
+// Kiểu dữ liệu cho modal thanh toán gia hạn
+type ExtendPaymentData = {
+  bookingId: string;
+  status:
+    | "reserved"
+    | "active"
+    | "returning"
+    | "completed"
+    | "cancelled"
+    | "expired";
+  endTime: string;
+  feeEstimated: number;
+  pricingSnapshot?: {
+    baseMode?: "day+hour" | string;
+    days?: number;
+    hours?: number;
+    unitPriceDay?: number;
+    unitPriceHour?: number;
+    baseUnit?: string;
+    basePrice?: number;
+  };
+  payment?: {
+    provider: string;
+    type: "extension";
+    orderCode: number;
+    checkoutUrl: string;
+    qrCode: string;
+  };
+};
 
 const BookingDetailModal = ({
   isOpen,
@@ -44,58 +77,74 @@ const BookingDetailModal = ({
   const [booking, setBooking] = useState<Booking | null>(null);
   const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails | null>(
     null
-  ); // ✅ Vehicle details state
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showConfirmCancel, setShowConfirmCancel] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
+  );
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
 
-  // ✅ Fetch booking and vehicle details
-  useEffect(() => {
-    if (isOpen && bookingId) {
-      fetchBookingDetails();
-    }
-  }, [isOpen, bookingId]);
+  // Cancel
+  const [showConfirmCancel, setShowConfirmCancel] = useState<boolean>(false);
+  const [isCancelling, setIsCancelling] = useState<boolean>(false);
 
-  const fetchBookingDetails = async () => {
+  // Return
+  const [showConfirmReturn, setShowConfirmReturn] = useState<boolean>(false);
+
+  // Child modals
+  const [openContract, setOpenContract] = useState<boolean>(false);
+  const [openExtend, setOpenExtend] = useState<boolean>(false);
+
+  // Payment modal for extension
+  const [openPay, setOpenPay] = useState<boolean>(false);
+  const [extendData, setExtendData] = useState<ExtendPaymentData | null>(null);
+
+  const canExtend = useMemo(
+    () =>
+      !!booking &&
+      (booking.status === "active" || booking.status === "reserved"),
+    [booking]
+  );
+
+  const fetchBookingDetails = useCallback(async () => {
+    if (!isOpen || !bookingId) return;
     try {
       setIsLoading(true);
-      setError(null);
-
-      // Fetch booking
+      setError("");
       const bookingData = await bookingApi.getBookingById(bookingId);
       setBooking(bookingData);
 
-      // ✅ Fetch vehicle details
-      if (bookingData.vehicle._id) {
+      const vehId =
+        typeof bookingData.vehicle === "object"
+          ? bookingData.vehicle._id
+          : String(bookingData.vehicle);
+
+      if (vehId) {
         try {
-          const vehicleData = await getVehicleById(bookingData.vehicle._id);
+          const v = await getVehicleById(vehId);
           setVehicleDetails({
-            defaultPhotos: vehicleData.defaultPhotos,
-            batteryCapacity: vehicleData.batteryCapacity,
-            mileage: vehicleData.mileage,
-            color: vehicleData.color,
-            year: vehicleData.year,
+            defaultPhotos: v.defaultPhotos,
+            batteryCapacity: v.batteryCapacity,
+            mileage: v.mileage,
+            color: v.color,
+            year: v.year,
           });
-        } catch (vehicleErr) {
-          console.error("Failed to fetch vehicle details:", vehicleErr);
-          // Continue without vehicle details
+        } catch {
+          // ignore
         }
       }
-    } catch (err) {
-      console.error("Failed to fetch booking details:", err);
-      setError("Failed to load booking details");
+    } catch (e: unknown) {
+      setError(
+        e instanceof Error ? e.message : "Failed to load booking details"
+      );
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isOpen, bookingId]);
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
+    fetchBookingDetails();
+  }, [fetchBookingDetails]);
+
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? "hidden" : "unset";
     return () => {
       document.body.style.overflow = "unset";
     };
@@ -103,53 +152,101 @@ const BookingDetailModal = ({
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !showConfirmCancel) onClose();
+      if (
+        e.key === "Escape" &&
+        !showConfirmCancel &&
+        !openContract &&
+        !openExtend &&
+        !showConfirmReturn
+      ) {
+        onClose();
+      }
     };
-    if (isOpen) {
-      window.addEventListener("keydown", handleEsc);
-    }
-    return () => {
-      window.removeEventListener("keydown", handleEsc);
-    };
-  }, [isOpen, showConfirmCancel, onClose]);
+    if (isOpen) window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [
+    isOpen,
+    showConfirmCancel,
+    openContract,
+    openExtend,
+    showConfirmReturn,
+    onClose,
+  ]);
 
   const handleCancelBooking = async () => {
+    if (!booking) return;
     try {
       setIsCancelling(true);
-      await bookingApi.cancelBooking(booking!._id, "Cancelled by user");
+      await bookingApi.cancelBooking(booking._id, "Cancelled by user");
       setShowConfirmCancel(false);
       onClose();
-    } catch (error) {
-      console.error("Failed to cancel booking:", error);
+    } catch {
       setShowConfirmCancel(false);
     } finally {
       setIsCancelling(false);
     }
   };
 
-  const formatDate = (dateString: string): string => {
-    return new Intl.DateTimeFormat("en-US", {
+  // Nhận data từ ExtendBookingModal sau khi gọi API extend
+  const handleExtendedCreated = (payload: {
+    additionalCharge: number;
+    newEndTime: string;
+    // Cho phép truyền thêm raw để build modal thanh toán
+    raw?: {
+      bookingId?: string;
+      orderCode?: number;
+      checkoutUrl?: string;
+      qrCode?: string;
+      pricing?: {
+        days?: number;
+        hours?: number;
+        unitPriceDay?: number;
+        unitPriceHour?: number;
+      };
+    };
+  }) => {
+    const bid = payload.raw?.bookingId || bookingId;
+    const ext: ExtendPaymentData = {
+      bookingId: bid,
+      status: booking?.status || "reserved",
+      endTime: payload.newEndTime,
+      feeEstimated: payload.additionalCharge,
+      pricingSnapshot: {
+        days: payload.raw?.pricing?.days,
+        hours: payload.raw?.pricing?.hours,
+        unitPriceDay: payload.raw?.pricing?.unitPriceDay,
+        unitPriceHour: payload.raw?.pricing?.unitPriceHour,
+      },
+      payment: {
+        provider: "payos",
+        type: "extension",
+        orderCode: payload.raw?.orderCode || 0,
+        checkoutUrl: payload.raw?.checkoutUrl || "",
+        qrCode: payload.raw?.qrCode || "",
+      },
+    };
+    setExtendData(ext);
+    setOpenPay(true);
+  };
+
+  const formatDate = (dateString: string): string =>
+    new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(dateString));
-  };
 
-  // ✅ Get vehicle image from fetched details
-  const getVehicleImage = (): string | null => {
-    if (vehicleDetails?.defaultPhotos?.exterior?.[0]?.url) {
-      return vehicleDetails.defaultPhotos.exterior[0].url;
-    }
-    return null;
-  };
+  const vehicleImage = useMemo<string | null>(() => {
+    const url = vehicleDetails?.defaultPhotos?.exterior?.[0]?.url;
+    return url || null;
+  }, [vehicleDetails]);
 
-  const modalContent = (
+  const content = (
     <AnimatePresence mode="wait">
       {isOpen && (
         <>
-          {/* Backdrop with blur */}
           <motion.div
             initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
             animate={{ opacity: 1, backdropFilter: "blur(8px)" }}
@@ -158,7 +255,6 @@ const BookingDetailModal = ({
             onClick={onClose}
             className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
           >
-            {/* Modal Container */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -167,11 +263,8 @@ const BookingDetailModal = ({
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
             >
-              {/* Header with gradient */}
+              {/* Header */}
               <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-8 py-6 flex items-center justify-between flex-shrink-0">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-
                 <div className="relative flex items-center space-x-3">
                   <motion.div
                     initial={{ scale: 0 }}
@@ -196,85 +289,61 @@ const BookingDetailModal = ({
                       transition={{ delay: 0.2 }}
                       className="text-sm text-gray-300"
                     >
-                      {booking &&
-                        `${booking.vehicle.brand} ${booking.vehicle.model}`}
+                      {booking
+                        ? `${booking.vehicle.brand} ${booking.vehicle.model}`
+                        : ""}
                     </motion.p>
                   </div>
                 </div>
 
+                {/* Only close on header */}
                 <motion.button
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={onClose}
-                  className="relative w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
+                  className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
+                  aria-label="Close"
                 >
                   <X className="w-5 h-5" />
                 </motion.button>
               </div>
 
-              {/* Content - Scrollable */}
+              {/* Body */}
               <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
                 {isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex items-center justify-center py-20"
-                  >
+                  <div className="flex items-center justify-center py-20">
                     <Loader2 className="w-12 h-12 text-gray-400 animate-spin" />
-                  </motion.div>
+                  </div>
                 )}
 
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col items-center justify-center py-20"
-                  >
+                {!!error && !isLoading && (
+                  <div className="flex flex-col items-center justify-center py-20">
                     <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
                     <p className="text-red-600">{error}</p>
-                  </motion.div>
+                  </div>
                 )}
 
                 {booking && !isLoading && !error && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="space-y-6"
-                  >
-                    {/* ✅ Vehicle Image + Status Badge */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                      className="relative bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100"
-                    >
-                      {/* Vehicle Image */}
-                      {getVehicleImage() ? (
+                  <div className="space-y-6">
+                    {/* Hero */}
+                    <div className="relative bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                      {vehicleImage ? (
                         <div className="relative h-64 w-full">
                           <img
-                            src={getVehicleImage()!}
+                            src={vehicleImage}
                             alt={`${booking.vehicle.brand} ${booking.vehicle.model}`}
                             className="w-full h-full object-cover"
                           />
-                          {/* Gradient overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-
-                          {/* Status Badge */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                           <div className="absolute top-4 right-4">
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: 0.4, type: "spring" }}
+                            <div
                               className={`px-6 py-3 rounded-2xl text-base font-bold shadow-2xl backdrop-blur-sm ${bookingApi.getBookingStatusColor(
                                 booking.status
                               )}`}
                             >
                               {bookingApi.getBookingStatusLabel(booking.status)}
-                            </motion.div>
+                            </div>
                           </div>
-
-                          {/* Vehicle info overlay */}
                           <div className="absolute bottom-4 left-4 text-white">
                             <h3 className="text-2xl font-bold">
                               {booking.vehicle.brand} {booking.vehicle.model}
@@ -288,28 +357,20 @@ const BookingDetailModal = ({
                         <div className="relative h-64 w-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                           <Car className="w-24 h-24 text-gray-400" />
                           <div className="absolute top-4 right-4">
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: 0.4, type: "spring" }}
+                            <div
                               className={`px-6 py-3 rounded-2xl text-base font-bold shadow-2xl ${bookingApi.getBookingStatusColor(
                                 booking.status
                               )}`}
                             >
                               {bookingApi.getBookingStatusLabel(booking.status)}
-                            </motion.div>
+                            </div>
                           </div>
                         </div>
                       )}
-                    </motion.div>
+                    </div>
 
-                    {/* Vehicle Info */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                      className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
-                    >
+                    {/* Vehicle info */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                       <div className="flex items-center space-x-2 mb-4">
                         <Car className="w-5 h-5 text-gray-700" />
                         <h3 className="text-lg font-bold text-gray-900">
@@ -317,78 +378,45 @@ const BookingDetailModal = ({
                         </h3>
                       </div>
                       <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500 font-medium">
-                            Price per Day
-                          </p>
-                          <p className="text-base font-semibold text-gray-900">
-                            {bookingApi.formatCurrency(
-                              booking.vehicle.pricePerDay
-                            )}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500 font-medium">
-                            Price per Hour
-                          </p>
-                          <p className="text-base font-semibold text-gray-900">
-                            {bookingApi.formatCurrency(
-                              booking.vehicle.pricePerHour
-                            )}
-                          </p>
-                        </div>
-                        {/* ✅ Additional vehicle details */}
-                        {vehicleDetails?.year && (
-                          <div className="space-y-1">
-                            <p className="text-xs text-gray-500 font-medium">
-                              Year
-                            </p>
-                            <p className="text-base font-semibold text-gray-900">
-                              {vehicleDetails.year}
-                            </p>
-                          </div>
-                        )}
-                        {vehicleDetails?.color && (
-                          <div className="space-y-1">
-                            <p className="text-xs text-gray-500 font-medium">
-                              Color
-                            </p>
-                            <p className="text-base font-semibold text-gray-900 capitalize">
-                              {vehicleDetails.color}
-                            </p>
-                          </div>
-                        )}
-                        {vehicleDetails?.batteryCapacity !== undefined && (
-                          <div className="space-y-1">
-                            <p className="text-xs text-gray-500 font-medium flex items-center">
-                              <Battery className="w-3 h-3 mr-1" />
-                              Battery
-                            </p>
-                            <p className="text-base font-semibold text-gray-900">
-                              {vehicleDetails.batteryCapacity}%
-                            </p>
-                          </div>
-                        )}
-                        {vehicleDetails?.mileage !== undefined && (
-                          <div className="space-y-1">
-                            <p className="text-xs text-gray-500 font-medium">
-                              Mileage
-                            </p>
-                            <p className="text-base font-semibold text-gray-900">
-                              {vehicleDetails.mileage.toLocaleString()} km
-                            </p>
-                          </div>
-                        )}
+                        <Info
+                          label="Price per Day"
+                          value={bookingApi.formatCurrency(
+                            booking.vehicle.pricePerDay
+                          )}
+                        />
+                        <Info
+                          label="Price per Hour"
+                          value={bookingApi.formatCurrency(
+                            booking.vehicle.pricePerHour
+                          )}
+                        />
+                        {vehicleDetails?.year ? (
+                          <Info
+                            label="Year"
+                            value={String(vehicleDetails.year)}
+                          />
+                        ) : null}
+                        {vehicleDetails?.color ? (
+                          <Info label="Color" value={vehicleDetails.color} />
+                        ) : null}
+                        {typeof vehicleDetails?.batteryCapacity === "number" ? (
+                          <Info
+                            label="Battery"
+                            value={`${vehicleDetails.batteryCapacity}%`}
+                            icon={<Battery className="w-3 h-3 mr-1" />}
+                          />
+                        ) : null}
+                        {typeof vehicleDetails?.mileage === "number" ? (
+                          <Info
+                            label="Mileage"
+                            value={`${vehicleDetails.mileage.toLocaleString()} km`}
+                          />
+                        ) : null}
                       </div>
-                    </motion.div>
+                    </div>
 
-                    {/* Rental Period */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 }}
-                      className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
-                    >
+                    {/* Period */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                       <div className="flex items-center space-x-2 mb-4">
                         <Calendar className="w-5 h-5 text-gray-700" />
                         <h3 className="text-lg font-bold text-gray-900">
@@ -396,53 +424,31 @@ const BookingDetailModal = ({
                         </h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500 font-medium">
-                            Start Time
-                          </p>
-                          <p className="text-base font-semibold text-gray-900">
-                            {formatDate(booking.startTime)}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500 font-medium">
-                            End Time
-                          </p>
-                          <p className="text-base font-semibold text-gray-900">
-                            {formatDate(booking.endTime)}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500 font-medium flex items-center">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Duration
-                          </p>
-                          <p className="text-base font-semibold text-gray-900">
-                            {bookingApi.calculateDuration(
-                              booking.startTime,
-                              booking.endTime
-                            )}{" "}
-                            days
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500 font-medium">
-                            Created At
-                          </p>
-                          <p className="text-base font-semibold text-gray-900">
-                            {formatDate(booking.createdAt)}
-                          </p>
-                        </div>
+                        <Info
+                          label="Start Time"
+                          value={formatDate(booking.startTime)}
+                        />
+                        <Info
+                          label="End Time"
+                          value={formatDate(booking.endTime)}
+                        />
+                        <Info
+                          label="Duration"
+                          value={`${bookingApi.calculateDuration(
+                            booking.startTime,
+                            booking.endTime
+                          )} days`}
+                          icon={<Clock className="w-3 h-3 mr-1" />}
+                        />
+                        <Info
+                          label="Created At"
+                          value={formatDate(booking.createdAt)}
+                        />
                       </div>
-                    </motion.div>
+                    </div>
 
-                    {/* Station Info */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.6 }}
-                      className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
-                    >
+                    {/* Station */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                       <div className="flex items-center space-x-2 mb-4">
                         <MapPin className="w-5 h-5 text-gray-700" />
                         <h3 className="text-lg font-bold text-gray-900">
@@ -457,15 +463,10 @@ const BookingDetailModal = ({
                           {booking.station.location.address}
                         </p>
                       </div>
-                    </motion.div>
+                    </div>
 
-                    {/* Payment Info */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.7 }}
-                      className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 shadow-sm border border-green-100"
-                    >
+                    {/* Payment */}
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 shadow-sm border border-green-100">
                       <div className="flex items-center space-x-2 mb-6">
                         <CreditCard className="w-5 h-5 text-green-700" />
                         <h3 className="text-lg font-bold text-green-900">
@@ -473,22 +474,12 @@ const BookingDetailModal = ({
                         </h3>
                       </div>
                       <div className="space-y-4">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-green-700">
-                            Estimated Rental
-                          </span>
-                          <span className="font-semibold text-green-900">
-                            {bookingApi.formatCurrency(
-                              booking.amounts.rentalEstimated || 0
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-green-700">Deposit Amount</span>
-                          <span className="font-semibold text-green-900">
-                            {bookingApi.formatCurrency(booking.deposit.amount)}
-                          </span>
-                        </div>
+                        <Row
+                          label="Deposit Amount"
+                          value={bookingApi.formatCurrency(
+                            booking.deposit.amount
+                          )}
+                        />
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-green-700">Deposit Status</span>
                           <span
@@ -523,39 +514,78 @@ const BookingDetailModal = ({
                           </div>
                         </div>
                       </div>
-                    </motion.div>
-                  </motion.div>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* Footer */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-white px-8 py-6 flex justify-end space-x-3 border-t border-gray-200 flex-shrink-0"
-              >
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={onClose}
-                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Close
-                </motion.button>
-                {booking && booking.status === "reserved" && (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+              {/* Footer actions */}
+              <div className="bg-white px-8 py-6 flex flex-wrap justify-end gap-3 border-t border-gray-200 flex-shrink-0">
+                {/* View Contract */}
+                {(booking?.status === "active" ||
+                  booking?.status === "returning" ||
+                  booking?.status === "completed") && (
+                  <button
+                    type="button"
+                    onClick={() => setOpenContract(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    View Contract
+                  </button>
+                )}
+
+                {/* Extend */}
+                {canExtend && (
+                  <button
+                    onClick={() => setOpenExtend(true)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  >
+                    Extend
+                  </button>
+                )}
+
+                {/* Cancel Booking when reserved */}
+                {booking?.status === "reserved" && (
+                  <button
                     onClick={() => setShowConfirmCancel(true)}
-                    className="px-6 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors shadow-lg shadow-red-500/30"
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
                   >
                     Cancel Booking
-                  </motion.button>
+                  </button>
                 )}
-              </motion.div>
+              </div>
             </motion.div>
           </motion.div>
+
+          {/* Child modals */}
+          <ContractModal
+            isOpen={openContract}
+            onClose={() => setOpenContract(false)}
+            bookingId={bookingId}
+          />
+
+          <ExtendBookingModal
+            isOpen={openExtend}
+            onClose={() => setOpenExtend(false)}
+            bookingId={bookingId}
+            onExtended={(info) => {
+              // info: { additionalCharge, newEndTime, ...optional raw}
+              handleExtendedCreated({
+                additionalCharge: info.additionalCharge,
+                newEndTime: info.newEndTime,
+                raw: info.raw,
+              });
+            }}
+          />
+
+          <ExtendPaymentModal
+            isOpen={openPay}
+            onClose={() => setOpenPay(false)}
+            extendResult={extendData}
+            onPaid={async () => {
+              await fetchBookingDetails();
+            }}
+          />
         </>
       )}
     </AnimatePresence>
@@ -564,10 +594,11 @@ const BookingDetailModal = ({
   return (
     <>
       {createPortal(
-        modalContent,
+        content,
         document.getElementById("modal-root") || document.body
       )}
 
+      {/* Confirm cancel */}
       <ConfirmModal
         isOpen={showConfirmCancel}
         onClose={() => setShowConfirmCancel(false)}
@@ -583,3 +614,32 @@ const BookingDetailModal = ({
 };
 
 export default BookingDetailModal;
+
+function Info({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-gray-500 font-medium flex items-center">
+        {icon}
+        {label}
+      </p>
+      <p className="text-base font-semibold text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between items-center text-sm">
+      <span className="text-green-700">{label}</span>
+      <span className="font-semibold text-green-900">{value}</span>
+    </div>
+  );
+}
