@@ -22,7 +22,7 @@ interface CombinedUser {
   name: string;
   email: string;
   phone: string;
-  role: "admin" | "staff" | "renter" | "partner" | "manager" | "technician";
+  role: "admin" | "staff" | "renter";
   status: "active" | "inactive";
   joinDate: string;
   type: "user" | "staff";
@@ -214,7 +214,7 @@ const ListUserManagement: React.FC = () => {
           admin: allUsersFromStats.filter(u => u.role === "admin").length,
           staff: allStaffs.length,
           renter: allUsersFromStats.filter(u => u.role === "renter").length,
-          partner: allUsersFromStats.filter(u => u.role === "partner").length,
+          
         }
       });
     } catch (e) {

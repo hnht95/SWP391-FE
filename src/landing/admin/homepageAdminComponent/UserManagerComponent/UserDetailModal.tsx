@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { MdClose, MdEdit, MdEmail, MdPhone, MdLocationOn, MdBadge, MdPerson, MdWork, MdDelete } from "react-icons/md";
+import { MdClose, MdEdit, MdEmail, MdPhone, MdBadge, MdPerson, MdDelete } from "react-icons/md";
 
 // Combined interface for unified user/staff management
 interface CombinedUser {
@@ -9,7 +9,7 @@ interface CombinedUser {
   name: string;
   email: string;
   phone: string;
-  role: "admin" | "staff" | "renter" | "partner" | "manager" | "technician";
+  role: "admin" | "staff" | "renter" ;
   status: "active" | "inactive";
   joinDate: string;
   type: "user" | "staff";
@@ -247,25 +247,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, isOpen, onClose
                     </div>
                   </div>
 
-                  {/* Station Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                      <MdLocationOn className="w-5 h-5 mr-2" />
-                      Station Assignment
-                    </h3>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      {user.station ? (
-                        <div>
-                          <p className="text-xs text-gray-500">Station Name</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {user.station}
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-500">Not assigned</p>
-                      )}
-                    </div>
-                  </div>
+                 
 
                   {/* KYC Information - Only for users */}
                   {user.type === "user" && (

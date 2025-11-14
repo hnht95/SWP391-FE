@@ -268,29 +268,35 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {transferLogs.map((log) => (
+                      {transferLogs.map((log: any) => (
                         <tr key={log._id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="text-sm font-medium text-gray-900">
-                                {log.vehicle.brand} {log.vehicle.model}
+                                {log.vehicle?.brand || "N/A"} {log.vehicle?.model || ""}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {log.vehicle.plateNumber}
+                                {log.vehicle?.plateNumber || log.vehicleId || "N/A"}
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {log.fromStation.name}
+                            {log.fromStation?.name || log.fromStationId || "N/A"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {log.toStation.name}
+                            {log.toStation?.name || log.toStationId || "N/A"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {log.transferredBy}
+                            {typeof log.transferredBy === "object" 
+                              ? log.transferredBy?.name || log.transferredBy?.email || "N/A"
+                              : log.transferredBy || "N/A"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(log.transferDate).toLocaleDateString("vi-VN")}
+                            {log.transferDate 
+                              ? new Date(log.transferDate).toLocaleDateString("vi-VN")
+                              : log.createdAt 
+                              ? new Date(log.createdAt).toLocaleDateString("vi-VN")
+                              : "N/A"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -300,7 +306,7 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
                                 ? "bg-yellow-100 text-yellow-700"
                                 : "bg-red-100 text-red-700"
                             }`}>
-                              {log.status.charAt(0).toUpperCase() + log.status.slice(1)}
+                              {log.status ? log.status.charAt(0).toUpperCase() + log.status.slice(1) : "N/A"}
                             </span>
                           </td>
                         </tr>

@@ -1,99 +1,49 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MdDirectionsCar,
   MdPeople,
   MdLocationOn,
   MdTrendingUp,
-  MdAccountCircle,
   MdBatteryChargingFull,
   MdEvStation,
   MdSpeed,
   MdNotifications,
   MdWarning,
   MdCheckCircle,
+  MdBuild,
+  MdVerifiedUser,
+  MdClose,
+  MdArrowForward,
 } from "react-icons/md";
-import { PageTransition, FadeIn, StaggerContainer, StaggerItem } from "../component/animations";
+import { VscGraph } from "react-icons/vsc";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { PageTransition } from "../component/animations";
 import PageTitle from "../component/PageTitle";
+import type { Station as StationType } from "../../../service/apiAdmin/apiStation/API";
+import { getAdminTransactions, formatCurrency } from "../../../service/apiBooking/API";
+import type { AdminTransactionItem } from "../../../service/apiBooking/API";
+import Bookedmanagement from "./BookingManagementComponent/Bookedmanagement";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 // Import API functions
-import { getAllVehicles  } from "../../../service/apiAdmin/apiVehicles/API";
-import { getAllStations  } from "../../../service/apiAdmin/apiStation/API";
-import { getAllUsers } from "../../../service/apiAdmin/apiListUser/API";
-
-interface StatCardProps {
-  title: string;
-  value: string;
-  change: string;
-  changeType: "increase" | "decrease";
-  icon: React.ReactNode;
-  color: string;
-  gradient: string;
-}
-
-const StatCard: React.FC<StatCardProps> = ({
-  title,
-  value,
-  change,
-  changeType,
-  icon,
-  color,
-  gradient,
-}) => {
-  return (
-    <motion.div 
-      className={`relative overflow-hidden rounded-2xl shadow-lg border border-gray-200 p-6 ${gradient} hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:border-gray-300 bg-white`}
-      whileHover={{ y: -8 }}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500" />
-      
-      <div className="relative flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 mb-2 tracking-wide uppercase">
-            {title}
-          </p>
-          <motion.p 
-            className="text-3xl font-bold text-gray-900 mb-3 tracking-tight"
-            initial={{ scale: 0.5 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-          >
-            {value}
-          </motion.p>
-          <div className="flex items-center space-x-2">
-            <motion.span
-              className={`text-sm font-semibold px-3 py-1 rounded-full ${
-                changeType === "increase" 
-                  ? "bg-emerald-100 text-emerald-700" 
-                  : "bg-red-100 text-red-700"
-              }`}
-              whileHover={{ scale: 1.1 }}
-            >
-              {changeType === "increase" ? "↑" : "↓"} {change}
-            </motion.span>
-            <span className="text-xs text-gray-500">vs last month</span>
-          </div>
-        </div>
-        <motion.div
-          className={`p-4 rounded-2xl ${color} shadow-lg`}
-          whileHover={{ rotate: 360, scale: 1.2 }}
-          transition={{ duration: 0.6 }}
-        >
-          {icon}
-        </motion.div>
-      </div>
-
-      <motion.div 
-        className={`absolute bottom-0 left-0 right-0 h-1 ${color.replace('bg-gradient-to-br', 'bg-gradient-to-r')}`}
-        initial={{ opacity: 0 }}
-        whileHover={{ opacity: 0.6 }}
-        transition={{ duration: 0.3 }}
-      />
-    </motion.div>
-  );
-};
+import { getAllVehicles, getMaintenanceRequestsPaginated } from "../../../service/apiAdmin/apiVehicles/API";
+import { getAllStations } from "../../../service/apiAdmin/apiStation/API";
+import { getAllUsers, getRenters } from "../../../service/apiAdmin/apiListUser/API";
+import type { RawApiUser } from "../../../types/userTypes";
 
 interface BatteryStatusProps {
   vehicleModel: string;
@@ -141,10 +91,7 @@ const BatteryStatus: React.FC<BatteryStatusProps> = ({
   };
 
   return (
-    <motion.div 
-      className="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300 hover:shadow-xl"
-      whileHover={{ scale: 1.03, y: -5 }}
-    >
+    <div className="bg-white rounded-lg p-4 border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-gray-900 font-semibold text-lg">{vehicleModel}</h3>
@@ -184,60 +131,254 @@ const BatteryStatus: React.FC<BatteryStatusProps> = ({
           <MdBatteryChargingFull className="w-5 h-5 text-emerald-600" />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
 interface StationCardProps {
-  station: any;
-  vehicleCount: number;
+  station: StationType;
+  totalVehicles: number;
+  activeCount: number;
+  maintenanceCount: number;
+  pendingMaintenanceCount: number;
+  pendingDeletionCount: number;
+  isHighlighted?: boolean;
+  onClick?: () => void;
 }
 
-const StationCard: React.FC<StationCardProps> = ({ station, vehicleCount }) => {
-  // Mock capacity data - in real scenario, you'd calculate this from actual vehicle data
-  const totalCapacity = 15;
-  const available = Math.max(0, totalCapacity - vehicleCount);
+const StationCard: React.FC<StationCardProps> = ({
+  station,
+  totalVehicles,
+  activeCount,
+  maintenanceCount,
+  pendingMaintenanceCount,
+  pendingDeletionCount,
+  isHighlighted = false,
+  onClick,
+}) => {
+  const activeRatio =
+    totalVehicles > 0 ? Math.min((activeCount / totalVehicles) * 100, 100) : 0;
+  const maintenanceTotal = maintenanceCount + pendingMaintenanceCount;
+  const maintenanceRatio =
+    totalVehicles > 0 ? Math.min((maintenanceTotal / totalVehicles) * 100, 100) : 0;
+  const requestsTotal = pendingMaintenanceCount + pendingDeletionCount;
   
   return (
-    <motion.div
-      className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border-2 border-gray-200 hover:border-purple-300 hover:shadow-xl transition-all duration-300"
-      whileHover={{ scale: 1.05, y: -5 }}
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left bg-white rounded-2xl p-5 border transition-all ${
+        isHighlighted
+          ? "border-blue-200 shadow-lg shadow-blue-100/60"
+          : "border-gray-100 hover:border-gray-200 hover:shadow-sm"
+      }`}
     >
-      <h3 className="text-gray-900 font-bold text-lg mb-4">{station.name}</h3>
+      <h3 className="text-gray-900 font-semibold text-lg mb-3">{station.name}</h3>
       
-      <div className="space-y-4">
-        <div>
-          <div className="flex justify-between text-sm mb-2 font-medium">
-            <span className="text-gray-600">Vehicles</span>
-            <span className="text-gray-900 font-bold">{vehicleCount}/{totalCapacity}</span>
+      <div className="space-y-3">
+        <div className="flex justify-between items-baseline">
+          <span className="text-sm font-medium text-gray-500">Vehicles</span>
+          <span className="text-2xl font-bold text-gray-900">{totalVehicles}</span>
           </div>
-          <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>Active</span>
+            <span className="font-semibold text-emerald-600">{activeCount}</span>
+          </div>
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
             <motion.div 
-              className="h-full bg-gradient-to-r from-purple-600 to-blue-600"
+              className="h-full bg-gradient-to-r from-blue-500 to-indigo-500"
               initial={{ width: 0 }}
-              animate={{ width: `${(vehicleCount / totalCapacity) * 100}%` }}
-              transition={{ duration: 1 }}
+              animate={{ width: `${activeRatio}%` }}
+              transition={{ duration: 0.8 }}
+            />
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>Maintenance</span>
+            <span className="font-semibold text-rose-500">{maintenanceTotal}</span>
+        </div>
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-rose-400 to-pink-500"
+              initial={{ width: 0 }}
+              animate={{ width: `${maintenanceRatio}%` }}
+              transition={{ duration: 0.8 }}
             />
           </div>
         </div>
-
-        <div className="flex items-center justify-between pt-2 border-t-2 border-gray-200">
-          <div className="text-sm">
-            <p className="text-gray-600 font-medium">Location</p>
-            <p className="text-gray-900 font-semibold text-xs truncate max-w-[120px]">
-              {station.location.address}
+        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-200">
+          <div>
+            <p className="text-xs text-gray-500 font-medium uppercase">Location</p>
+            <p className="text-gray-900 font-semibold text-sm truncate">
+              {station.location?.address || "Not updated"}
             </p>
           </div>
-          <div className="text-sm text-right">
-            <p className="text-gray-600 font-medium">Status</p>
-            <p className={`font-bold ${station.isActive ? 'text-emerald-600' : 'text-red-600'}`}>
-              {station.isActive ? 'Active' : 'Inactive'}
+          <div className="text-right">
+            <p className="text-xs text-gray-500 font-medium uppercase">Status</p>
+            <p
+              className={`text-sm font-bold ${
+                station.isActive ? "text-emerald-600" : "text-red-500"
+              }`}
+            >
+              {station.isActive ? "Active" : "Inactive"}
             </p>
           </div>
         </div>
+        <div className="flex flex-wrap items-center gap-2 pt-3">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-[11px] font-semibold text-blue-600">
+            Maintenance Req: {pendingMaintenanceCount}
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-purple-50 text-[11px] font-semibold text-purple-600">
+            Deletion Req: {pendingDeletionCount}
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-[11px] font-semibold text-gray-600">
+            Total Requests: {requestsTotal}
+          </span>
       </div>
-    </motion.div>
+    </div>
+    </button>
   );
+};
+
+const MiniStationMap: React.FC<{ stations: StationType[] }> = ({ stations }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+
+    const map = L.map(containerRef.current, {
+      center: [16.047079, 108.20623],
+      zoom: 6,
+      zoomControl: true,
+      scrollWheelZoom: false,
+    });
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      minZoom: 4,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    mapRef.current = map;
+
+    // invalidate size after render
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!markersLayerRef.current) {
+      markersLayerRef.current = L.layerGroup().addTo(map);
+    } else {
+      markersLayerRef.current.clearLayers();
+    }
+
+    const validStations = (stations || []).filter(
+      (station) =>
+        station?.location &&
+        typeof station.location.lat === "number" &&
+        typeof station.location.lng === "number" &&
+        !Number.isNaN(station.location.lat) &&
+        !Number.isNaN(station.location.lng)
+    );
+
+    if (validStations.length === 0) {
+      map.setView([16.047079, 108.20623], 5);
+      return;
+    }
+
+    validStations.forEach((station) => {
+      const marker = L.circleMarker([station.location.lat, station.location.lng], {
+        radius: 8,
+        weight: 2,
+        color: station.isActive ? "#22c55e" : "#ef4444",
+        fillColor: station.isActive ? "#4ade80" : "#fb7185",
+        fillOpacity: 0.85,
+      });
+
+      const popupHtml = `
+        <div style="font-family: 'Inter', sans-serif; min-width: 160px;">
+          <p style="margin:0;font-weight:600;color:#111827;">${station.name}</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">${station.location.address || "No address"}</p>
+          <p style="margin:6px 0 0;font-size:12px;">
+            <span style="display:inline-flex;align-items:center;gap:4px;">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:9999px;background:${
+                station.isActive ? "#22c55e" : "#ef4444"
+              };"></span>
+              ${station.isActive ? "Active" : "Inactive"}
+            </span>
+          </p>
+        </div>
+      `;
+
+      marker.bindPopup(popupHtml, { closeButton: false });
+      marker.addTo(markersLayerRef.current!);
+    });
+
+    if (validStations.length === 1) {
+      map.setView(
+        [validStations[0].location.lat, validStations[0].location.lng],
+        13,
+        { animate: true }
+      );
+    } else {
+      const bounds = L.latLngBounds(
+        validStations.map((station) => [
+          station.location.lat,
+          station.location.lng,
+        ]) as L.LatLngTuple[]
+      );
+      map.fitBounds(bounds, { padding: [20, 20], maxZoom: 13 });
+    }
+  }, [stations]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="h-full min-h-[260px] w-full"
+      style={{ backgroundColor: "#eef2ff" }}
+    />
+  );
+};
+
+// Notification types
+interface Notification {
+  id: string;
+  type: "maintenance" | "kyc";
+  title: string;
+  message: string;
+  timestamp: Date;
+  vehicleId?: string;
+  userId?: string;
+  priority: "high" | "medium" | "low";
+}
+
+type BookingRangeKey = "today" | "week" | "month" | "year";
+
+type BookingSummaryState = Record<
+  BookingRangeKey,
+  {
+    count: number;
+  }
+>;
+
+const rangeLabels: Record<BookingRangeKey, string> = {
+  today: "Today",
+  week: "This Week",
+  month: "This Month",
+  year: "This Year",
 };
 
 const DashboardAdmin: React.FC = () => {
@@ -249,6 +390,451 @@ const DashboardAdmin: React.FC = () => {
   // Loading and error states
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Notification states
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  const [notificationLoading, setNotificationLoading] = useState<boolean>(false);
+  const [stationFilter, setStationFilter] = useState<"all" | "active" | "inactive">("all");
+  const [activeStationIndex, setActiveStationIndex] = useState<number>(0);
+  const [showStationModal, setShowStationModal] = useState<boolean>(false);
+  const [bookingSummary, setBookingSummary] = useState<BookingSummaryState>({
+    today: { count: 0 },
+    week: { count: 0 },
+    month: { count: 0 },
+    year: { count: 0 },
+  });
+  const [bookingSummaryLoading, setBookingSummaryLoading] = useState<boolean>(true);
+  const [bookingSummaryError, setBookingSummaryError] = useState<string | null>(null);
+  const [selectedBookingRange, setSelectedBookingRange] = useState<BookingRangeKey>("month");
+  const bookingsCacheRef = useRef<Partial<Record<BookingRangeKey, AdminTransactionItem[]>>>({});
+  const [bookingsByRange, setBookingsByRange] = useState<Partial<Record<BookingRangeKey, AdminTransactionItem[]>>>({});
+  const [bookingRangeLoading, setBookingRangeLoading] = useState<boolean>(false);
+  const [bookingRangeError, setBookingRangeError] = useState<string | null>(null);
+  
+  // Payment statistics state
+  const [paymentStats, setPaymentStats] = useState<{
+    totalCaptured: number;
+    totalCancelled: number;
+    monthlyData: Array<{ month: string; captured: number; cancelled: number }>;
+  }>({
+    totalCaptured: 0,
+    totalCancelled: 0,
+    monthlyData: [],
+  });
+  const [paymentStatsLoading, setPaymentStatsLoading] = useState<boolean>(false);
+  const [paymentStatsError, setPaymentStatsError] = useState<string | null>(null);
+
+  const getRangeDates = useCallback((range: BookingRangeKey) => {
+    const now = new Date();
+    const end = now.toISOString();
+    const start = new Date(now);
+
+    switch (range) {
+      case "today": {
+        start.setHours(0, 0, 0, 0);
+        break;
+      }
+      case "week": {
+        start.setHours(0, 0, 0, 0);
+        const day = start.getDay(); // 0 Sunday
+        const diff = day === 0 ? 6 : day - 1; // Start from Monday
+        start.setDate(start.getDate() - diff);
+        break;
+      }
+      case "month": {
+        start.setHours(0, 0, 0, 0);
+        start.setDate(1);
+        break;
+      }
+      case "year": {
+        start.setHours(0, 0, 0, 0);
+        start.setMonth(0, 1);
+        break;
+      }
+      default:
+        break;
+    }
+
+    return { from: start.toISOString(), to: end };
+  }, []);
+
+  const fetchBookingSummary = useCallback(async () => {
+    setBookingSummaryLoading(true);
+    setBookingSummaryError(null);
+    try {
+      const ranges: BookingRangeKey[] = ["today", "week", "month", "year"];
+      const results = await Promise.all(
+        ranges.map(async (range) => {
+          const { from, to } = getRangeDates(range);
+          const response = await getAdminTransactions({
+            from,
+            to,
+            dateField: "createdAt",
+            page: 1,
+            limit: 1,
+          });
+          const count = response?.total ?? response?.items?.length ?? 0;
+          return [range, { count }] as const;
+        })
+      );
+
+      const summary = results.reduce((acc, [range, value]) => {
+        acc[range] = value;
+        return acc;
+      }, {} as BookingSummaryState);
+
+      setBookingSummary(summary);
+    } catch (err: any) {
+      setBookingSummaryError(err?.message || "Failed to load booking summary");
+    } finally {
+      setBookingSummaryLoading(false);
+    }
+  }, [getRangeDates]);
+
+  const fetchPaymentStatistics = useCallback(async () => {
+    setPaymentStatsLoading(true);
+    setPaymentStatsError(null);
+    try {
+      // Get last 6 months of data
+      const now = new Date();
+      const start = new Date(now);
+      start.setMonth(start.getMonth() - 5);
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+
+      // Fetch all transactions for the last 6 months
+      let allTransactions: AdminTransactionItem[] = [];
+      let page = 1;
+      const limit = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await getAdminTransactions({
+          from: start.toISOString(),
+          to: now.toISOString(),
+          dateField: "createdAt",
+          page,
+          limit,
+        });
+
+        if (response.items && response.items.length > 0) {
+          allTransactions = [...allTransactions, ...response.items];
+          hasMore = response.items.length === limit && page * limit < (response.total || 0);
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Calculate totals
+      let totalCaptured = 0;
+      let totalCancelled = 0;
+
+      // Group by month and calculate
+      const monthlyMap = new Map<string, { captured: number; cancelled: number }>();
+
+      allTransactions.forEach((transaction) => {
+        const date = new Date(transaction.createdAt);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+        if (!monthlyMap.has(monthKey)) {
+          monthlyMap.set(monthKey, { captured: 0, cancelled: 0 });
+        }
+
+        const monthData = monthlyMap.get(monthKey)!;
+        const amount = transaction.deposit?.amount || 0;
+        const depositStatus = transaction.deposit?.status;
+        const bookingStatus = transaction.status;
+
+        // Captured: All deposits with status "captured" (regardless of booking status)
+        if (depositStatus === "captured") {
+          totalCaptured += amount;
+          monthData.captured += amount;
+        }
+
+        // Cancelled: Bookings with status "cancelled" OR deposits with status "refunded"
+        // Count separately from captured (a booking can be captured first, then cancelled/refunded)
+        if (bookingStatus === "cancelled" || depositStatus === "refunded") {
+          totalCancelled += amount;
+          monthData.cancelled += amount;
+        }
+      });
+
+      // Convert to array and sort by month
+      // Ensure all months from start to endDate are included, even if no data
+      const monthlyData: Array<{ month: string; captured: number; cancelled: number }> = [];
+      const endDate = new Date(now);
+      const startDate = new Date(now);
+      startDate.setMonth(startDate.getMonth() - 5);
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+
+      for (let i = 0; i < 6; i++) {
+        const currentMonth = new Date(startDate);
+        currentMonth.setMonth(startDate.getMonth() + i);
+        const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
+        const dataForMonth = monthlyMap.get(monthKey) || { captured: 0, cancelled: 0 };
+        
+        monthlyData.push({
+          month: currentMonth.toLocaleDateString("vi-VN", { month: "short", year: "numeric" }),
+          captured: dataForMonth.captured,
+          cancelled: dataForMonth.cancelled,
+        });
+      }
+
+      setPaymentStats({
+        totalCaptured,
+        totalCancelled,
+        monthlyData,
+      });
+    } catch (err: any) {
+      console.error("Error fetching payment statistics:", err);
+      setPaymentStatsError(err?.message || "Failed to load payment statistics");
+    } finally {
+      setPaymentStatsLoading(false);
+    }
+  }, []);
+
+  const fetchBookingsForRange = useCallback(
+    async (range: BookingRangeKey) => {
+      setBookingRangeLoading(true);
+      setBookingRangeError(null);
+
+      try {
+        const { from, to } = getRangeDates(range);
+        const response = await getAdminTransactions({
+          from,
+          to,
+          dateField: "createdAt",
+          page: 1,
+          limit: 50,
+        });
+        const items = response?.items || [];
+        bookingsCacheRef.current = {
+          ...bookingsCacheRef.current,
+          [range]: items,
+        };
+        setBookingsByRange({ ...bookingsCacheRef.current });
+      } catch (err: any) {
+        setBookingRangeError(err?.message || "Failed to load booking list");
+      } finally {
+        setBookingRangeLoading(false);
+      }
+    },
+    [getRangeDates]
+  );
+
+  useEffect(() => {
+    fetchBookingSummary();
+  }, [fetchBookingSummary]);
+
+  useEffect(() => {
+    if (!bookingsCacheRef.current[selectedBookingRange]) {
+      fetchBookingsForRange(selectedBookingRange);
+    }
+  }, [selectedBookingRange, fetchBookingsForRange]);
+
+  const selectedBookings = useMemo(
+    () => bookingsByRange[selectedBookingRange] || [],
+    [bookingsByRange, selectedBookingRange]
+  );
+
+  const bookingChartData = useMemo(() => {
+    const createBuckets = () => {
+      const buckets: { label: string; start: Date; end: Date }[] = [];
+      const { from, to } = getRangeDates(selectedBookingRange);
+      const startDate = new Date(from);
+      const endDate = new Date(to);
+
+      if (selectedBookingRange === "today") {
+        for (let hour = 0; hour < 24; hour += 1) {
+          const bucketStart = new Date(startDate);
+          bucketStart.setHours(hour, 0, 0, 0);
+          const bucketEnd = new Date(bucketStart);
+          bucketEnd.setHours(hour + 1, 0, 0, 0);
+          buckets.push({
+            label: `${hour.toString().padStart(2, "0")}:00`,
+            start: bucketStart,
+            end: bucketEnd,
+          });
+        }
+      } else if (selectedBookingRange === "week") {
+        const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        for (let i = 0; i < 7; i += 1) {
+          const bucketStart = new Date(startDate);
+          bucketStart.setDate(startDate.getDate() + i);
+          const bucketEnd = new Date(bucketStart);
+          bucketEnd.setDate(bucketStart.getDate() + 1);
+          buckets.push({
+            label: dayLabels[i],
+            start: bucketStart,
+            end: bucketEnd,
+          });
+        }
+      } else if (selectedBookingRange === "month") {
+        const monthStart = new Date(startDate);
+        const monthEnd = new Date(endDate);
+        let cursor = new Date(monthStart);
+        while (cursor <= monthEnd) {
+          const bucketStart = new Date(cursor);
+          const bucketEnd = new Date(bucketStart);
+          bucketEnd.setDate(bucketStart.getDate() + 1);
+          buckets.push({
+            label: `${bucketStart.getDate()}`,
+            start: bucketStart,
+            end: bucketEnd,
+          });
+          cursor = bucketEnd;
+        }
+      } else if (selectedBookingRange === "year") {
+        const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        for (let month = 0; month < 12; month += 1) {
+          const bucketStart = new Date(startDate.getFullYear(), month, 1);
+          const bucketEnd = new Date(startDate.getFullYear(), month + 1, 1);
+          buckets.push({
+            label: monthLabels[month],
+            start: bucketStart,
+            end: bucketEnd,
+          });
+        }
+      }
+
+      return buckets;
+    };
+
+    const buckets = createBuckets().map((bucket) => ({
+      ...bucket,
+      count: 0,
+      amount: 0,
+      totalPaid: 0,
+    }));
+
+    if (buckets.length === 0) return [];
+
+    selectedBookings.forEach((booking) => {
+      const created = new Date(booking.createdAt);
+      const bucket = buckets.find(
+        (b) => created >= b.start && created < b.end
+      );
+      if (bucket) {
+        bucket.count += 1;
+        bucket.amount += booking.deposit?.amount || 0;
+        bucket.totalPaid += booking.amounts?.totalPaid || 0;
+      }
+    });
+
+    return buckets.map((bucket) => ({
+      label: bucket.label,
+      count: bucket.count,
+      amount: Number(bucket.amount.toFixed(2)),
+      totalPaid: Number(bucket.totalPaid.toFixed(2)),
+    }));
+  }, [selectedBookings, selectedBookingRange, getRangeDates]);
+
+  const totalRangeRevenue = useMemo(
+    () =>
+      selectedBookings.reduce(
+        (total, booking) => total + (booking.deposit?.amount || 0),
+        0
+      ),
+    [selectedBookings]
+  );
+
+  const totalRangePaid = useMemo(
+    () =>
+      selectedBookings.reduce(
+        (total, booking) => total + (booking.amounts?.totalPaid || 0),
+        0
+      ),
+    [selectedBookings]
+  );
+
+  // Helper function to check if user needs KYC verification
+  const hasAllKycFields = (user: RawApiUser): boolean => {
+    const kyc = user.kyc || ({} as any);
+    const required = [
+      kyc.idNumber,
+      kyc.idFrontImage,
+      kyc.idBackImage,
+      kyc.licenseFrontImage,
+      kyc.licenseBackImage,
+    ];
+    return required.every((v) => v !== undefined && v !== null && String(v).trim() !== "");
+  };
+
+  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setNotificationLoading(true);
+      const newNotifications: Notification[] = [];
+
+      // Fetch maintenance requests
+      try {
+        const maintenanceData = await getMaintenanceRequestsPaginated(1, 50);
+        const pendingMaintenance = maintenanceData.items.filter(
+          (req: any) => req.status === "pending" || req.status === "pending_maintenance"
+        );
+
+        pendingMaintenance.forEach((req: any) => {
+          const vehicle = vehicles.find((v) => v._id === req.vehicleId || v._id === req.vehicle?._id);
+          newNotifications.push({
+            id: `maintenance-${req._id}`,
+            type: "maintenance",
+            title: "Maintenance Request",
+            message: vehicle
+              ? `${vehicle.brand} ${vehicle.model} (${vehicle.plateNumber}) needs maintenance`
+              : `Vehicle maintenance request #${req._id.slice(-6)}`,
+            timestamp: new Date(req.createdAt || Date.now()),
+            vehicleId: req.vehicleId || req.vehicle?._id,
+            priority: "high",
+          });
+        });
+      } catch (err) {
+        console.error("Error fetching maintenance requests:", err);
+      }
+
+      // Fetch users needing KYC verification
+      try {
+        const rentersData = await getRenters({ page: 1, limit: 100 });
+        const kycPendingUsers = (rentersData.items || []).filter(
+          (user: RawApiUser) =>
+            user.role === "renter" &&
+            !user.kyc?.verified &&
+            hasAllKycFields(user)
+        );
+
+        kycPendingUsers.forEach((user: RawApiUser) => {
+          newNotifications.push({
+            id: `kyc-${user._id}`,
+            type: "kyc",
+            title: "KYC Verification Required",
+            message: `${user.name || user.email} submitted KYC documents for review`,
+            timestamp: new Date(user.createdAt || Date.now()),
+            userId: user._id,
+            priority: "medium",
+          });
+        });
+      } catch (err) {
+        console.error("Error fetching KYC users:", err);
+      }
+
+      // Sort by priority and timestamp
+      newNotifications.sort((a, b) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+          return priorityOrder[a.priority] - priorityOrder[b.priority];
+        }
+        return b.timestamp.getTime() - a.timestamp.getTime();
+      });
+
+      setNotifications(newNotifications);
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    } finally {
+      setNotificationLoading(false);
+    }
+  }, [vehicles]);
 
   // Fetch all data on component mount
   useEffect(() => {
@@ -284,9 +870,59 @@ const DashboardAdmin: React.FC = () => {
     fetchDashboardData();
   }, []);
 
+  // Fetch payment statistics on mount
+  useEffect(() => {
+    fetchPaymentStatistics();
+  }, [fetchPaymentStatistics]);
+
+  // Fetch notifications when vehicles are loaded
+  useEffect(() => {
+    if (vehicles.length > 0) {
+      fetchNotifications();
+    }
+  }, [vehicles.length, fetchNotifications]);
+
+  // Auto-refresh notifications every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (vehicles.length > 0) {
+        fetchNotifications();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [vehicles.length, fetchNotifications]);
+
+  // Close notifications when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showNotifications && !target.closest('.notification-container')) {
+        setShowNotifications(false);
+      }
+    };
+
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showNotifications]);
+
+  // Lock body scroll when station modal is open
+  useEffect(() => {
+    if (showStationModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showStationModal]);
+
   // Calculate statistics
   const totalVehicles = vehicles.length;
-  const activeCustomers = users.filter(user => user.role === 'user' || user.role === 'customer').length;
+  const activeCustomers = users.filter(user => user.role === 'renter' || user.role === 'regular' || user.role === 'vip').length;
   const totalStations = stations.filter(s => s.isActive).length;
 
   // Calculate battery status for featured vehicles (top 4 by battery level)
@@ -302,53 +938,67 @@ const DashboardAdmin: React.FC = () => {
       licensePlate: v.plateNumber,
     }));
 
-  // Calculate vehicles per station (top 3)
-  const stationVehicleCounts = stations.map(station => {
-    const count = vehicles.filter(v => {
-      if (typeof v.station === 'string') {
+  const stationSummaries = useMemo(() => {
+    const activeStatuses = new Set(["available", "reserved", "rented"]);
+
+    return stations.map((station: StationType) => {
+      const stationVehicles = vehicles.filter((v) => {
+        if (typeof v.station === "string") {
         return v.station === station._id;
-      } else if (v.station && typeof v.station === 'object') {
+        }
+        if (v.station && typeof v.station === "object") {
         return v.station._id === station._id;
       }
       return false;
-    }).length;
+      });
+
+      const activeCount = stationVehicles.filter((v) => activeStatuses.has(v.status)).length;
+      const maintenanceCount = stationVehicles.filter((v) => v.status === "maintenance").length;
+      const pendingMaintenanceCount = stationVehicles.filter(
+        (v) => v.status === "pending_maintenance"
+      ).length;
+      const pendingDeletionCount = stationVehicles.filter(
+        (v) => v.status === "pending_deletion"
+      ).length;
     
     return {
       station,
-      count,
-    };
-  }).sort((a, b) => b.count - a.count).slice(0, 3);
+        totalVehicles: stationVehicles.length,
+        activeCount,
+        maintenanceCount,
+        pendingMaintenanceCount,
+        pendingDeletionCount,
+      };
+    });
+  }, [stations, vehicles]);
 
-  // Mock change percentages (in real app, calculate from historical data)
-  const stats = [
-    {
-      title: "Total Vehicles",
-      value: totalVehicles.toString(),
-      change: "+12%",
-      changeType: "increase" as const,
-      icon: <MdDirectionsCar className="w-8 h-8 text-white" />,
-      color: "bg-gradient-to-br from-blue-600 to-blue-500",
-      gradient: "",
-    },
-    {
-      title: "Active Customers",
-      value: activeCustomers.toString(),
-      change: "+8%",
-      changeType: "increase" as const,
-      icon: <MdPeople className="w-8 h-8 text-white" />,
-      color: "bg-gradient-to-br from-emerald-600 to-emerald-500",
-      gradient: "",
-    },
-    {
-      title: "Stations",
-      value: totalStations.toString(),
-      change: "+2",
-      changeType: "increase" as const,
-      icon: <MdEvStation className="w-8 h-8 text-white" />,
-      color: "bg-gradient-to-br from-purple-600 to-purple-500",
-      gradient: "",
-    },
-  ];
+  const filteredStationSummaries = useMemo(() => {
+    return stationSummaries
+      .filter((summary) => {
+        if (stationFilter === "all") return true;
+        if (stationFilter === "active") return summary.station.isActive;
+        return !summary.station.isActive;
+      })
+      .sort((a, b) => b.totalVehicles - a.totalVehicles);
+  }, [stationSummaries, stationFilter]);
+
+  useEffect(() => {
+    setActiveStationIndex(0);
+  }, [stationFilter, filteredStationSummaries.length]);
+
+  useEffect(() => {
+    if (filteredStationSummaries.length <= 1) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setActiveStationIndex((prev) => (prev + 1) % filteredStationSummaries.length);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [filteredStationSummaries]);
+
+  const highlightedStation = filteredStationSummaries[activeStationIndex] || null;
 
   // Generate activity logs from real data
   const recentActivities = [
@@ -389,18 +1039,22 @@ const DashboardAdmin: React.FC = () => {
         iconBg: "bg-blue-200 text-blue-700",
       })),
     ...users
-      .filter(u => u.role === 'user' || u.role === 'customer')
+      .filter(u => u.role === 'renter' || u.role === 'regular' || u.role === 'vip')
       .slice(0, 1)
       .map(u => ({
         type: "info" as const,
         icon: <MdPeople className="w-5 h-5" />,
         title: "Customer Account",
-        details: `${u.fullName || u.username} - ${u.email}`,
+        details: `${u.name || u.email} - ${u.email}`,
         time: "Recently",
         color: "border-purple-300 bg-purple-50",
         iconBg: "bg-purple-200 text-purple-700",
       })),
   ].slice(0, 4);
+
+  const totalStationsCount = stations.length;
+  const activeStationsCount = stations.filter((s) => s.isActive).length;
+  const inactiveStationsCount = totalStationsCount - activeStationsCount;
 
   // Loading state
   if (loading) {
@@ -438,241 +1092,783 @@ const DashboardAdmin: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000,transparent)]" />
-      
-      <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100/30 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-100/30 rounded-full blur-3xl" />
-
+    <div className="min-h-screen bg-white p-6">
       <PageTransition>
-        <div className="relative space-y-8 px-6 py-8">
-          {/* Header Section */}
-          <div className="flex items-center justify-between">
-            <div>
-              <motion.h1 
-                className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-700 bg-clip-text text-transparent mb-2"
-                initial={{ opacity: 0, x: -50 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                EV Fleet Command Center
-              </motion.h1>
-              <motion.p 
-                className="text-gray-600 text-sm font-medium"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-              >
-                Real-time monitoring • Updated {new Date().toLocaleString("en-US", { 
-                  hour: '2-digit', 
-                  minute: '2-digit',
-                  hour12: true 
-                })}
-              </motion.p>
-            </div>
-            
-            <FadeIn delay={0.4} duration={0.6}>
-              <div className="flex items-center space-x-4">
-                <motion.button 
-                  className="relative px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/20 overflow-hidden group"
+        <div className="space-y-6">
+          <motion.div
+            className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <PageTitle
+              title="Admin Dashboard"
+              subtitle={`Managing ${totalVehicles} vehicles, ${activeCustomers} customers and ${totalStations} active stations`}
+              icon={<MdDirectionsCar className="w-7 h-7 text-gray-700" />}
+            />
+            <div className="flex items-center gap-3">
+              
+              <div className="relative notification-container">
+                <motion.button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2.5 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow transition"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <span className="relative z-10 flex items-center space-x-2">
-                    <MdTrendingUp className="w-5 h-5" />
-                    <span>Export Analytics</span>
-                  </span>
-                  <motion.div 
-                    className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600"
-                    initial={{ x: "100%" }}
-                    whileHover={{ x: 0 }}
-                    transition={{ duration: 0.3 }}
-                  />
+                  {/* Bell ringing animation - reng reng effect */}
+                  <motion.div
+                    animate={
+                      notifications.length > 0
+                        ? {
+                            rotate: [-15, 15, -15, 15, -10, 10, -10, 10, -5, 5, 0],
+                          }
+                        : {}
+                    }
+                    transition={
+                      notifications.length > 0
+                        ? {
+                            duration: 0.6,
+                            repeat: Infinity,
+                            repeatDelay: 1.5,
+                            ease: "easeInOut",
+                          }
+                        : {}
+                    }
+                    style={{ transformOrigin: "top center" }}
+                  >
+                    <MdNotifications className="w-5 h-5 text-black" />
+                  </motion.div>
+                  {notifications.length > 0 && (
+                    <motion.span
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white font-bold z-10 shadow-lg"
+                      initial={{ scale: 0 }}
+                      animate={{
+                        scale: [1, 1.2, 1],
+                      }}
+                      transition={{
+                        duration: 0.6,
+                        repeat: Infinity,
+                        repeatDelay: 1.5,
+                        ease: "easeInOut",
+                      }}
+                    >
+                      {notifications.length > 99 ? "99+" : notifications.length}
+                    </motion.span>
+                  )}
                 </motion.button>
-
-                <motion.div 
-                  className="relative p-3 bg-white rounded-xl border-2 border-gray-200 cursor-pointer hover:border-gray-300 hover:shadow-lg transition-all"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <MdNotifications className="w-6 h-6 text-gray-700" />
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white font-bold shadow-lg">
-                    {recentActivities.length}
-                  </span>
-                </motion.div>
+                <AnimatePresence>
+                  {showNotifications && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 max-h-[600px] overflow-hidden flex flex-col"
+                    >
+                      <div className="p-4 border-b border-gray-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <MdNotifications className="w-5 h-5 text-gray-700" />
+                            <h3 className="font-semibold text-gray-900">Notifications</h3>
+                            {notifications.length > 0 && (
+                              <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-medium rounded-full">
+                                {notifications.length}
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setShowNotifications(false)}
+                            className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          >
+                            <MdClose className="w-4 h-4 text-gray-600" />
+                          </button>
+                        </div>
+                      </div>
+                        <div className="overflow-y-auto flex-1">
+                          {notificationLoading ? (
+                            <div className="p-8 flex items-center justify-center">
+                              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          ) : notifications.length === 0 ? (
+                            <div className="p-8 text-center">
+                              <MdNotifications className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                              <p className="text-gray-500 font-medium">No new notifications</p>
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-gray-100">
+                              {notifications.map((notif, index) => (
+                                <motion.div
+                                  key={notif.id}
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.05 }}
+                                  className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
+                                  notif.priority === "high" ? "bg-red-50/60" : ""
+                                  }`}
+                                  onClick={() => {
+                                    if (notif.type === "maintenance") {
+                                      window.location.href = "/admin/vehicles?tab=requests";
+                                    } else if (notif.type === "kyc") {
+                                      window.location.href = "/admin/users/verification";
+                                    }
+                                    setShowNotifications(false);
+                                  }}
+                                >
+                                  <div className="flex items-start space-x-3">
+                                    <div
+                                      className={`p-2 rounded-lg flex-shrink-0 ${
+                                        notif.type === "maintenance"
+                                          ? "bg-orange-100 text-orange-600"
+                                          : "bg-blue-100 text-blue-600"
+                                      }`}
+                                    >
+                                      {notif.type === "maintenance" ? (
+                                        <MdBuild className="w-5 h-5" />
+                                      ) : (
+                                        <MdVerifiedUser className="w-5 h-5" />
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                          <p className="font-semibold text-gray-900 text-sm mb-1">
+                                            {notif.title}
+                                          </p>
+                                          <p className="text-xs text-gray-600 line-clamp-2">
+                                            {notif.message}
+                                          </p>
+                                        </div>
+                                        {notif.priority === "high" && (
+                                          <span className="ml-2 w-2 h-2 bg-red-500 rounded-full flex-shrink-0 mt-1" />
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-gray-400 mt-2">
+                                      {notif.timestamp.toLocaleTimeString("vi-VN", {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      {notifications.length > 0 && (
+                        <div className="p-3 border-t border-gray-100 bg-gray-50">
+                          <button
+                            onClick={() => {
+                              if (notifications.some((n) => n.type === "maintenance")) {
+                                window.location.href = "/admin/vehicles?tab=requests";
+                              } else {
+                                window.location.href = "/admin/users/verification";
+                              }
+                              setShowNotifications(false);
+                            }}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+                          >
+                            View All
+                            <MdArrowForward className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </FadeIn>
-          </div>
-
-          {/* Stats Grid */}
-          <StaggerContainer staggerDelay={0.1} initialDelay={0.2}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {stats.map((stat, index) => (
-                <StaggerItem key={index}>
-                  <StatCard {...stat} />
-                </StaggerItem>
-              ))}
             </div>
-          </StaggerContainer>
+          </motion.div>
 
-          {/* Fleet Battery Status */}
-          {featuredVehicles.length > 0 && (
-            <FadeIn delay={0.6} duration={0.7} direction="up">
-              <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 p-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-4"
+          >
+            <h2 className="text-2xl font-bold text-gray-900">Overall Booking</h2>
+
+            {bookingSummaryError && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {bookingSummaryError}
+              </div>
+            )}
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <div className="rounded-2xl border border-gray-100 bg-white p-3 lg:p-4 shadow-sm h-full">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-2 sm:mb-3">
+                    <div>
+                      <h3 className="text-base lg:text-lg font-semibold text-gray-900">Booking Volume</h3>
+                      <p className="text-xs lg:text-sm text-gray-500">
+                        {rangeLabels[selectedBookingRange]} · {selectedBookings.length} booking
+                      </p>
+                      </div>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 lg:gap-6">
+                      <div className="text-right">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          Total deposit
+                        </p>
+                        <p className="text-sm lg:text-base font-semibold text-gray-900">
+                          {formatCurrency(totalRangeRevenue, "VND")}
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          Total paid
+                        </p>
+                        <p className="text-sm lg:text-base font-semibold text-gray-900">
+                          {formatCurrency(totalRangePaid, "VND")}
+                        </p>
+                    </div>
+                  </div>
+                  </div>
+                  <div className="h-72 lg:h-80 xl:h-96">
+                    {bookingChartData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={bookingChartData}
+                          margin={{ top: 12, right: 12, left: -10, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="label"
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fontSize: 12, fill: "#6b7280" }}
+                          />
+                          <YAxis
+                            yAxisId="left"
+                            allowDecimals={false}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fontSize: 12, fill: "#6b7280" }}
+                          />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fontSize: 12, fill: "#6b7280" }}
+                            tickFormatter={(value: number) =>
+                              value >= 1000 ? `${Math.round(value / 1000)}k` : value.toString()
+                            }
+                          />
+                          <Tooltip
+                            cursor={{ strokeDasharray: "3 3", stroke: "#cbd5f5" }}
+                            formatter={(value: number, name: string) => {
+                              if (name === "amount") {
+                                return [formatCurrency(value, "VND"), "Deposit"];
+                              }
+                              if (name === "totalPaid") {
+                                return [formatCurrency(value, "VND"), "Total Paid"];
+                              }
+                              return [value, "Bookings"];
+                            }}
+                          />
+                          <Line
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey="count"
+                            stroke="#4c1d95"
+                            strokeWidth={2.2}
+                            dot={{ r: 4, strokeWidth: 1.5, stroke: "#4c1d95", fill: "#fff" }}
+                            activeDot={{ r: 5.5, stroke: "#4c1d95", fill: "#fff" }}
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="amount"
+                            stroke="#16a34a"
+                            strokeWidth={2.2}
+                            dot={{ r: 4, strokeWidth: 1.5, stroke: "#16a34a", fill: "#fff" }}
+                            activeDot={{ r: 5.5, stroke: "#16a34a", fill: "#fff" }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500">
+                        No booking data available to display chart.
+                      </div>
+                    )}
+                  </div>
+                  {bookingRangeLoading && (
+                    <p className="mt-3 text-xs text-gray-400">
+                      Updating booking data...
+                    </p>
+                  )}
+                  {bookingRangeError && !bookingRangeLoading && (
+                    <p className="mt-3 text-sm text-red-500">{bookingRangeError}</p>
+                  )}
+                </div>
+              </div>
+              <div className="lg:col-span-1">
+                <div className="rounded-2xl border border-gray-100 bg-white p-2.5 lg:p-3 shadow-sm h-full flex flex-col">
+                  <Bookedmanagement />
+                </div>
+              </div>
+                  </div>
+          </motion.div>
+
+            <motion.div
+            className="grid gap-6 xl:grid-cols-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <div className="xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col h-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <MdEvStation className="w-5 h-5 text-blue-600" />
+                  Station
+                </h3>
+                <button
+                  onClick={() => setShowStationModal(true)}
+                  className="text-xs inline-flex items-center gap-2 text-blue-600 font-semibold hover:underline"
+                >
+                  View Details
+                  <MdArrowForward className="w-4 h-4" />
+                </button>
+                  </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  {
+                    key: "all" as const,
+                    label: "All",
+                    value: totalStationsCount,
+                    subLabel: `${activeStationsCount} active`,
+                    bg: "bg-indigo-50",
+                    text: "text-indigo-600",
+                  },
+                  {
+                    key: "active" as const,
+                    label: "Active",
+                    value: activeStationsCount,
+                    subLabel: `${Math.round(
+                      (activeStationsCount / Math.max(totalStationsCount, 1)) * 100
+                    )}%`,
+                    bg: "bg-emerald-50",
+                    text: "text-emerald-600",
+                  },
+                  {
+                    key: "inactive" as const,
+                    label: "Inactive",
+                    value: inactiveStationsCount,
+                    subLabel: `${Math.round(
+                      (inactiveStationsCount / Math.max(totalStationsCount, 1)) * 100
+                    )}%`,
+                    bg: "bg-rose-50",
+                    text: "text-rose-600",
+                  },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setStationFilter(item.key)}
+                    className={`p-4 rounded-2xl border text-left transition ${
+                      stationFilter === item.key
+                        ? "border-blue-200 shadow-lg shadow-blue-100/50"
+                        : "border-gray-100 hover:border-gray-200 hover:shadow-sm"
+                    } ${item.bg}`}
+                  >
+                    <p className={`text-xs font-semibold ${item.text}`}>{item.label}</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{item.value}</p>
+                    <p className="text-xs text-gray-500 mt-2">{item.subLabel}</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-6">
+                <div className="relative">
+                  <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white">
+                    <AnimatePresence mode="wait">
+                      {highlightedStation ? (
+                    <motion.div
+                          key={highlightedStation.station._id}
+                          initial={{ opacity: 0, x: 30 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -30 }}
+                          transition={{ duration: 0.35 }}
+                          className="p-5"
+                        >
+                          <StationCard
+                            station={highlightedStation.station}
+                            totalVehicles={highlightedStation.totalVehicles}
+                            activeCount={highlightedStation.activeCount}
+                            maintenanceCount={highlightedStation.maintenanceCount}
+                            pendingMaintenanceCount={highlightedStation.pendingMaintenanceCount}
+                            pendingDeletionCount={highlightedStation.pendingDeletionCount}
+                            isHighlighted
+                          />
+                    </motion.div>
+                      ) : (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="p-6 text-center text-sm text-gray-500"
+                        >
+                          No stations match the filter.
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                </div>
+                  {filteredStationSummaries.length > 1 && (
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <MdEvStation className="w-5 h-5 text-indigo-300" />
+              </div>
+                  )}
+                </div>
+                {filteredStationSummaries.length > 1 && (
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveStationIndex((prev) =>
+                            prev === 0 ? filteredStationSummaries.length - 1 : prev - 1
+                          )
+                        }
+                        className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveStationIndex((prev) => (prev + 1) % filteredStationSummaries.length)
+                        }
+                        className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition"
+                      >
+                        Next
+                      </button>
+                    </div>
+                    <div className="flex gap-1">
+                      {filteredStationSummaries.map((summary, index) => (
+                        <button
+                          key={summary.station._id}
+                          type="button"
+                          onClick={() => setActiveStationIndex(index)}
+                          className={`h-2.5 rounded-full transition-all ${
+                            index === activeStationIndex
+                              ? "w-6 bg-blue-500"
+                              : "w-2 bg-gray-300 hover:bg-gray-400"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col h-full">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <VscGraph className="w-5 h-5 text-gray-700" />
+                  <h3 className="text-lg font-semibold text-gray-900">analytical graph</h3>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span className="text-xs text-gray-600">Captured</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <span className="text-xs text-gray-600">Cancelled</span>
+                  </div>
+                </div>
+              </div>
+
+              {paymentStatsError && (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {paymentStatsError}
+                </div>
+              )}
+
+              <div className="mt-6 flex-1 flex flex-col min-h-0">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900 flex items-center space-x-3">
-                      <MdBatteryChargingFull className="w-7 h-7 text-emerald-600" />
-                      <span>Live Fleet Battery Monitor</span>
-                    </h2>
-                    <p className="text-gray-600 text-sm mt-1 font-medium">Real-time vehicle health & availability</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Total Captured</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">
+                      {formatCurrency(paymentStats.totalCaptured, "VND")}
+                    </p>
                   </div>
-                  <motion.div 
-                    className="flex items-center space-x-2 px-4 py-2 bg-emerald-100 border-2 border-emerald-300 rounded-full"
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <div className="w-2 h-2 bg-emerald-600 rounded-full animate-pulse" />
-                    <span className="text-emerald-700 text-sm font-bold">Live</span>
-                  </motion.div>
+                  <div className="text-right">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Total Cancelled</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">
+                      {formatCurrency(paymentStats.totalCancelled, "VND")}
+                    </p>
+                  </div>
                 </div>
 
-                <StaggerContainer staggerDelay={0.15} initialDelay={0}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                    {featuredVehicles.map((vehicle, index) => (
-                      <StaggerItem key={index}>
-                        <BatteryStatus {...vehicle} />
-                      </StaggerItem>
-                    ))}
-                  </div>
-                </StaggerContainer>
-              </div>
-            </FadeIn>
-          )}
-
-          {/* Stations Network Status */}
-          {stationVehicleCounts.length > 0 && (
-            <FadeIn delay={0.8} duration={0.7} direction="up">
-              <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900 flex items-center space-x-3">
-                    <MdEvStation className="w-7 h-7 text-purple-600" />
-                    <span>Station Network Status</span>
-                  </h2>
-                  <div className="flex items-center space-x-4 text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-emerald-500 rounded-full shadow-sm" />
-                      <span className="text-gray-700">Active: {stations.filter(s => s.isActive).length}</span>
+                <div className="flex-1 min-h-0">
+                  {paymentStatsLoading ? (
+                    <div className="flex h-full items-center justify-center">
+                      <div className="text-sm text-gray-500">Loading data...</div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-red-500 rounded-full shadow-sm" />
-                      <span className="text-gray-700">Inactive: {stations.filter(s => !s.isActive).length}</span>
+                  ) : paymentStats.monthlyData.length === 0 ? (
+                    <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500">
+                      No payment data available to display chart.
                     </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {stationVehicleCounts.map((item, index) => (
-                    <StationCard key={index} station={item.station} vehicleCount={item.count} />
-                  ))}
-                </div>
-              </div>
-            </FadeIn>
-          )}
-
-          {/* Quick Actions */}
-          <FadeIn delay={1.0} duration={0.7} direction="up">
-            <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
-              
-              <StaggerContainer staggerDelay={0.12} initialDelay={0}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {[
-                    {
-                      icon: <MdDirectionsCar className="w-7 h-7" />,
-                      title: "Add New Vehicle",
-                      desc: "Register EV to fleet",
-                      gradient: "from-blue-600 to-cyan-600",
-                      hoverGradient: "hover:from-blue-500 hover:to-cyan-500",
-                    },
-                    {
-                      icon: <MdAccountCircle className="w-7 h-7" />,
-                      title: "Manage Staff",
-                      desc: "Team & permissions",
-                      gradient: "from-emerald-600 to-green-600",
-                      hoverGradient: "hover:from-emerald-500 hover:to-green-500",
-                    },
-                  ].map((action, index) => (
-                    <StaggerItem key={index}>
-                      <motion.button 
-                        className={`relative flex items-center space-x-4 p-6 bg-gradient-to-br ${action.gradient} ${action.hoverGradient} rounded-xl transition-all duration-300 w-full text-left group overflow-hidden shadow-lg hover:shadow-2xl`}
-                        whileHover={{ scale: 1.05, y: -5 }}
-                        whileTap={{ scale: 0.95 }}
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={paymentStats.monthlyData}
+                        margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
+                        barCategoryGap="20%"
                       >
-                        <div className="relative z-10 p-3 bg-white/20 rounded-xl backdrop-blur-sm group-hover:bg-white/30 transition-colors">
-                          {action.icon}
-                        </div>
-                        <div className="relative z-10 flex-1">
-                          <p className="font-bold text-white text-lg">{action.title}</p>
-                          <p className="text-sm text-white/90">{action.desc}</p>
-                        </div>
-                        
-                        <motion.div 
-                          className="absolute inset-0 bg-white"
-                          initial={{ x: "-100%", opacity: 0 }}
-                          whileHover={{ x: 0, opacity: 0.1 }}
-                          transition={{ duration: 0.3 }}
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis
+                          dataKey="month"
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fontSize: 12, fill: "#6b7280" }}
                         />
-                      </motion.button>
-                    </StaggerItem>
-                  ))}
+                        <YAxis
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fontSize: 12, fill: "#6b7280" }}
+                          tickFormatter={(value: number) => {
+                            if (value >= 1000000) {
+                              return `${(value / 1000000).toFixed(1)}M`;
+                            }
+                            if (value >= 1000) {
+                              return `${(value / 1000).toFixed(0)}K`;
+                            }
+                            return value.toString();
+                          }}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "rgba(0, 0, 0, 0.05)" }}
+                          formatter={(value: number, name: string) => {
+                            if (name === "captured" || name === "Captured") {
+                              return [formatCurrency(value, "VND"), "Captured"];
+                            }
+                            if (name === "cancelled" || name === "Cancelled") {
+                              return [formatCurrency(value, "VND"), "Cancelled"];
+                            }
+                            return [formatCurrency(value, "VND"), name];
+                          }}
+                        />
+                        <Bar
+                          dataKey="captured"
+                          fill="#3b82f6"
+                          radius={[4, 4, 0, 0]}
+                          name="Captured"
+                          minPointSize={2}
+                        />
+                        <Bar
+                          dataKey="cancelled"
+                          fill="#eab308"
+                          radius={[4, 4, 0, 0]}
+                          name="Cancelled"
+                          minPointSize={2}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
-              </StaggerContainer>
-            </div>
-          </FadeIn>
+                </div>
+              </div>
+            </motion.div>
 
-          {/* System Alerts */}
-          {recentActivities.length > 0 && (
-            <FadeIn delay={1.2} duration={0.7} direction="up">
-              <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center space-x-3">
-                  <MdNotifications className="w-7 h-7 text-yellow-600" />
-                  <span>System Alerts & Activity</span>
-                </h2>
-
-                <StaggerContainer staggerDelay={0.1} initialDelay={0}>
-                  <div className="space-y-3">
-                    {recentActivities.map((alert, index) => (
-                      <StaggerItem key={index}>
-                        <motion.div 
-                          className={`flex items-start space-x-4 p-5 rounded-xl border-2 ${alert.color} hover:shadow-lg transition-all duration-300`}
-                          whileHover={{ x: 5, scale: 1.02 }}
-                        >
-                          <div className={`p-2 rounded-lg ${alert.iconBg} flex-shrink-0`}>
-                            {alert.icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-gray-900 mb-1">{alert.title}</p>
-                            <p className="text-sm text-gray-700 mb-2">{alert.details}</p>
-                            <p className="text-xs text-gray-500 font-medium">{alert.time}</p>
-                          </div>
-                          <motion.button
-                            className="text-gray-400 hover:text-gray-700 transition-colors font-bold text-xl"
-                            whileHover={{ scale: 1.3, rotate: 90 }}
-                            whileTap={{ scale: 0.8 }}
-                          >
-                            ×
-                          </motion.button>
-                        </motion.div>
-                      </StaggerItem>
+            {featuredVehicles.length > 0 && (
+            <motion.div
+                className="grid gap-6 lg:grid-cols-2"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+              >
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Fleet Battery Monitoring</h3>
+                    <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-600 rounded-full font-semibold">
+                      Live
+                    </span>
+              </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {featuredVehicles.map((vehicle, index) => (
+                      <motion.div
+                        key={`${vehicle.licensePlate}-${index}`}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.7 + index * 0.1 }}
+                      >
+                        <BatteryStatus {...vehicle} />
+                      </motion.div>
                     ))}
                   </div>
-                </StaggerContainer>
+                </div>
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                    <span className="text-xs text-gray-500">Real-time updates</span>
+                  </div>
+                <div className="space-y-3">
+                  {recentActivities.map((alert, index) => (
+                    <motion.div
+                        key={`${alert.title}-${index}`}
+                        className={`flex items-start gap-4 p-4 rounded-2xl border ${alert.color.replace("border-2", "border")} hover:shadow-sm transition`}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.8 + index * 0.1 }}
+                    >
+                        <div className={`p-2 rounded-xl ${alert.iconBg}`}>
+                        {alert.icon}
+                      </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{alert.title}</p>
+                          <p className="text-sm text-gray-600 mt-1">{alert.details}</p>
+                          <p className="text-xs text-gray-400 mt-2">{alert.time}</p>
+                      </div>
+                        <button className="text-gray-300 hover:text-gray-500 transition-colors">
+                        <MdClose className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
-            </FadeIn>
+            </motion.div>
           )}
         </div>
       </PageTransition>
+      {createPortal(
+        <AnimatePresence>
+          {showStationModal && (
+            <>
+              <motion.div
+                className="fixed inset-0 bg-black/40 z-[9999]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                onClick={() => setShowStationModal(false)}
+              />
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96, y: 20 }}
+                  transition={{ 
+                    type: "spring", 
+                    damping: 25, 
+                    stiffness: 300,
+                    mass: 0.8
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] min-h-[600px] overflow-hidden flex flex-col pointer-events-auto"
+                >
+                  {/* Modal Header - Dark Gradient */}
+                  <div className="sticky top-0 z-20 flex items-center justify-between p-4 border-b border-gray-800 bg-gradient-to-r from-black via-gray-900 to-gray-800/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/80">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-11 h-11 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-md">
+                        <MdEvStation className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-white">All Stations</h2>
+                        <p className="text-xs text-gray-200">View all stations list and detailed information</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowStationModal(false)}
+                      className="text-gray-400 hover:text-white hover:bg-gray-800 rounded-full p-1.5 transition-all duration-200 ease-in-out"
+                    >
+                      <MdClose className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Modal Content */}
+                  <div className="flex-1 overflow-y-auto p-5 min-h-0 flex flex-col scroll-smooth">
+                    {stationSummaries.length === 0 ? (
+                      <div className="flex items-center justify-center flex-1">
+                        <div className="text-sm text-gray-500">No station data found</div>
+                      </div>
+                    ) : (
+                      <div className="min-w-[780px]">
+                        <div className="grid grid-cols-[2.2fr_repeat(5,1fr)] gap-4 px-6 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 bg-gray-50 rounded-t-lg">
+                          <span>Station</span>
+                          <span className="text-right">Total Vehicles</span>
+                          <span className="text-right">Active</span>
+                          <span className="text-right">Maintenance</span>
+                          <span className="text-right">Maint. Req</span>
+                          <span className="text-right">Del. Req</span>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {stationSummaries.map((summary, index) => (
+                            <motion.div
+                              key={summary.station._id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ 
+                                duration: 0.3,
+                                delay: index * 0.03,
+                                ease: "easeOut"
+                              }}
+                              className="grid grid-cols-[2.2fr_repeat(5,1fr)] gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-all duration-200 text-sm"
+                            >
+                              <div className="space-y-1.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="font-semibold text-gray-900 truncate pr-6">
+                                    {summary.station.name}
+                                  </p>
+                                  <span
+                                    className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                                      summary.station.isActive
+                                        ? "bg-emerald-50 text-emerald-600"
+                                        : "bg-rose-50 text-rose-600"
+                                    }`}
+                                  >
+                                    {summary.station.isActive ? "Active" : "Inactive"}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-gray-500 leading-tight line-clamp-1">
+                                  {summary.station.location?.address || "Not updated"}
+                                </p>
+                              </div>
+                              <div className="text-right tabular-nums font-semibold text-gray-900">
+                                {summary.totalVehicles}
+                              </div>
+                              <div className="text-right tabular-nums font-semibold text-emerald-600">
+                                {summary.activeCount}
+                              </div>
+                              <div className="text-right tabular-nums font-semibold text-rose-500">
+                                {summary.maintenanceCount}
+                              </div>
+                              <div className="text-right tabular-nums font-semibold text-blue-600">
+                                {summary.pendingMaintenanceCount}
+                              </div>
+                              <div className="text-right tabular-nums font-semibold text-purple-600">
+                                {summary.pendingDeletionCount}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="border-t border-gray-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0 bg-gray-50">
+                    <div className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                      Total {stationSummaries.length} stations · {activeStationsCount} active · {inactiveStationsCount} inactive
+                    </div>
+                    <button
+                      onClick={() => {
+                        window.location.href = "/admin/stations";
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-all duration-200 ease-in-out"
+                    >
+                      Manage Stations
+                      <MdArrowForward className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 };
