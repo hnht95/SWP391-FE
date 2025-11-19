@@ -16,16 +16,20 @@ const StationShowcase: React.FC = () => {
   const { stations, loading } = useStations({
     page: 1,
     limit: 100,
-    activeOnly: true,
+    activeOnly: true, // Already fetching only active stations
   });
   const navigate = useNavigate();
 
-  // Group stations by province and count
   const provinceData = useMemo(() => {
     if (!stations || stations.length === 0) return [];
 
-    const grouped = stations.reduce((acc, station) => {
-      const province = station.province || "Unknown";
+    // Filter out stations without province first
+    const validStations = stations.filter(
+      (station) => station.province && station.province.trim() !== ""
+    );
+
+    const grouped = validStations.reduce((acc, station) => {
+      const province = station.province || "";
       if (!acc[province]) {
         acc[province] = {
           province,
@@ -39,7 +43,6 @@ const StationShowcase: React.FC = () => {
       return acc;
     }, {} as Record<string, ProvinceData>);
 
-    // Convert to array and sort by count (descending)
     return Object.values(grouped).sort((a, b) => b.count - a.count);
   }, [stations]);
 
@@ -59,10 +62,13 @@ const StationShowcase: React.FC = () => {
     );
   }
 
-  const handleProvinceClick = (province: string) => {
-    navigate("/stations", {
-      state: { filterProvince: province },
-    });
+  // Modified to navigate to individual station page
+  const handleProvinceClick = (data: ProvinceData) => {
+    // Navigate to the first station in the province
+    if (data.stations.length > 0) {
+      const firstStation = data.stations[0];
+      navigate(`/stations/${firstStation._id}`);
+    }
   };
 
   // Get grid class based on index (biggest card for most stations - index 0)
@@ -118,7 +124,7 @@ const StationShowcase: React.FC = () => {
               className={`relative group cursor-pointer overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 ${getGridClass(
                 index
               )} ${index === 0 ? "min-h-[280px]" : "min-h-[280px]"}`}
-              onClick={() => handleProvinceClick(data.province)}
+              onClick={() => handleProvinceClick(data)}
             >
               {/* Background Image */}
               <div className="absolute inset-0">
