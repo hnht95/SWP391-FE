@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MdSearch, MdEmail, MdPhone, MdVisibility, MdCheckCircle, MdCancel, MdAdd } from "react-icons/md";
+import { MdSearch, MdEmail, MdPhone, MdVisibility, MdCancel, MdAdd } from "react-icons/md";
 import { FaUsers } from "react-icons/fa";
 import { FaUserTie } from "react-icons/fa6";
 import { PageTransition, FadeIn } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
 import { getAllUsers, type UserListFilters, type UserStats as UserStatsType } from "../../../../service/apiAdmin/apiListUser/API";
-import { getAllStaffs, createStaff, updateStaff, deleteStaff, type Staff as APIStaff } from "../../../../service/apiAdmin/StaffAPI/API";
+import { getAllStaffs, deleteStaff } from "../../../../service/apiAdmin/StaffAPI/API";
 import type { DeleteStaffResponse } from "../../../../service/apiAdmin/StaffAPI/API";
-import type { RawApiUser } from "../../../../types/userTypes";
 import useDebounce from "../../../../hooks/useDebounce";
 import UserDetailModal from "./UserDetailModal";
 import UpdateUserModal from "./UpdateUserModal";
@@ -44,11 +43,11 @@ const ListUserManagement: React.FC = () => {
   const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce search by 500ms
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [selectedType, setSelectedType] = useState<string>("all"); // all, user, staff
+  const [selectedType] = useState<string>("all"); // all, user, staff
   const [openRole, setOpenRole] = useState(false);
   const [openStatus, setOpenStatus] = useState(false);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit] = useState(20);
   const [total, setTotal] = useState(0);
   const [combinedUsers, setCombinedUsers] = useState<CombinedUser[]>([]);
   const [loading, setLoading] = useState(false);

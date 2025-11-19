@@ -80,6 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
   ];
 
   const handleMenuClick = (item: MenuItem) => {
+    setShowProfileMenu(false); // Close profile dropdown when clicking menu items
     navigate(item.path);
   };
 
@@ -147,9 +148,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
           {/* User Management dropdown */}
           <div>
             <button
-              onClick={() =>
-                isCollapsed ? navigate("/admin/users") : setOpenUserMenu((v) => !v)
-              }
+              onClick={() => {
+                setShowProfileMenu(false); // Close profile dropdown when clicking User Management
+                if (isCollapsed) {
+                  navigate("/admin/users");
+                } else {
+                  setOpenUserMenu((v) => !v);
+                }
+              }}
               className={`flex w-full items-center px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 group ${
                 location.pathname.startsWith("/admin/users")
                   ? "bg-gray-900 text-white shadow-md"
@@ -172,7 +178,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
             {!isCollapsed && openUserMenu && (
               <div className="mt-1 ml-10 space-y-1">
                 <button
-                  onClick={() => navigate("/admin/users")}
+                  onClick={() => {
+                    setShowProfileMenu(false); // Close profile dropdown
+                    navigate("/admin/users");
+                  }}
                   className={`flex w-full items-center px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100 ${
                     location.pathname === "/admin/users" ? "text-gray-900" : ""
                   }`}
@@ -184,7 +193,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
                   )}
                 </button>
                 <button
-                  onClick={() => navigate("/admin/users/verification")}
+                  onClick={() => {
+                    setShowProfileMenu(false); // Close profile dropdown
+                    navigate("/admin/users/verification");
+                  }}
                   className={`flex w-full items-center px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100 ${
                     location.pathname === "/admin/users/verification" ? "text-gray-900" : ""
                   }`}

@@ -42,7 +42,13 @@ export interface Vehicle {
   mileage: number;
   pricePerDay: number;
   pricePerHour: number;
-  status: "available" | "reserved" | "rented" | "maintenance" | "pending_deletion" | "pending_maintenance";
+  status:
+    | "available"
+    | "reserved"
+    | "rented"
+    | "maintenance"
+    | "pending_deletion"
+    | "pending_maintenance";
   station: string | StationData;
   defaultPhotos: {
     exterior: (string | VehiclePhoto)[];
@@ -55,7 +61,6 @@ export interface Vehicle {
   createdAt?: string;
   updatedAt?: string;
 
-  // Additional fields for UI compatibility
   image?: string;
   stationData?: StationData;
   batteryLevel?: number;
@@ -913,8 +918,13 @@ export const getAllTransferLogs = async (): Promise<TransferLog[]> => {
       response = await api.get("/admin/vehicles/transfer-logs");
     } catch (adminError: any) {
       // If admin endpoint fails, try regular endpoint
-      if (adminError?.response?.status === 404 || adminError?.response?.status === 403) {
-        console.log("⚠️ Admin endpoint not available, trying regular endpoint...");
+      if (
+        adminError?.response?.status === 404 ||
+        adminError?.response?.status === 403
+      ) {
+        console.log(
+          "⚠️ Admin endpoint not available, trying regular endpoint..."
+        );
         response = await api.get("/vehicles/transfer-logs");
       } else {
         throw adminError;
@@ -937,10 +947,12 @@ export const getAllTransferLogs = async (): Promise<TransferLog[]> => {
   } catch (error: any) {
     // Handle 403 Forbidden gracefully - return empty array instead of throwing
     if (error?.response?.status === 403) {
-      console.warn("⚠️ Access denied to transfer logs (admin only). Returning empty array.");
+      console.warn(
+        "⚠️ Access denied to transfer logs (admin only). Returning empty array."
+      );
       return [];
     }
-    
+
     // For other errors, log but don't crash
     console.error("❌ Error fetching transfer logs:", error);
     return [];
@@ -1196,15 +1208,22 @@ export const getMaintenanceRequestsPaginated = async (
   limit = 20
 ): Promise<{ items: any[]; pagination: PaginationMeta }> => {
   try {
-    const response = await api.get<{ success?: boolean; items?: any[]; data?: any[]; pagination?: PaginationMeta }>(
-      "/vehicles/maintenance-requests",
-      { params: { page, limit } }
-    );
+    const response = await api.get<{
+      success?: boolean;
+      items?: any[];
+      data?: any[];
+      pagination?: PaginationMeta;
+    }>("/vehicles/maintenance-requests", { params: { page, limit } });
 
     if (Array.isArray(response.data?.items)) {
       return {
         items: response.data.items || [],
-        pagination: response.data.pagination || { page, limit, total: response.data.items?.length || 0, totalPages: 1 },
+        pagination: response.data.pagination || {
+          page,
+          limit,
+          total: response.data.items?.length || 0,
+          totalPages: 1,
+        },
       };
     }
 
@@ -1218,7 +1237,10 @@ export const getMaintenanceRequestsPaginated = async (
 
     if (Array.isArray((response as any).data)) {
       const items = (response as any).data as any[];
-      return { items, pagination: { page, limit, total: items.length, totalPages: 1 } };
+      return {
+        items,
+        pagination: { page, limit, total: items.length, totalPages: 1 },
+      };
     }
 
     return { items: [], pagination: { page, limit, total: 0, totalPages: 1 } };
@@ -1226,4 +1248,59 @@ export const getMaintenanceRequestsPaginated = async (
     handleError(error);
     throw error;
   }
+};
+export const getSimilarVehicles = async (
+  vehicleId: string,
+  limit = 4
+): Promise<Vehicle[]> => {
+  try {
+    // First get the current vehicle to know its brand
+    const currentVehicle = await getVehicleById(vehicleId);
+
+    // Fetch vehicles with same brand, available status
+    const response = await getVehiclesPaginatedWithFilters(1, 20, {
+      brand: currentVehicle.brand,
+      status: "available",
+    });
+
+    // Filter out current vehicle and shuffle
+    const filtered = response.items.filter((v) => v._id !== vehicleId);
+
+    // Fisher-Yates shuffle
+    const shuffled = [...filtered];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    return shuffled.slice(0, limit);
+  } catch (error) {
+    console.error("Failed to fetch similar vehicles:", error);
+    return [];
+  }
+};
+export default {
+  getAllVehicles,
+  getVehiclesPaginated,
+  getVehiclesPaginatedWithFilters,
+  getVehicleById,
+  createVehicle,
+  updateVehicle,
+  deleteVehicle,
+  transferVehicleStation,
+  getAllTransferLogs,
+  getVehicleTransferLogs,
+  reportMaintenance,
+  createDeletionRequest,
+  getDeletionRequests,
+  getDeletionRequestsPaginated,
+  approveDeletionRequest,
+  rejectDeletionRequest,
+  getMaintenanceRequests,
+  getMaintenanceRequestsPaginated,
+  approveMaintenanceRequest,
+  rejectMaintenanceRequest,
+  getSimilarVehicles, // Add this
+  getPhotoUrls,
+  getStationId,
 };

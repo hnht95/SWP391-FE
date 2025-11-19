@@ -14,7 +14,7 @@ interface VehicleRowProps {
   onTransfer?: (vehicle: Vehicle) => void;
   onReportMaintenance?: (vehicle: Vehicle) => void;
   onRequestDeletion?: (vehicle: Vehicle) => void;
-  getStationName?: (stationIdOrObject: string | Station) => string;
+  getStationName?: (stationIdOrObject: string | { _id: string; name: string }) => string;
 }
 
 const VehicleRow: React.FC<VehicleRowProps> = ({

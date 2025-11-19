@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MdClose, MdDirectionsCar } from "react-icons/md";
 import { type Vehicle } from "./VehicleRow";
 import StatusBadge from "./StatusBadge";
-import { getPhotoUrls } from "../../../service/apiAdmin/apiVehicles/API";
+import { getPhotoUrls } from "../../../../service/apiAdmin/apiVehicles/API";
 
 interface VehicleDetailModalProps {
   vehicle: Vehicle | null;

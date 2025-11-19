@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { ThreeDots } from "react-loader-spinner";
 import VehiclesCard from "./vehiclesComponent/VehiclesCard";
 import {
   FaSearch,
@@ -8,6 +9,7 @@ import {
   FaCar,
   FaChevronDown,
   FaCheck,
+  FaDollarSign,
 } from "react-icons/fa";
 import {
   getVehiclesPaginatedWithFilters,
@@ -18,6 +20,8 @@ import {
   type Station,
 } from "../../../../service/apiAdmin/apiStation/API";
 import vehicleHeroImage from "../../../../assets/vehicles/Vehicle.svg";
+
+type PriceSortOption = "default" | "price_asc" | "price_desc";
 
 const Vehicles: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -31,22 +35,26 @@ const Vehicles: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus] = useState("available"); // Always filter available only
+  const [selectedStatus] = useState("available");
   const [selectedBrand, setSelectedBrand] = useState("All");
   const [selectedStation, setSelectedStation] = useState("All");
+  const [priceSort, setPriceSort] = useState<PriceSortOption>("default");
   const vehicleGridRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const brandDropdownRef = useRef<HTMLDivElement>(null);
   const stationDropdownRef = useRef<HTMLDivElement>(null);
+  const priceDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent): void => {
       if (
         brandDropdownRef.current &&
         !brandDropdownRef.current.contains(event.target as Node) &&
         stationDropdownRef.current &&
-        !stationDropdownRef.current.contains(event.target as Node)
+        !stationDropdownRef.current.contains(event.target as Node) &&
+        priceDropdownRef.current &&
+        !priceDropdownRef.current.contains(event.target as Node)
       ) {
         setOpenDropdown(null);
       }
@@ -69,7 +77,6 @@ const Vehicles: React.FC = () => {
     }
   }, [searchParams]);
 
-  // Check if navigated from station detail page
   useEffect(() => {
     const state = location.state as {
       stationId?: string;
@@ -77,7 +84,6 @@ const Vehicles: React.FC = () => {
     } | null;
     if (state?.stationId) {
       setSelectedStation(state.stationId);
-      // Optionally scroll to vehicle grid
       setTimeout(() => {
         vehicleGridRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
@@ -85,7 +91,7 @@ const Vehicles: React.FC = () => {
   }, [location]);
 
   useEffect(() => {
-    const fetchInitial = async () => {
+    const fetchInitial = async (): Promise<void> => {
       try {
         setLoading(true);
         setError("");
@@ -111,8 +117,7 @@ const Vehicles: React.FC = () => {
     fetchInitial();
   }, []);
 
-  // Load more when sentinel visible
-  const loadMore = React.useCallback(async () => {
+  const loadMore = React.useCallback(async (): Promise<void> => {
     try {
       setLoadingMore(true);
       const nextPage = page + 1;
@@ -161,11 +166,8 @@ const Vehicles: React.FC = () => {
     return () => io.disconnect();
   }, [hasMore, loadingMore, loading, loadMore]);
 
-  // (moved loadMore above)
-
-  // Reset pagination when filters change
   useEffect(() => {
-    const resetAndFetch = async () => {
+    const resetAndFetch = async (): Promise<void> => {
       setPage(1);
       setHasMore(true);
       setLoading(true);
@@ -198,8 +200,6 @@ const Vehicles: React.FC = () => {
         setLoading(false);
       }
     };
-    // avoid initial run before stations loaded? run after stations fetched
-    // we run whenever selected filters change
     resetAndFetch();
   }, [selectedBrand, selectedStatus, selectedStation]);
 
@@ -216,18 +216,15 @@ const Vehicles: React.FC = () => {
     return ["All", ...new Set(brands)];
   }, [vehicles]);
 
-  // ✅ Get unique stations from vehicles
   const allStations = useMemo(() => {
     if (stations.length === 0) return ["All"];
 
-    // Get unique station IDs from vehicles
     const stationIds = new Set(
       vehicles
         .map((car) => getStationId(car.station))
         .filter(Boolean) as string[]
     );
 
-    // Filter stations that have vehicles
     const stationsWithVehicles = stations.filter((station) =>
       stationIds.has(station._id)
     );
@@ -235,13 +232,10 @@ const Vehicles: React.FC = () => {
     return ["All", ...stationsWithVehicles];
   }, [vehicles, stations]);
 
-  // ✅ Filter logic - sửa lại station filter
-  const filterCars = () => {
-    return vehicles.filter((car) => {
-      // ✅ Chỉ lấy xe có status "available"
+  const filterCars = (): Vehicle[] => {
+    let filtered = vehicles.filter((car) => {
       if (car.status !== "available") return false;
 
-      // Search by brand + model + plate number
       let matchesSearchTerm = true;
       if (searchTerm.trim()) {
         const lowerSearchTerm = searchTerm.toLowerCase();
@@ -255,25 +249,42 @@ const Vehicles: React.FC = () => {
           car.model.toLowerCase().includes(lowerSearchTerm);
       }
 
-      // Brand filter
       const matchesBrand =
         selectedBrand === "All" || car.brand === selectedBrand;
 
-      // ✅ Station filter
       const matchesStation =
         selectedStation === "All" ||
         getStationId(car.station) === selectedStation;
 
       return matchesSearchTerm && matchesBrand && matchesStation;
     });
+
+    // Apply price sorting
+    if (priceSort === "price_asc") {
+      filtered = [...filtered].sort((a, b) => {
+        const priceA = a.pricePerDay || 0;
+        const priceB = b.pricePerDay || 0;
+        return priceA - priceB;
+      });
+    } else if (priceSort === "price_desc") {
+      filtered = [...filtered].sort((a, b) => {
+        const priceA = a.pricePerDay || 0;
+        const priceB = b.pricePerDay || 0;
+        return priceB - priceA;
+      });
+    }
+
+    return filtered;
   };
 
-  const filteredVehicles = filterCars();
+  const filteredVehicles = useMemo(
+    () => filterCars(),
+    [vehicles, searchTerm, selectedBrand, selectedStation, priceSort]
+  );
 
-  // ✅ Auto-scroll to vehicle grid when search or filter changes
-  const scrollToVehicleGrid = () => {
+  const scrollToVehicleGrid = (): void => {
     if (vehicleGridRef.current) {
-      const yOffset = -100; // offset for fixed header
+      const yOffset = -100;
       const element = vehicleGridRef.current;
       const y =
         element.getBoundingClientRect().top + window.pageYOffset + yOffset;
@@ -282,27 +293,35 @@ const Vehicles: React.FC = () => {
     }
   };
 
-  // ✅ Handle search submission (Enter key)
-  const handleSearchSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleSearchSubmit = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ): void => {
     if (e.key === "Enter") {
       e.preventDefault();
       scrollToVehicleGrid();
     }
   };
 
-  // ✅ Loading state
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
+          <ThreeDots
+            visible={true}
+            height="80"
+            width="80"
+            color="#000000"
+            radius="9"
+            ariaLabel="three-dots-loading"
+            wrapperStyle={{}}
+            wrapperClass=""
+          />
           <p className="mt-4 text-gray-600 text-lg">Loading vehicles...</p>
         </div>
       </div>
     );
   }
 
-  // ✅ Error state
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -337,10 +356,8 @@ const Vehicles: React.FC = () => {
           transition={{ duration: 1.2, ease: "easeOut" }}
         />
 
-        {/* Vignette overlay */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.7)_100%)] pointer-events-none" />
 
-        {/* Hero Content - Centered */}
         <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center text-white mb-12"
@@ -367,7 +384,6 @@ const Vehicles: React.FC = () => {
               Use the filters below to find your ideal electric vehicle
             </motion.p>
 
-            {/* Search Bar in Hero */}
             <motion.div
               className="relative max-w-3xl mx-auto"
               initial={{ y: 20, opacity: 0 }}
@@ -398,8 +414,8 @@ const Vehicles: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut", delay: 0.3 }}
           >
-            {/* Filters Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Filters Grid - Changed to 3 columns */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Brand Filter Card */}
               <motion.div
                 className="bg-white rounded-2xl transition-all duration-300 border border-slate-100 shadow"
@@ -409,7 +425,7 @@ const Vehicles: React.FC = () => {
               >
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12  flex items-center justify-center">
+                    <div className="w-12 h-12 flex items-center justify-center">
                       <FaCar size={30} className="text-gray-700 text-lg" />
                     </div>
                     <div>
@@ -419,7 +435,6 @@ const Vehicles: React.FC = () => {
                       <p className="text-xs text-gray-500">Select car brand</p>
                     </div>
                   </div>
-                  {/* Custom Dropdown */}
                   <div ref={brandDropdownRef} className="relative">
                     <button
                       onClick={() =>
@@ -494,7 +509,6 @@ const Vehicles: React.FC = () => {
                       <p className="text-xs text-gray-500">Choose station</p>
                     </div>
                   </div>
-                  {/* Custom Dropdown */}
                   <div ref={stationDropdownRef} className="relative">
                     <button
                       onClick={() =>
@@ -565,17 +579,95 @@ const Vehicles: React.FC = () => {
                   </div>
                 </div>
               </motion.div>
+
+              {/* Price Filter Card */}
+              <motion.div
+                className="bg-white rounded-2xl transition-all duration-300 border border-slate-100 shadow"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+              >
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                      <FaDollarSign className="text-gray-700 text-lg" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-800">
+                        Price
+                      </h3>
+                      <p className="text-xs text-gray-500">Sort by price</p>
+                    </div>
+                  </div>
+                  <div ref={priceDropdownRef} className="relative">
+                    <button
+                      onClick={() =>
+                        setOpenDropdown(
+                          openDropdown === "price" ? null : "price"
+                        )
+                      }
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-all text-left focus:outline-none focus:ring-1 focus:ring-gray-200 focus:border-gray-200 flex items-center justify-between group"
+                    >
+                      <span className="text-gray-700 text-sm truncate">
+                        {priceSort === "default" && "Default"}
+                        {priceSort === "price_asc" && "Low to High"}
+                        {priceSort === "price_desc" && "High to Low"}
+                      </span>
+                      <motion.div
+                        animate={{
+                          rotate: openDropdown === "price" ? 180 : 0,
+                        }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <FaChevronDown className="text-gray-400 text-xs flex-shrink-0 ml-2 group-hover:text-gray-600" />
+                      </motion.div>
+                    </button>
+
+                    <AnimatePresence>
+                      {openDropdown === "price" && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden"
+                        >
+                          {[
+                            { value: "default", label: "Default" },
+                            { value: "price_asc", label: "Low to High" },
+                            { value: "price_desc", label: "High to Low" },
+                          ].map((option) => (
+                            <button
+                              key={option.value}
+                              onClick={() => {
+                                setPriceSort(option.value as PriceSortOption);
+                                setOpenDropdown(null);
+                              }}
+                              className={`w-full px-4 py-2.5 text-left transition-all flex items-center justify-between text-sm ${
+                                priceSort === option.value
+                                  ? "bg-gray-100 text-gray-900 font-medium"
+                                  : "text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              <span>{option.label}</span>
+                              {priceSort === option.value && (
+                                <FaCheck className="text-gray-700 text-xs" />
+                              )}
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </motion.div>
             </div>
           </motion.div>
         </div>
       </div>
 
       {/* Vehicle Grid Section */}
-      <div
-        ref={vehicleGridRef}
-        className=" mx-auto px-4 pb-12 select-none z-50"
-      >
-        {/* Vehicle Grid */}
+      <div ref={vehicleGridRef} className="mx-auto px-4 pb-12 select-none z-50">
         {filteredVehicles.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {filteredVehicles.map((car) => (
@@ -589,7 +681,6 @@ const Vehicles: React.FC = () => {
                 }
               />
             ))}
-            {/* Sentinel for infinite scroll */}
             <div
               ref={observerRef}
               className="col-span-full h-8 flex items-center justify-center"
