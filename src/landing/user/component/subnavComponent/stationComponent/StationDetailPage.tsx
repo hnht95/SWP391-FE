@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { ThreeDots } from "react-loader-spinner";
 import {
   MdLocationOn,
   MdPhone,
   MdAccessTime,
   MdArrowBack,
 } from "react-icons/md";
+import { FaCheckCircle } from "react-icons/fa";
 
 import {
   getStationById,
@@ -30,7 +32,7 @@ const StationDetailPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const fetchStation = async () => {
+    const fetchStation = async (): Promise<void> => {
       if (!id) {
         setError("No station ID provided");
         setLoading(false);
@@ -60,7 +62,16 @@ const StationDetailPage: React.FC = () => {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-gray-900"></div>
+          <ThreeDots
+            visible={true}
+            height="80"
+            width="80"
+            color="#000000"
+            radius="9"
+            ariaLabel="three-dots-loading"
+            wrapperStyle={{}}
+            wrapperClass=""
+          />
           <p className="mt-4 text-gray-600 text-lg">
             Loading station details...
           </p>
@@ -131,14 +142,6 @@ const StationDetailPage: React.FC = () => {
               {station.name}
             </h1>
 
-            {/* Station Code */}
-            {station.code && (
-              <p className="text-xl text-gray-200 mb-6 drop-shadow">
-                Station Code:{" "}
-                <span className="font-semibold">{station.code}</span>
-              </p>
-            )}
-
             {/* Location Preview */}
             <div className="flex items-center gap-2 text-white mb-8 drop-shadow">
               <MdLocationOn className="w-6 h-6 text-green-400" />
@@ -189,35 +192,27 @@ const StationDetailPage: React.FC = () => {
         </motion.button>
       </div>
 
-      {/* Quick Info Badges */}
+      {/* Quick Info Badges - Darker Gray */}
       <div className="border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="bg-gray-200 border border-gray-300 rounded-2xl p-6 text-center">
               <h4 className="font-bold text-gray-900 text-lg mb-1">
                 {station.isActive ? "Active" : "Inactive"}
               </h4>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">
+              <p className="text-xs text-gray-600 uppercase tracking-wide">
                 Station Status
               </p>
             </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center">
-              <h4 className="font-bold text-gray-900 text-lg mb-1">
-                {station.code || "N/A"}
-              </h4>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">
-                Station Code
-              </p>
-            </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center">
+            <div className="bg-gray-200 border border-gray-300 rounded-2xl p-6 text-center">
               <h4 className="font-bold text-gray-900 text-lg mb-1">24/7</h4>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">
+              <p className="text-xs text-gray-600 uppercase tracking-wide">
                 Availability
               </p>
             </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center">
+            <div className="bg-gray-200 border border-gray-300 rounded-2xl p-6 text-center">
               <h4 className="font-bold text-gray-900 text-lg mb-1">Premium</h4>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">
+              <p className="text-xs text-gray-600 uppercase tracking-wide">
                 Service Level
               </p>
             </div>
@@ -250,44 +245,80 @@ const StationDetailPage: React.FC = () => {
           )}
         </motion.div>
 
-        {/* Services and Amenities */}
+        {/* Services and Amenities - Black Background */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="grid md:grid-cols-2 gap-16 mb-20"
+          className="grid md:grid-cols-2 gap-10 mb-20"
         >
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-6 uppercase tracking-wide">
+          <div className="bg-black rounded-2xl p-8">
+            <h3 className="text-3xl font-bold text-white mb-6 uppercase tracking-wide">
               Station Services
             </h3>
-            <div className="space-y-3">
-              <p className="text-gray-700 text-sm">• Vehicle Rental & Return</p>
-              <p className="text-gray-700 text-sm">• EV Charging Stations</p>
-              <p className="text-gray-700 text-sm">• Maintenance & Service</p>
-              <p className="text-gray-700 text-sm">• 24/7 Customer Support</p>
-              <p className="text-gray-700 text-sm">• Contactless Check-in</p>
-              <p className="text-gray-700 text-sm">• Vehicle Inspection</p>
+            <div className="space-y-4">
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>Vehicle Rental & Return</span>
+              </p>
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>EV Charging Stations</span>
+              </p>
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>Maintenance & Service</span>
+              </p>
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>24/7 Customer Support</span>
+              </p>
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>Contactless Check-in</span>
+              </p>
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>Vehicle Inspection</span>
+              </p>
             </div>
           </div>
 
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-6 uppercase tracking-wide">
+          <div className="bg-black rounded-2xl p-8">
+            <h3 className="text-3xl font-bold text-white mb-6 uppercase tracking-wide">
               Amenities & Facilities
             </h3>
-            <div className="space-y-3">
-              <p className="text-gray-700 text-sm">• Secure Parking</p>
-              <p className="text-gray-700 text-sm">• Waiting Lounge</p>
-              <p className="text-gray-700 text-sm">• Free WiFi</p>
-              <p className="text-gray-700 text-sm">• Restrooms</p>
-              <p className="text-gray-700 text-sm">• Refreshments Available</p>
-              <p className="text-gray-700 text-sm">• Wheelchair Accessible</p>
+            <div className="space-y-4">
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>Secure Parking</span>
+              </p>
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>Waiting Lounge</span>
+              </p>
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>Free WiFi</span>
+              </p>
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>Restrooms</span>
+              </p>
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>Refreshments Available</span>
+              </p>
+              <p className="text-white text-lg flex items-start gap-3">
+                <FaCheckCircle className="text-white mt-1 flex-shrink-0" />
+                <span>Wheelchair Accessible</span>
+              </p>
             </div>
           </div>
         </motion.div>
 
-        {/* Location Details */}
+        {/* Location Details - Darker Gray */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -301,47 +332,47 @@ const StationDetailPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
             {/* Contact Info */}
-            <div className="bg-gray-50 rounded-2xl p-6">
+            <div className="bg-gray-200 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <MdPhone className="w-6 h-6 text-blue-500" />
+                <MdPhone className="w-6 h-6 text-blue-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Contact</h3>
               </div>
-              <p className="text-gray-600 text-sm mb-2">
+              <p className="text-gray-700 text-sm mb-2 font-medium">
                 Phone: +84 123 456 789
               </p>
-              <p className="text-gray-600 text-sm">
-                Email: {station.code?.toLowerCase()}@zami.com
+              <p className="text-gray-700 text-sm font-medium">
+                Email: contact@zami.com
               </p>
             </div>
 
             {/* Operating Hours */}
-            <div className="bg-gray-50 rounded-2xl p-6">
+            <div className="bg-gray-200 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <MdAccessTime className="w-6 h-6 text-green-500" />
+                <MdAccessTime className="w-6 h-6 text-green-600" />
                 <h3 className="text-lg font-semibold text-gray-900">
                   Operating Hours
                 </h3>
               </div>
-              <p className="text-gray-600 text-sm mb-2">
+              <p className="text-gray-700 text-sm mb-2 font-medium">
                 Monday - Friday: 8:00 AM - 8:00 PM
               </p>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-700 text-sm font-medium">
                 Saturday - Sunday: 9:00 AM - 6:00 PM
               </p>
             </div>
 
             {/* Coordinates */}
-            <div className="bg-gray-50 rounded-2xl p-6">
+            <div className="bg-gray-200 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <MdLocationOn className="w-6 h-6 text-red-500" />
+                <MdLocationOn className="w-6 h-6 text-red-600" />
                 <h3 className="text-lg font-semibold text-gray-900">
                   Coordinates
                 </h3>
               </div>
-              <p className="text-gray-600 text-sm mb-2">
+              <p className="text-gray-700 text-sm mb-2 font-medium">
                 Lat: {station.location.lat.toFixed(6)}
               </p>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-700 text-sm font-medium">
                 Lng: {station.location.lng.toFixed(6)}
               </p>
             </div>
@@ -393,26 +424,6 @@ const StationDetailPage: React.FC = () => {
             Browse available vehicles
           </button>
         </motion.div>
-
-        {/* Metadata */}
-        {(station.createdAt || station.updatedAt) && (
-          <div className="mt-20 pt-8 border-t border-gray-200">
-            <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-600">
-              {station.createdAt && (
-                <p>
-                  <span className="font-medium">Station Created:</span>{" "}
-                  {new Date(station.createdAt).toLocaleString()}
-                </p>
-              )}
-              {station.updatedAt && (
-                <p>
-                  <span className="font-medium">Last Updated:</span>{" "}
-                  {new Date(station.updatedAt).toLocaleString()}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
