@@ -520,15 +520,19 @@ export const updateVehicle = async (
   try {
     console.log("🔄 Updating vehicle with data:", vehicleData);
 
-    // Separate files and photos from other data to avoid backend transaction requirements
+    // Separate files and photos from other data
     const {
       exteriorFiles,
       interiorFiles,
-      defaultPhotos: _unusedPhotos,
+      defaultPhotos,
       ...restData
     } = vehicleData as UpdateVehicleData & {
       exteriorFiles?: File[];
       interiorFiles?: File[];
+      defaultPhotos?: {
+        exterior: string[];
+        interior: string[];
+      };
     };
 
     // Normalize station to ID string if object provided
@@ -545,9 +549,11 @@ export const updateVehicle = async (
       delete basePayload.station;
     }
 
-    // Never send defaultPhotos in the main update; handled by separate upload step
-    if (typeof basePayload.defaultPhotos !== "undefined")
-      delete basePayload.defaultPhotos;
+    // Include defaultPhotos if provided (for keeping specific photos)
+    // Backend may use this to replace the entire photo list
+    if (defaultPhotos && (defaultPhotos.exterior.length > 0 || defaultPhotos.interior.length > 0)) {
+      basePayload.defaultPhotos = defaultPhotos;
+    }
 
     // Remove undefined fields to prevent schema validation noise
     Object.keys(basePayload).forEach((k) => {
@@ -614,20 +620,65 @@ export const updateVehicle = async (
       throw new Error("Failed to update vehicle");
     }
 
-    // If there are new files to upload, do it in a separate request
+    // Handle photo updates: if there are new files OR defaultPhotos changed, update photos
     const hasNewFiles = exteriorFiles?.length || interiorFiles?.length;
+    const hasPhotoChanges = hasNewFiles || defaultPhotos;
+    const hasPhotoDeletions = defaultPhotos && (
+      (defaultPhotos.exterior.length < (updatedVehicle.defaultPhotos?.exterior?.length || 0)) ||
+      (defaultPhotos.interior.length < (updatedVehicle.defaultPhotos?.interior?.length || 0))
+    );
 
-    if (hasNewFiles) {
-      console.log("📤 Step 2: Uploading new photos...");
-      console.log("New files:", {
-        exterior: exteriorFiles?.length || 0,
-        interior: interiorFiles?.length || 0,
+    if (hasPhotoChanges) {
+      console.log("📤 Step 2: Updating photos...");
+      console.log("Photo changes:", {
+        hasNewFiles,
+        hasDefaultPhotos: !!defaultPhotos,
+        exteriorFiles: exteriorFiles?.length || 0,
+        interiorFiles: interiorFiles?.length || 0,
+        keepExterior: defaultPhotos?.exterior?.length || 0,
+        keepInterior: defaultPhotos?.interior?.length || 0,
       });
 
-      // Create FormData for file upload
-      const formData = new FormData();
+      // Strategy: 
+      // 1. If we have defaultPhotos AND hasPhotoDeletions, user deleted some photos
+      // 2. We need to replace the entire photo list with: keepPhotos (from defaultPhotos) + newPhotos (from files)
+      // 3. If backend doesn't support replace mode, we need to:
+      //    a. First update defaultPhotos to remove deleted photos
+      //    b. Then add new photos
+      
+      // Step 1: If there are photo deletions, update defaultPhotos first
+      if (hasPhotoDeletions && defaultPhotos) {
+        console.log("🗑️ Step 2a: Removing deleted photos first...");
+        try {
+          const deletePhotosPayload: Record<string, unknown> = {
+            defaultPhotos: defaultPhotos
+          };
+          
+          await api.put<SingleVehicleResponse>(
+            `/vehicles/${id}`,
+            deletePhotosPayload
+          );
+          
+          console.log("✅ Deleted photos removed, waiting for backend to process...");
+          // Wait for backend to process
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          
+          // Refresh vehicle data
+          updatedVehicle = await getVehicleById(id);
+        } catch (deleteError) {
+          console.error("❌ Error removing deleted photos:", deleteError);
+          // Continue anyway - maybe backend will handle it in the next step
+        }
+      }
 
-      // Append files
+      // Step 2: If there are new files, upload them
+      if (hasNewFiles) {
+        console.log("📤 Step 2b: Uploading new photos...");
+        
+        // Create FormData for file upload
+        const formData = new FormData();
+
+      // Append new files if any
       if (exteriorFiles) {
         exteriorFiles.forEach((file: File) => {
           formData.append("exteriorFiles", file);
@@ -639,44 +690,158 @@ export const updateVehicle = async (
         });
       }
 
-      // Send files to update photos with mode as query parameter
-      const photosResponse = await api.put<SingleVehicleResponse>(
-        `/vehicles/${id}?mode=append`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+        // If we already removed deleted photos in step 2a, use current vehicle's photos
+        // Otherwise, use defaultPhotos if provided
+        if (hasPhotoDeletions) {
+          // We already updated defaultPhotos, so get current photos
+          const currentExteriorIds = (updatedVehicle.defaultPhotos?.exterior || [])
+            .map(p => typeof p === 'string' ? p : (p as VehiclePhoto)?._id || '')
+            .filter(id => id !== '');
+          const currentInteriorIds = (updatedVehicle.defaultPhotos?.interior || [])
+            .map(p => typeof p === 'string' ? p : (p as VehiclePhoto)?._id || '')
+            .filter(id => id !== '');
+          
+          formData.append("keepExteriorPhotos", JSON.stringify(currentExteriorIds));
+          formData.append("keepInteriorPhotos", JSON.stringify(currentInteriorIds));
+          console.log("📸 Using current photos after deletion:", {
+            exterior: currentExteriorIds.length,
+            interior: currentInteriorIds.length
+          });
+        } else if (defaultPhotos) {
+          // Send the list of photo IDs to keep (even if empty)
+          formData.append("keepExteriorPhotos", JSON.stringify(defaultPhotos.exterior || []));
+          formData.append("keepInteriorPhotos", JSON.stringify(defaultPhotos.interior || []));
+          console.log("📸 Sending keepPhotos to backend:", {
+            exterior: defaultPhotos.exterior,
+            interior: defaultPhotos.interior
+          });
+        } else {
+          // If no defaultPhotos provided but has new files, we need to keep all existing photos
+          // Fetch current vehicle to get existing photo IDs
+          try {
+            const currentVehicle = await getVehicleById(id);
+            const currentExteriorIds = (currentVehicle.defaultPhotos?.exterior || [])
+              .map(p => typeof p === 'string' ? p : (p as VehiclePhoto)?._id || '')
+              .filter(id => id !== '');
+            const currentInteriorIds = (currentVehicle.defaultPhotos?.interior || [])
+              .map(p => typeof p === 'string' ? p : (p as VehiclePhoto)?._id || '')
+              .filter(id => id !== '');
+            
+            formData.append("keepExteriorPhotos", JSON.stringify(currentExteriorIds));
+            formData.append("keepInteriorPhotos", JSON.stringify(currentInteriorIds));
+            console.log("📸 No defaultPhotos provided, keeping all existing photos:", {
+              exterior: currentExteriorIds.length,
+              interior: currentInteriorIds.length
+            });
+          } catch (fetchError) {
+            console.error("❌ Error fetching current vehicle photos:", fetchError);
+            // Continue without keepPhotos - backend will append new files
+          }
         }
-      );
 
-      console.log("✅ Photos upload response:", photosResponse.data);
-      console.log("📸 Photos in response:", {
-        exterior:
-          photosResponse.data.data?.defaultPhotos?.exterior?.length || 0,
-        interior:
-          photosResponse.data.data?.defaultPhotos?.interior?.length || 0,
-        hasData: !!photosResponse.data.data,
-        fullData: photosResponse.data.data?.defaultPhotos,
-      });
+        // Try different modes: replace, update, or append
+        // Replace mode should replace entire list with keepPhotos + newPhotos
+        let photosResponse: { data: any };
+        let modeUsed = "replace";
+        
+        try {
+          photosResponse = await api.put<SingleVehicleResponse>(
+            `/vehicles/${id}?mode=replace`,
+            formData,
+            {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            }
+          );
+          console.log("✅ Used replace mode successfully");
+        } catch (replaceError: any) {
+          // If replace mode fails, try update mode
+          console.log("⚠️ Replace mode failed, trying update mode...", replaceError?.response?.data);
+          modeUsed = "update";
+          try {
+            photosResponse = await api.put<SingleVehicleResponse>(
+              `/vehicles/${id}?mode=update`,
+              formData,
+              {
+                headers: {
+                  "Content-Type": "multipart/form-data",
+                },
+              }
+            );
+            console.log("✅ Used update mode successfully");
+          } catch (updateError: any) {
+            // If update mode also fails, try append mode (but this won't delete photos)
+            console.log("⚠️ Update mode failed, trying append mode...", updateError?.response?.data);
+            modeUsed = "append";
+            photosResponse = await api.put<SingleVehicleResponse>(
+              `/vehicles/${id}?mode=append`,
+              formData,
+              {
+                headers: {
+                  "Content-Type": "multipart/form-data",
+                },
+              }
+            );
+            console.log("⚠️ Used append mode - photos may not be deleted if backend doesn't support it");
+          }
+        }
 
-      // Always fetch the vehicle again to get the most up-to-date data including photos
-      if (photosResponse.data.success) {
-        console.log("🔄 Fetching updated vehicle data to get photos...");
-
-        // Wait a bit for backend to process files (1 second delay)
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        const updatedVehicleWithPhotos = await getVehicleById(id);
-
-        console.log("✅ Updated vehicle with photos:", {
+        console.log("✅ Photos upload response (mode:", modeUsed, "):", photosResponse.data);
+        console.log("📸 Photos in response:", {
           exterior:
-            updatedVehicleWithPhotos.defaultPhotos?.exterior?.length || 0,
+            photosResponse.data.data?.defaultPhotos?.exterior?.length || 0,
           interior:
-            updatedVehicleWithPhotos.defaultPhotos?.interior?.length || 0,
+            photosResponse.data.data?.defaultPhotos?.interior?.length || 0,
+          hasData: !!photosResponse.data.data,
+          fullData: photosResponse.data.data?.defaultPhotos,
         });
 
-        return updatedVehicleWithPhotos;
+        // Always fetch the vehicle again to get the most up-to-date data including photos
+        if (photosResponse.data.success) {
+          console.log("🔄 Fetching updated vehicle data to get photos...");
+
+          // Wait a bit for backend to process files (1 second delay)
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          updatedVehicle = await getVehicleById(id);
+
+          console.log("✅ Updated vehicle with photos:", {
+            exterior:
+              updatedVehicle.defaultPhotos?.exterior?.length || 0,
+            interior:
+              updatedVehicle.defaultPhotos?.interior?.length || 0,
+          });
+
+          return updatedVehicle;
+        }
+      }
+    } else if (defaultPhotos) {
+      // If no new files but we have defaultPhotos, it means we're just updating the photo list
+      // (removing some photos). Send this in a separate request.
+      console.log("📸 Updating photo list only (no new files, removing some):", defaultPhotos);
+      
+      // Send update with just defaultPhotos to replace the list
+      const photoUpdatePayload: Record<string, unknown> = {
+        defaultPhotos: defaultPhotos
+      };
+      
+      try {
+        const photoUpdateResponse = await api.put<SingleVehicleResponse>(
+          `/vehicles/${id}`,
+          photoUpdatePayload
+        );
+        
+        if (photoUpdateResponse.data.success) {
+          // Wait a bit for backend to process
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          
+          const updatedVehicleWithPhotos = await getVehicleById(id);
+          return updatedVehicleWithPhotos;
+        }
+      } catch (photoUpdateError) {
+        console.error("❌ Error updating photo list:", photoUpdateError);
+        // Continue and return the vehicle without photo update
       }
     }
 

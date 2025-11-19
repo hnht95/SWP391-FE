@@ -231,7 +231,7 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                           Exterior Photos ({exteriorPhotoUrls.length})
                         </h4>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                          {exteriorPhotoUrls.map((photoUrl, index) => (
+                          {exteriorPhotoUrls.map((photoUrl: string, index: number) => (
                             <div key={index} className="relative group">
                               <img
                                 src={photoUrl}
@@ -255,7 +255,7 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                           Interior Photos ({interiorPhotoUrls.length})
                         </h4>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                          {interiorPhotoUrls.map((photoUrl, index) => (
+                          {interiorPhotoUrls.map((photoUrl: string, index: number) => (
                             <div key={index} className="relative group">
                               <img
                                 src={photoUrl}

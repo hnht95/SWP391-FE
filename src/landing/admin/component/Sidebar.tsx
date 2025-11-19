@@ -13,6 +13,7 @@ import {
   MdKeyboardArrowDown,
   MdWarning,
   MdAttachMoney,
+  MdHome,
 } from "react-icons/md";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 import { useAuth } from "../../../hooks/useAuth";
@@ -204,13 +205,43 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
       <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white">
         <div className="p-3">
           {isCollapsed ? (
-            <div className="flex justify-center">
+            <div className="relative">
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
+                className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors mx-auto"
               >
                 <MdPerson className="w-4 h-4 text-white" />
               </button>
+              {showProfileMenu && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white border-2 border-black rounded-lg shadow-lg py-2 min-w-[180px]">
+                  <button 
+                    onClick={() => {
+                      navigate("/");
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center border-b border-gray-200"
+                  >
+                    <MdHome className="w-4 h-4 mr-2" />
+                    Back to Homepage
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      setShowProfileMenu(false);
+                      showGlobalLoading();
+                      try {
+                        await logout();
+                        navigate("/");
+                      } finally {
+                        setTimeout(() => hideGlobalLoading(), 350);
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center"
+                  >
+                    <MdLogout className="w-4 h-4 mr-2" />
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="relative">
@@ -234,6 +265,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
 
               {showProfileMenu && (
                 <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border-2 border-black rounded-lg shadow-lg py-2">
+                  <button 
+                    onClick={() => navigate("/")}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center border-b border-gray-200"
+                  >
+                    <MdHome className="w-4 h-4 mr-2" />
+                    Back to Homepage
+                  </button>
                   <button 
                     onClick={async () => {
                       showGlobalLoading();

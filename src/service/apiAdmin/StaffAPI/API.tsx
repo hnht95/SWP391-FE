@@ -10,7 +10,6 @@ export interface Staff {
   phone: string;
   gender: "male" | "female";
   isActive: boolean;
-  station: string | { _id: string; name: string; location?: any }; // ✅ Can be both
   createdAt?: string;
   updatedAt?: string;
 }
@@ -21,7 +20,6 @@ export interface CreateStaffData {
   password: string;
   phone: string;
   gender: "male" | "female";
-  station: string; // Station ObjectId
 }
 
 // ✅ Error Handler
@@ -75,15 +73,6 @@ const handleError = (error: unknown) => {
   throw new Error(errorMessage);
 };
 
-// ============================================
-// ✅ STAFF MANAGEMENT API
-// ============================================
-
-/**
- * GET /admin/staffs - Get all staff (admin only)
- * Backend returns: Array<Staff> (direct array, no wrapper)
- * Response format: [ { _id, role, name, email, ... }, ... ]
- */
 export const getAllStaffs = async (): Promise<Staff[]> => {
   try {
     const response = await api.get<Staff[]>("/admin/staffs");
@@ -113,7 +102,7 @@ export const createStaff = async (
   try {
     console.log("Creating staff with data:", staffData);
 
-    const response = await api.post<{ success: boolean; data: Staff }>(
+    const response = await api.post<{ success: boolean; data: Staff } | Staff>(
       "/admin/createStaff",
       staffData
     );
@@ -121,13 +110,18 @@ export const createStaff = async (
     console.log("Create staff response:", response.data);
 
     // ✅ Check for wrapped response first
-    if (response.data.success && response.data.data) {
-      return response.data.data;
-    }
+    if (typeof response.data === "object" && response.data !== null) {
+      if ("success" in response.data && "data" in response.data) {
+        const wrappedResponse = response.data as { success: boolean; data: Staff };
+        if (wrappedResponse.success && wrappedResponse.data) {
+          return wrappedResponse.data;
+        }
+      }
 
-    // ✅ Fallback: if backend returns staff directly (no wrapper)
-    if (response.data._id && response.data.email) {
-      return response.data as Staff;
+      // ✅ Fallback: if backend returns staff directly (no wrapper)
+      if ("_id" in response.data && "email" in response.data) {
+        return response.data as Staff;
+      }
     }
 
     // ✅ Check if response is array (unlikely but possible)
@@ -155,7 +149,7 @@ export const updateStaff = async (
   try {
     console.log("Updating staff with data:", staffData);
 
-    const response = await api.put<{ success: boolean; data: Staff }>(
+    const response = await api.put<{ success: boolean; data: Staff } | Staff>(
       `/admin/staffs/${staffId}`,
       staffData
     );
@@ -163,13 +157,18 @@ export const updateStaff = async (
     console.log("Update staff response:", response.data);
 
     // ✅ Check for wrapped response first
-    if (response.data.success && response.data.data) {
-      return response.data.data;
-    }
+    if (typeof response.data === "object" && response.data !== null) {
+      if ("success" in response.data && "data" in response.data) {
+        const wrappedResponse = response.data as { success: boolean; data: Staff };
+        if (wrappedResponse.success && wrappedResponse.data) {
+          return wrappedResponse.data;
+        }
+      }
 
-    // ✅ Fallback: if backend returns staff directly (no wrapper)
-    if (response.data._id && response.data.email) {
-      return response.data as Staff;
+      // ✅ Fallback: if backend returns staff directly (no wrapper)
+      if ("_id" in response.data && "email" in response.data) {
+        return response.data as Staff;
+      }
     }
 
     console.error("Unexpected response format:", response.data);
@@ -192,7 +191,7 @@ export interface DeleteStaffResponse {
     name: string;
     email: string;
     role: string;
-    station: string;
+    
   };
 }
 

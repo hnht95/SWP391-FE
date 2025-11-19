@@ -1,37 +1,29 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  MdDescription,
-  MdCalendarToday,
   MdPerson,
-  MdAttachFile,
-  MdCheckCircle,
+  MdCalendarToday,
+  MdDirectionsCar,
   MdCancel,
-  MdPending,
-  MdAutorenew,
-  MdDone,
 } from "react-icons/md";
 import {
-  getAllManualRefunds,
+  getRefundCandidates,
   formatCurrency,
-  getRefundStatusColor,
-  getRefundStatusLabel,
 } from "../../../../service/apiAdmin/apiManualRefunds/API";
 import type {
-  ManualRefund,
-  ManualRefundStatus,
-  PaginatedManualRefundsResponse,
+  ManualRefundCandidate,
+  PaginatedCandidatesResponse,
 } from "../../../../service/apiAdmin/apiManualRefunds/API";
 
-interface ListManualRefundsProps {
-  onSelectRefund: (refund: ManualRefund) => void;
+interface ListRefundCandidatesProps {
+  onSelectCandidate: (candidate: ManualRefundCandidate) => void;
 }
 
-const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
-  onSelectRefund,
+const ListRefundCandidates: React.FC<ListRefundCandidatesProps> = ({
+  onSelectCandidate,
 }) => {
-  const [allRefunds, setAllRefunds] = useState<ManualRefund[]>([]);
-  const [filteredRefunds, setFilteredRefunds] = useState<ManualRefund[]>([]);
+  const [candidates, setCandidates] = useState<ManualRefundCandidate[]>([]);
+  const [filteredCandidates, setFilteredCandidates] = useState<ManualRefundCandidate[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -40,83 +32,61 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
   const limit = 10;
 
   // Filters
-  const [statusFilter, setStatusFilter] = useState<ManualRefundStatus | "all">("all");
-  const [methodFilter, setMethodFilter] = useState<string>("all");
-  const [bookingStatusFilter, setBookingStatusFilter] = useState<string>("all");
-  const [staffFilter, setStaffFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [renterFilter, setRenterFilter] = useState<string>("all");
 
-  // Fetch all refunds
-  const fetchAllRefunds = useCallback(async () => {
+  // Fetch all candidates
+  const fetchAllCandidates = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
       // Fetch with large limit to get all data
-      const response: PaginatedManualRefundsResponse = await getAllManualRefunds({
+      const response: PaginatedCandidatesResponse = await getRefundCandidates({
         page: 1,
         limit: 1000, // Large limit to get all
       });
       
       if (response.success) {
         const items = response.items || response.data?.items || [];
-        setAllRefunds(items);
+        setCandidates(items);
       } else {
-        setAllRefunds([]);
+        setCandidates([]);
       }
     } catch (err: any) {
-      console.error("Error fetching manual refunds:", err);
-      setError(err?.message || "Failed to load manual refunds");
-      setAllRefunds([]);
+      console.error("Error fetching refund candidates:", err);
+      setError(err?.message || "Failed to load refund candidates");
+      setCandidates([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchAllRefunds();
-  }, [fetchAllRefunds]);
+    fetchAllCandidates();
+  }, [fetchAllCandidates]);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, methodFilter, bookingStatusFilter, staffFilter, renterFilter]);
+  }, [statusFilter, renterFilter]);
 
-  // Filter refunds based on selected filters
+  // Filter candidates based on selected filters
   useEffect(() => {
-    let filtered = [...allRefunds];
+    let filtered = [...candidates];
 
     // Status filter
     if (statusFilter !== "all") {
-      filtered = filtered.filter((refund) => {
-        const refundStatus = refund.status?.toLowerCase();
+      filtered = filtered.filter((candidate) => {
+        const candidateStatus = candidate.status?.toLowerCase();
         const filterStatus = statusFilter.toLowerCase();
-        return refundStatus === filterStatus;
+        return candidateStatus === filterStatus;
       });
-    }
-
-    // Method filter
-    if (methodFilter !== "all") {
-      filtered = filtered.filter((refund) => refund.method === methodFilter);
-    }
-
-    // Booking status filter
-    if (bookingStatusFilter !== "all") {
-      filtered = filtered.filter((refund) => {
-        const bookingStatus = refund.booking?.status?.toLowerCase();
-        const filterStatus = bookingStatusFilter.toLowerCase();
-        return bookingStatus === filterStatus;
-      });
-    }
-
-    // Staff filter
-    if (staffFilter !== "all") {
-      filtered = filtered.filter((refund) => refund.staff?._id === staffFilter);
     }
 
     // Renter filter
     if (renterFilter !== "all") {
-      filtered = filtered.filter((refund) => refund.renter?._id === renterFilter);
+      filtered = filtered.filter((candidate) => candidate.renter?._id === renterFilter);
     }
 
     // Update pagination
@@ -128,38 +98,14 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
     // Apply pagination
     const startIndex = (currentPage - 1) * limit;
     const endIndex = startIndex + limit;
-    setFilteredRefunds(filtered.slice(startIndex, endIndex));
-  }, [allRefunds, statusFilter, methodFilter, bookingStatusFilter, staffFilter, renterFilter, currentPage, limit]);
+    setFilteredCandidates(filtered.slice(startIndex, endIndex));
+  }, [candidates, statusFilter, renterFilter, currentPage, limit]);
 
   // Get unique values for filters
-  const uniqueMethods = Array.from(new Set(allRefunds.map((r) => r.method).filter(Boolean)));
-  const uniqueBookingStatuses = Array.from(new Set(allRefunds.map((r) => r.booking?.status).filter(Boolean)));
-  const uniqueStaffs = Array.from(
-    new Map(allRefunds.map((r) => [r.staff?._id, r.staff])).values()
-  ).filter(Boolean);
+  const uniqueStatuses = Array.from(new Set(candidates.map((c) => c.status).filter(Boolean)));
   const uniqueRenters = Array.from(
-    new Map(allRefunds.map((r) => [r.renter?._id, r.renter])).values()
+    new Map(candidates.map((c) => [c.renter?._id, c.renter])).values()
   ).filter(Boolean);
-
-  const getStatusIcon = (status: ManualRefundStatus | string) => {
-    switch (status) {
-      case "pending":
-        return <MdPending className="w-4 h-4" />;
-      case "approved":
-        return <MdCheckCircle className="w-4 h-4" />;
-      case "rejected":
-        return <MdCancel className="w-4 h-4" />;
-      case "processing":
-        return <MdAutorenew className="w-4 h-4" />;
-      case "completed":
-      case "done":
-        return <MdDone className="w-4 h-4" />;
-      case "cancelled":
-        return <MdCancel className="w-4 h-4" />;
-      default:
-        return null;
-    }
-  };
 
   const formatDateOnly = (dateString: string): string => {
     const date = new Date(dateString);
@@ -170,12 +116,15 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
     });
   };
 
-  const getRenterName = (refund: ManualRefund): string => {
-    return refund.renter?.name || "N/A";
+  const getRenterName = (candidate: ManualRefundCandidate): string => {
+    return candidate.renter?.name || "N/A";
   };
 
-  const getStaffName = (refund: ManualRefund): string => {
-    return refund.staff?.name || "N/A";
+  const getVehicleInfo = (candidate: ManualRefundCandidate): string => {
+    if (!candidate.vehicle) return "N/A";
+    if (typeof candidate.vehicle === "string") return candidate.vehicle;
+    const vehicle = candidate.vehicle;
+    return `${vehicle.brand || ""} ${vehicle.model || ""} ${vehicle.plateNumber || ""}`.trim() || "N/A";
   };
 
   return (
@@ -184,66 +133,20 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
       <div className="mb-4 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm lg:text-base font-semibold text-gray-900">
-            Manual Refunds List ({total} items)
+            Refund Candidates List ({total} items)
           </h3>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-2 gap-2">
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as ManualRefundStatus | "all");
-            }}
+            onChange={(e) => setStatusFilter(e.target.value)}
             className="text-xs lg:text-sm px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="done">Done</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-
-          {/* Method Filter */}
-          <select
-            value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value)}
-            className="text-xs lg:text-sm px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Methods</option>
-            {uniqueMethods.map((method) => (
-              <option key={method} value={method}>
-                {method}
-              </option>
-            ))}
-          </select>
-
-          {/* Booking Status Filter */}
-          <select
-            value={bookingStatusFilter}
-            onChange={(e) => setBookingStatusFilter(e.target.value)}
-            className="text-xs lg:text-sm px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Booking Status</option>
-            {uniqueBookingStatuses.map((status) => (
+            {uniqueStatuses.map((status) => (
               <option key={status} value={status}>
                 {status}
-              </option>
-            ))}
-          </select>
-
-          {/* Staff Filter */}
-          <select
-            value={staffFilter}
-            onChange={(e) => setStaffFilter(e.target.value)}
-            className="text-xs lg:text-sm px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Staff</option>
-            {uniqueStaffs.map((staff) => (
-              <option key={staff._id} value={staff._id}>
-                {staff.name}
               </option>
             ))}
           </select>
@@ -264,7 +167,7 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
         </div>
       </div>
 
-      {loading && allRefunds.length === 0 ? (
+      {loading && candidates.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-sm text-gray-500">Loading data...</div>
         </div>
@@ -272,54 +175,50 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
         <div className="flex-1 flex items-center justify-center">
           <div className="text-sm text-red-500">{error}</div>
         </div>
-      ) : filteredRefunds.length === 0 ? (
+      ) : filteredCandidates.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-sm text-gray-500">No refunds found</div>
+          <div className="text-sm text-gray-500">No candidates found</div>
         </div>
       ) : (
         <>
           <div className="flex-1 overflow-y-auto space-y-2 lg:space-y-2.5 pr-1 lg:pr-2 min-h-0">
-            {filteredRefunds.map((refund) => (
+            {filteredCandidates.map((candidate) => (
               <motion.div
-                key={refund._id}
+                key={candidate._id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                onClick={() => onSelectRefund(refund)}
+                onClick={() => onSelectCandidate(candidate)}
                 className="bg-gray-50 rounded-lg lg:rounded-xl border border-gray-200 p-3 lg:p-4 hover:shadow-md transition-all cursor-pointer"
               >
                 <div className="flex items-start justify-between gap-3">
                   {/* Left Section */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold border ${getRefundStatusColor(
-                          refund.status
-                        )}`}
-                      >
-                        {getStatusIcon(refund.status)}
-                        {getRefundStatusLabel(refund.status)}
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold border bg-gray-100 text-gray-800 border-gray-200">
+                        <MdCancel className="w-4 h-4" />
+                        {candidate.status || "N/A"}
                       </span>
                     </div>
                     <h4 className="font-bold text-gray-900 text-sm lg:text-base mb-2">
-                      Refund #{refund._id.slice(-8)}
+                      Booking #{candidate._id.slice(-8)}
                     </h4>
                     <div className="flex flex-col gap-1.5 text-xs lg:text-sm text-gray-600">
                       <div className="flex items-center gap-1.5">
                         <MdPerson className="w-3.5 h-3.5 flex-shrink-0" />
                         <span className="truncate">
-                          Renter: {getRenterName(refund)}
+                          Renter: {getRenterName(candidate)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <MdPerson className="w-3.5 h-3.5 flex-shrink-0" />
+                        <MdDirectionsCar className="w-3.5 h-3.5 flex-shrink-0" />
                         <span className="truncate">
-                          Staff: {getStaffName(refund)}
+                          Vehicle: {getVehicleInfo(candidate)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <MdCalendarToday className="w-3.5 h-3.5 flex-shrink-0" />
                         <span className="truncate">
-                          {formatDateOnly(refund.createdAt)}
+                          {formatDateOnly(candidate.startTime)} - {formatDateOnly(candidate.endTime)}
                         </span>
                       </div>
                     </div>
@@ -329,28 +228,17 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
                   <div className="flex-shrink-0 text-right min-w-[120px]">
                     <div className="mb-2">
                       <p className="text-xs text-gray-500 uppercase mb-0.5">
-                        Refund Amount
+                        Refundable Amount
                       </p>
                       <p className="font-semibold text-gray-900 text-sm leading-tight">
-                        {formatCurrency(refund.amount, "VND")}
+                        {formatCurrency(candidate.refundableRemaining || 0, "VND")}
                       </p>
                     </div>
-                    <div className="flex items-center justify-end gap-1.5 text-xs text-gray-500">
-                      <MdAttachFile className="w-3.5 h-3.5" />
-                      <span>{(refund.attachments?.length || 0)} file{(refund.attachments?.length || 0) !== 1 ? 's' : ''}</span>
+                    <div className="text-xs text-gray-500">
+                      Paid: {formatCurrency(candidate.amounts?.totalPaid || candidate.paid || 0, "VND")}
                     </div>
                   </div>
                 </div>
-                {refund.note && (
-                  <div className="mt-2 pt-2 border-t border-gray-200">
-                    <div className="flex items-start gap-1.5">
-                      <MdDescription className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-gray-600 line-clamp-2">
-                        {refund.note}
-                      </p>
-                    </div>
-                  </div>
-                )}
               </motion.div>
             ))}
           </div>
@@ -412,5 +300,5 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
   );
 };
 
-export default ListManualRefunds;
+export default ListRefundCandidates;
 

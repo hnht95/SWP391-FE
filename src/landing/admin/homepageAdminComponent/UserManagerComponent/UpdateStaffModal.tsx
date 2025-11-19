@@ -165,7 +165,6 @@ const UpdateStaffModal: React.FC<UpdateStaffModalProps> = ({
         email: formData.email,
         phone: formData.phone,
         role: formData.role,
-        station: formData.station,
         isActive: formData.status === "active",
       });
 

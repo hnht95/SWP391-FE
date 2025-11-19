@@ -4,7 +4,6 @@ import { MdEdit, MdSwapHoriz, MdWarning, MdMoreVert } from "react-icons/md";
 import { GrHostMaintenance } from "react-icons/gr";
 import type {
   Vehicle,
-  Station,
 } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { StatusStyle } from "../../../../../types/vehicle";
 
