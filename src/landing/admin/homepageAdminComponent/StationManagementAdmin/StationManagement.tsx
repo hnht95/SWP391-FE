@@ -214,11 +214,11 @@ const StationManagement: React.FC = () => {
     setShowSuccessModal(true);
   };
 
-  const handleEdit = (station: Station) => {
-    setShowSuccessModal(false);
-    setSelectedStation(station);
-    setIsEditModalOpen(true);
-  };
+  // const handleEdit = (station: Station) => {
+  //   setShowSuccessModal(false);
+  //   setSelectedStation(station);
+  //   setIsEditModalOpen(true);
+  // };
 
   const handleStationUpdated = () => {
     fetchStations(false);

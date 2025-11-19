@@ -41,7 +41,7 @@ const RequestDeletionModal: React.FC<RequestDeletionModalProps> = ({
     setError(null);
 
     try {
-      await createDeletionRequest(vehicle.id || vehicle._id || "", formData);
+      await createDeletionRequest(vehicle._id || "", formData);
       onSuccess?.();
       onClose();
     } catch (err) {

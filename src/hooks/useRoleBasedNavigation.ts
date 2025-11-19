@@ -53,10 +53,10 @@ export const useRoleBasedNavigation = () => {
       };
     }
 
-    // Staff and admin have their own interfaces
+    // Staff and admin have their own interfaces but can still access public vehicle catalog
     return {
       home: basePath,
-      vehicles: null,
+      vehicles: "/vehicles",
       aboutus: null,
       contactus: null,
       terms: null,

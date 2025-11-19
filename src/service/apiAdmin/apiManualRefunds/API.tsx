@@ -15,31 +15,62 @@ export type ManualRefundStatus =
 
 export type ManualRefundCandidate = {
   _id: string;
-  bookingId: string;
   renter: {
     _id: string;
     name: string;
     email: string;
     phone: string;
+    bankInfo?: {
+      accountName?: string;
+      accountNumber?: string;
+      bankCode?: string;
+      bankName?: string;
+      updatedAt?: string;
+    };
   };
-  vehicle: {
+  vehicle: string | {
     _id: string;
-    plateNumber: string;
-    brand: string;
-    model: string;
+    plateNumber?: string;
+    brand?: string;
+    model?: string;
   } | null;
-  booking: {
-    _id: string;
-    startTime: string;
-    endTime: string;
+  station: string;
+  company: string | null;
+  startTime: string;
+  endTime: string;
+  timePolicy?: {
+    alignEndClockToStart?: boolean;
+    pricingMode?: string;
+  };
+  status: string;
+  deposit?: {
+    amount: number;
+    currency: string;
+    provider: string;
+    providerRef: string;
     status: string;
+    payos?: any;
   };
   amounts: {
+    rentalEstimated: number;
+    overKmFee: number;
+    lateFee: number;
+    batteryFee: number;
+    damageCharge: number;
+    discounts: number;
+    subtotal: number;
+    tax: number;
+    grandTotal: number;
     totalPaid: number;
-    refundableAmount?: number;
   };
+  paid: number;
+  refundedTotal: number;
+  refundableRemaining: number;
+  manualRefunded?: number;
+  payosRefunded?: number;
   createdAt: string;
   updatedAt: string;
+  __v?: number;
 };
 
 export type ManualRefundAttachment = {
@@ -138,7 +169,12 @@ export type PaginatedManualRefundsResponse = {
 export type PaginatedCandidatesResponse = {
   success: boolean;
   message?: string;
-  data: {
+  page?: number;
+  limit?: number;
+  total?: number;
+  totalPages?: number;
+  items?: ManualRefundCandidate[];
+  data?: {
     page: number;
     limit: number;
     total: number;
@@ -244,25 +280,72 @@ export const getRefundCandidates = async (
       },
     });
 
-    const responseData = response.data.data || response.data;
+    const rawData = response.data as any;
 
+    // Handle flat structure (items at root level)
+    if (rawData && typeof rawData === "object" && "items" in rawData) {
+      const flatData = rawData as {
+        success?: boolean;
+        message?: string;
+        page?: number;
+        limit?: number;
+        total?: number;
+        totalPages?: number;
+        items?: ManualRefundCandidate[];
+      };
+
+      const totalValue = typeof flatData.total === "number" ? flatData.total : 0;
+      const limitValue = typeof flatData.limit === "number" ? flatData.limit : limit;
+      const calculatedTotalPages = limitValue > 0 ? Math.ceil(totalValue / limitValue) : 1;
+
+      return {
+        success: flatData.success !== false,
+        message: flatData.message,
+        page: typeof flatData.page === "number" ? flatData.page : page,
+        limit: limitValue,
+        total: totalValue,
+        totalPages: typeof flatData.totalPages === "number" ? flatData.totalPages : calculatedTotalPages,
+        items: Array.isArray(flatData.items) ? flatData.items : [],
+        data: {
+          page: typeof flatData.page === "number" ? flatData.page : page,
+          limit: limitValue,
+          total: totalValue,
+          totalPages: typeof flatData.totalPages === "number" ? flatData.totalPages : calculatedTotalPages,
+          items: Array.isArray(flatData.items) ? flatData.items : [],
+        },
+      };
+    }
+
+    // Handle nested structure
+    const responseData = rawData?.data || rawData;
     if (
       responseData &&
       typeof responseData === "object" &&
       "items" in responseData
     ) {
+      const totalValue = typeof responseData.total === "number" ? responseData.total : 0;
+      const limitValue = typeof responseData.limit === "number" ? responseData.limit : limit;
+      const calculatedTotalPages = limitValue > 0 ? Math.ceil(totalValue / limitValue) : 1;
+
       return {
-        success: response.data.success !== false,
-        message: response.data.message,
+        success: rawData.success !== false,
+        message: rawData.message,
+        page: typeof responseData.page === "number" ? responseData.page : page,
+        limit: limitValue,
+        total: totalValue,
+        totalPages:
+          typeof responseData.totalPages === "number"
+            ? responseData.totalPages
+            : calculatedTotalPages,
+        items: Array.isArray(responseData.items) ? responseData.items : [],
         data: {
           page: typeof responseData.page === "number" ? responseData.page : page,
-          limit:
-            typeof responseData.limit === "number" ? responseData.limit : limit,
-          total: typeof responseData.total === "number" ? responseData.total : 0,
+          limit: limitValue,
+          total: totalValue,
           totalPages:
             typeof responseData.totalPages === "number"
               ? responseData.totalPages
-              : 1,
+              : calculatedTotalPages,
           items: Array.isArray(responseData.items) ? responseData.items : [],
         },
       };

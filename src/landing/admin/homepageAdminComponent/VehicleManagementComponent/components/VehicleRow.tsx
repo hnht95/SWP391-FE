@@ -4,7 +4,6 @@ import { MdEdit, MdSwapHoriz, MdWarning, MdMoreVert } from "react-icons/md";
 import { GrHostMaintenance } from "react-icons/gr";
 import type {
   Vehicle,
-  Station,
 } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { StatusStyle } from "../../../../../types/vehicle";
 
@@ -15,7 +14,7 @@ interface VehicleRowProps {
   onTransfer?: (vehicle: Vehicle) => void;
   onReportMaintenance?: (vehicle: Vehicle) => void;
   onRequestDeletion?: (vehicle: Vehicle) => void;
-  getStationName?: (stationIdOrObject: string | Station) => string;
+  getStationName?: (stationIdOrObject: string | { _id: string; name: string }) => string;
 }
 
 const VehicleRow: React.FC<VehicleRowProps> = ({

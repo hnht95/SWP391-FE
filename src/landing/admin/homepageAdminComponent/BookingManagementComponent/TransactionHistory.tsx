@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import bookingApi, { formatCurrency } from "../../../../service/apiBooking/API";
 import type { AdminTransactionsResponse, AdminTransactionStatus, AdminTransactionItem } from "../../../../service/apiBooking/API";
@@ -6,17 +6,14 @@ import PageTitle from "../../component/PageTitle";
 import CustomSelect from "../../../../components/CustomSelect";
 import DateTimeDropdown from "../../../../components/DateTimeDropdown";
 import DetailUserTransactionModal from "./DetailUserTransactionModal";
-import { MdSearch, MdFilterList, MdRefresh, MdAccessTime, MdPerson, MdDirectionsCar, MdLocationOn, MdPayment } from "react-icons/md";
+import { getVehicleById, getPhotoUrls } from "../../../../service/apiAdmin/apiVehicles/API";
+import { MdSearch, MdFilterList, MdRefresh, MdAccessTime, MdPerson, MdDirectionsCar, MdPayment, MdPhone, MdCalendarToday, MdEvent } from "react-icons/md";
 
 type Filters = {
-  provider?: string;
   status?: AdminTransactionStatus | "--";
   renterPhone?: string;
-  plateNumber?: string;
-  search?: string;
   from?: string; // ISO string
   to?: string; // ISO string
-  dateField?: "createdAt" | "updatedAt";
 };
 
 const statusLabel: Record<string, string> = {
@@ -43,25 +40,17 @@ const badgeColor = (s?: string) => {
 };
 
 const TransactionHistory: React.FC = () => {
-  const [filters, setFilters] = useState<Filters>({ provider: "payos", dateField: "createdAt" });
+  const [filters, setFilters] = useState<Filters>({});
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<AdminTransactionsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [applied, setApplied] = useState<Filters>({ provider: "payos", dateField: "createdAt" });
+  const [applied, setApplied] = useState<Filters>({});
   const [selectedTransaction, setSelectedTransaction] = useState<AdminTransactionItem | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-
-  const normalizePlate = (input?: string) => {
-    if (!input) return undefined;
-    return input
-      .toString()
-      .trim()
-      .toUpperCase()
-      .replace(/\s+/g, "")
-      .replace(/-/g, "");
-  };
+  const [vehicleImages, setVehicleImages] = useState<Record<string, string>>({});
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   const normalizePhone = (input?: string) => {
     if (!input) return undefined;
@@ -73,15 +62,15 @@ const TransactionHistory: React.FC = () => {
     return digits;
   };
 
-  const handleRowClick = (transaction: AdminTransactionItem) => {
+  const handleRowClick = useCallback((transaction: AdminTransactionItem) => {
     setSelectedTransaction(transaction);
     setIsDetailModalOpen(true);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setIsDetailModalOpen(false);
     setSelectedTransaction(null);
-  };
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -89,12 +78,36 @@ const TransactionHistory: React.FC = () => {
     const startAt = Date.now();
     setError(null);
     try {
-      const cleaned = {
-        ...applied,
-        renterPhone: normalizePhone(filters.renterPhone),
-        plateNumber: normalizePlate(filters.plateNumber),
-      } as typeof filters;
-      const res = await bookingApi.getAdminTransactions({ ...cleaned, page, limit });
+      // Prepare filters for API - only send non-empty values
+      const apiParams: any = {
+        page,
+        limit,
+      };
+
+      // Add status filter only if it's not "--"
+      if (applied.status && applied.status !== "--") {
+        apiParams.status = applied.status;
+      }
+
+      // Don't send renterPhone to API - we'll filter client-side for exact match
+      // if (applied.renterPhone) {
+      //   apiParams.renterPhone = applied.renterPhone;
+      // }
+
+      // Add date filters if exists
+      if (applied.from) {
+        apiParams.from = applied.from;
+      }
+      if (applied.to) {
+        apiParams.to = applied.to;
+      }
+
+      // Default dateField to createdAt if date filters are used
+      if (applied.from || applied.to) {
+        apiParams.dateField = "createdAt";
+      }
+
+      const res = await bookingApi.getAdminTransactions(apiParams);
       setData(res);
     } catch (e: any) {
       setError(e?.message || "Failed to load transactions");
@@ -113,12 +126,52 @@ const TransactionHistory: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, applied]);
 
+  // Fetch vehicle images when data changes
+  useEffect(() => {
+    const fetchVehicleImages = async () => {
+      if (!data?.items) return;
+      
+      const imagePromises = data.items
+        .filter((item) => item.vehicle && item.vehicleInfo?._id && !vehicleImages[item.vehicleInfo._id])
+        .map(async (item) => {
+          try {
+            const vehicle = await getVehicleById(item.vehicleInfo!._id);
+            const exteriorPhotos = getPhotoUrls(vehicle.defaultPhotos?.exterior || []);
+            return {
+              vehicleId: item.vehicleInfo!._id,
+              imageUrl: exteriorPhotos[0] || null,
+            };
+          } catch (error) {
+            console.error(`Failed to fetch vehicle image for ${item.vehicleInfo?._id}:`, error);
+            return {
+              vehicleId: item.vehicleInfo!._id,
+              imageUrl: null,
+            };
+          }
+        });
+
+      const results = await Promise.all(imagePromises);
+      const newImages: Record<string, string> = {};
+      results.forEach(({ vehicleId, imageUrl }) => {
+        if (imageUrl) {
+          newImages[vehicleId] = imageUrl;
+        }
+      });
+
+      if (Object.keys(newImages).length > 0) {
+        setVehicleImages((prev) => ({ ...prev, ...newImages }));
+      }
+    };
+
+    fetchVehicleImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
   const handleSubmit: React.FormEventHandler = (e) => {
     e.preventDefault();
     const nextApplied: Filters = {
       ...filters,
       renterPhone: normalizePhone(filters.renterPhone),
-      plateNumber: normalizePlate(filters.plateNumber),
     };
     setApplied(nextApplied);
     setPage(1);
@@ -129,56 +182,44 @@ const TransactionHistory: React.FC = () => {
     return Math.max(1, Math.ceil(data.total / data.limit));
   }, [data]);
 
+  // Filter items client-side for exact phone match
   const filteredItems = useMemo(() => {
     const items = data?.items || [];
-    const byStatus = (it: any) => {
-      if (!applied.status || applied.status === "--") return true;
-      return (it.deposit?.status || "none") === applied.status;
-    };
-    const byPhone = (it: any) => {
-      if (!applied.renterPhone) return true;
-      const phone = (it.renterInfo?.phone || "").replace(/[^0-9]/g, "");
-      const target = (applied.renterPhone || "").replace(/[^0-9]/g, "");
-      return phone.includes(target);
-    };
-    const byPlate = (it: any) => {
-      if (!applied.plateNumber) return true;
-      const plate = (it.vehicleInfo?.plateNumber || "").toUpperCase().replace(/\s+|-/g, "");
-      const target = (applied.plateNumber || "").toUpperCase().replace(/\s+|-/g, "");
-      return plate.includes(target);
-    };
-    const bySearch = (it: any) => {
-      if (!applied.search) return true;
-      const s = applied.search.toString().trim();
-      const code = String(it.deposit?.payos?.orderCode || "");
-      const linkId = String(it.deposit?.payos?.paymentLinkId || "");
-      return code.includes(s) || linkId.includes(s);
-    };
-    return items.filter((it) => byStatus(it) && byPhone(it) && byPlate(it) && bySearch(it));
-  }, [data, applied]);
+    
+    // If renterPhone filter is applied, do exact match filtering
+    if (applied.renterPhone) {
+      const normalizedFilter = normalizePhone(applied.renterPhone);
+      if (!normalizedFilter) return items;
+      
+      return items.filter((it) => {
+        const phone = normalizePhone(it.renterInfo?.phone);
+        if (!phone) return false;
+        // Exact match only - no partial matching
+        return phone === normalizedFilter;
+      });
+    }
+    
+    return items;
+  }, [data, applied.renterPhone]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ scrollBehavior: 'smooth' }}>
       <PageTitle title="Transaction History" subtitle="Payment transactions management for administrators" />
 
       {/* Filters */}
-      <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <MdFilterList className="w-5 h-5 text-gray-600" />
-          <h3 className="text-sm font-semibold text-gray-700">Filters</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <motion.form 
+        onSubmit={handleSubmit} 
+        className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
-            <input
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
-              placeholder="e.g., payos"
-              value={filters.provider || ""}
-              onChange={(e) => setFilters((f) => ({ ...f, provider: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+              <MdFilterList className="w-4 h-4 text-black" />
+              Status
+            </label>
             <CustomSelect
               value={filters.status || "--"}
               onChange={(v) => setFilters((f) => ({ ...f, status: v as any }))}
@@ -194,83 +235,75 @@ const TransactionHistory: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Renter Phone</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+              <MdPhone className="w-4 h-4 text-black" />
+              Renter Phone
+            </label>
             <input 
-              className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all duration-200" 
               placeholder="Renter phone number"
               value={filters.renterPhone || ""}
               onChange={(e) => setFilters((f) => ({ ...f, renterPhone: e.target.value }))} 
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Plate Number</label>
-            <input 
-              className="w-full border border-gray-300 rounded-lg px-3 py-2" 
-              placeholder="Vehicle plate number"
-              value={filters.plateNumber || ""}
-              onChange={(e) => setFilters((f) => ({ ...f, plateNumber: e.target.value }))} 
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-              <MdSearch className="w-4 h-4 mr-1" />
-              Search
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+              <MdCalendarToday className="w-4 h-4 text-black" />
+              From
             </label>
-            <input
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Order code or payment link ID"
-              value={filters.search || ""}
-              onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+            <DateTimeDropdown
+              label=""
+              value={filters.from}
+              onChange={(v) => setFilters((f) => ({ ...f, from: v }))}
             />
           </div>
-          <DateTimeDropdown
-            label="From"
-            value={filters.from}
-            onChange={(v) => setFilters((f) => ({ ...f, from: v }))}
-          />
-          <DateTimeDropdown
-            label="To"
-            value={filters.to}
-            onChange={(v) => setFilters((f) => ({ ...f, to: v }))}
-          />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date Field</label>
-            <CustomSelect
-              value={filters.dateField || "createdAt"}
-              onChange={(v) => setFilters((f) => ({ ...f, dateField: v as any }))}
-              options={[
-                { value: "createdAt", label: "Created At" },
-                { value: "updatedAt", label: "Updated At" },
-              ]}
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+              <MdEvent className="w-4 h-4 text-black" />
+              To
+            </label>
+            <DateTimeDropdown
+              label=""
+              value={filters.to}
+              onChange={(v) => setFilters((f) => ({ ...f, to: v }))}
             />
           </div>
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <button 
+          <motion.button 
             type="submit" 
             className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black transition-colors cursor-pointer"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
             <MdFilterList className="w-4 h-4" />
             Apply Filters
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             type="button"
             onClick={() => { 
-              setFilters({ provider: "payos", dateField: "createdAt" }); 
-              setApplied({ provider: "payos", dateField: "createdAt" }); 
+              setFilters({}); 
+              setApplied({}); 
               setPage(1); 
             }}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
             <MdRefresh className="w-4 h-4" />
             Reset
-          </button>
+          </motion.button>
         </div>
-      </form>
+      </motion.form>
 
       {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden relative">
+      <motion.div 
+        className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden relative"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+      >
         {/* Loading overlay */}
         <AnimatePresence>
           {loading && (
@@ -313,12 +346,6 @@ const TransactionHistory: React.FC = () => {
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                   <div className="flex items-center gap-2">
-                    <MdLocationOn className="w-4 h-4" />
-                    Station
-                  </div>
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                  <div className="flex items-center gap-2">
                     <MdPayment className="w-4 h-4" />
                     Deposit
                   </div>
@@ -328,12 +355,12 @@ const TransactionHistory: React.FC = () => {
             <tbody className="divide-y divide-gray-100">
               {error && !loading && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm text-red-600" colSpan={5}>{error}</td>
+                  <td className="px-4 py-6 text-center text-sm text-red-600" colSpan={4}>{error}</td>
                 </tr>
               )}
               {!loading && !error && filteredItems.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm text-gray-500" colSpan={5}>
+                  <td className="px-4 py-6 text-center text-sm text-gray-500" colSpan={4}>
                     <div className="flex flex-col items-center justify-center py-8">
                       <MdSearch className="w-12 h-12 text-gray-300 mb-2" />
                       <p>No transactions found</p>
@@ -341,28 +368,44 @@ const TransactionHistory: React.FC = () => {
                   </td>
                 </tr>
               )}
-              {!loading && !error && filteredItems.map((it) => (
-                <tr 
+              {!loading && !error && filteredItems.map((it, index) => (
+                <motion.tr 
                   key={it._id} 
                   className="hover:bg-blue-50 transition-colors cursor-pointer"
                   onClick={() => handleRowClick(it)}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ 
+                    duration: 0.2, 
+                    delay: index * 0.02,
+                    ease: "easeOut"
+                  }}
                 >
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm">
                     <div className="flex items-center gap-2">
                       <MdAccessTime className="w-4 h-4 text-gray-400" />
-                      <span>{new Date(it.createdAt).toLocaleString("en-US", { 
-                        year: "numeric",
-                        month: "short", 
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}</span>
+                      <div className="flex flex-col">
+                        <span className="text-gray-900 font-medium">
+                          {new Date(it.createdAt).toLocaleDateString("vi-VN", { 
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric"
+                          })}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(it.createdAt).toLocaleTimeString("vi-VN", { 
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </span>
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <div className="flex items-center gap-2">
                       <MdPerson className="w-4 h-4 text-gray-400" />
-                      <div>
+                      <div className="flex flex-col">
                         <div className="text-gray-900 font-medium">{it.renterInfo?.name || "N/A"}</div>
                         <div className="text-xs text-gray-500">{it.renterInfo?.email || ""}</div>
                       </div>
@@ -371,8 +414,23 @@ const TransactionHistory: React.FC = () => {
                   <td className="px-4 py-3 text-sm">
                     {it.vehicleInfo ? (
                       <div className="flex items-center gap-2">
-                        <MdDirectionsCar className="w-4 h-4 text-gray-400" />
-                        <div>
+                        {vehicleImages[it.vehicleInfo._id] && !imageErrors[it.vehicleInfo._id] ? (
+                          <motion.img
+                            src={vehicleImages[it.vehicleInfo._id]}
+                            alt={`${it.vehicleInfo.brand} ${it.vehicleInfo.model}`}
+                            className="w-10 h-10 object-cover rounded-lg flex-shrink-0 border border-gray-200"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.2 }}
+                            onError={() => {
+                              setImageErrors((prev) => ({ ...prev, [it.vehicleInfo!._id]: true }));
+                            }}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <MdDirectionsCar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        )}
+                        <div className="flex flex-col">
                           <div className="text-gray-900 font-medium">{it.vehicleInfo.brand} {it.vehicleInfo.model}</div>
                           <div className="text-xs text-gray-500">{it.vehicleInfo.plateNumber}</div>
                         </div>
@@ -385,32 +443,19 @@ const TransactionHistory: React.FC = () => {
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    {it.stationInfo ? (
-                      <div className="flex items-center gap-2">
-                        <MdLocationOn className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-900">{it.stationInfo.name}</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <MdLocationOn className="w-4 h-4 text-gray-300" />
-                        <span className="text-gray-400">—</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
                     <div className="flex items-center gap-2">
                       <MdPayment className="w-4 h-4 text-gray-400" />
-                      <div>
+                      <div className="flex flex-col">
                         <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeColor(it.deposit?.status)}`}>
                           {statusLabel[it.deposit?.status || "none"]}
                         </div>
-                        <div className="text-gray-900 mt-1 font-medium">
+                        <div className="text-gray-900 font-medium mt-1">
                           {formatCurrency(it.deposit?.amount || 0, it.deposit?.currency || "VND")}
                         </div>
                       </div>
                     </div>
                   </td>
-                </tr>
+                </motion.tr>
               ))}
             </tbody>
           </table>
@@ -432,37 +477,45 @@ const TransactionHistory: React.FC = () => {
 
           {/* Center: Page navigation */}
           <div className="flex items-center gap-2">
-            <button
+            <motion.button
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
               disabled={(data?.page || page) <= 1 || loading}
               onClick={() => setPage(1)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               First
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
               disabled={(data?.page || page) <= 1 || loading}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               Prev
-            </button>
+            </motion.button>
             <span className="px-4 text-sm text-gray-600">
               Page {data?.page || page} of {totalPages}
             </span>
-            <button
+            <motion.button
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
               disabled={(data?.page || page) >= totalPages || loading}
               onClick={() => setPage((p) => p + 1)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               Next
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
               disabled={(data?.page || page) >= totalPages || loading}
               onClick={() => setPage(totalPages)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               Last
-            </button>
+            </motion.button>
           </div>
 
           {/* Right: Item count */}
@@ -470,7 +523,7 @@ const TransactionHistory: React.FC = () => {
             Showing {((data?.page || page) - 1) * limit + 1}-{Math.min((data?.page || page) * limit, data?.total || 0)} of {data?.total || 0}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Detail Modal */}
       <DetailUserTransactionModal

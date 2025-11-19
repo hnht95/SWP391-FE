@@ -43,7 +43,7 @@ const ListDamageReports: React.FC<ListDamageReportsProps> = ({
       const response: PaginatedDamageReportsResponse = await getAllDamageReports({
         page,
         limit,
-        ...(status && status !== "all" ? { status } : {}),
+        ...(status ? { status } : {}),
       });
       
       if (response.success && response.data) {

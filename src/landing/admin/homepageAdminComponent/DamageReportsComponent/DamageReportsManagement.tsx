@@ -185,14 +185,6 @@ const DamageReportsManagement: React.FC = () => {
     });
   };
 
-  const formatDateOnly = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
 
   const getVehicleName = (report: DamageReport): string => {
     if (report.vehicle) {
