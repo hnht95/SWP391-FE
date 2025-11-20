@@ -9,7 +9,6 @@ import {
   CheckCircle,
   AlertCircle,
   Calendar,
-  MapPin,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import type { UserProfile } from "../../../../../../../../service/apiUser/profile/API";
@@ -55,7 +54,7 @@ const EditProfileModal = ({
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
-  ) => {
+  ): void => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -64,7 +63,7 @@ const EditProfileModal = ({
     setError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -100,9 +99,11 @@ const EditProfileModal = ({
         }
         onClose();
       }, 1500);
-    } catch (err: any) {
+    } catch (err) {
       console.error("❌ Update profile failed:", err);
-      setError(err.message || "Failed to update profile");
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update profile";
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

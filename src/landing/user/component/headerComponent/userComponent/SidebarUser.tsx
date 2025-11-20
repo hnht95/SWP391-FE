@@ -107,9 +107,7 @@ const SidebarUser = ({
   // ✅ Get user role display
   const getRoleDisplay = (): string => {
     const roleMap: Record<string, string> = {
-      renter: "User",
-      staff: "Staff",
-      admin: "Admin",
+      renter: "Renter",
     };
     return roleMap[user.role] || user.role;
   };

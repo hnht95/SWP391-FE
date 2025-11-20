@@ -1,5 +1,7 @@
+// service/apiBooking/UserApi.tsx
 import axios from "axios";
-import api from "../Utils";
+import api from "../../Utils";
+// import api from "../Utils";
 
 // ============ TYPE DEFINITIONS ============
 
@@ -166,12 +168,6 @@ export type PaymentStatusResponse = {
   deposit?: DepositInfo;
 };
 
-export type MarkReturnedResponse = {
-  success: boolean;
-  message: string;
-  booking: Booking;
-};
-
 export type ExtendBookingRequest = {
   addHours?: number;
   addDays?: number;
@@ -246,145 +242,6 @@ type ApiResponseWrapper<T> = {
   data?: T;
   message?: string;
   error?: string;
-};
-
-export type AdminTransactionStatus =
-  | "none"
-  | "pending"
-  | "captured"
-  | "failed"
-  | "refunded";
-
-export type AdminTransactionItem = {
-  _id: string;
-  renter: string;
-  vehicle: string | null;
-  station: string | null;
-  company: string | null;
-  status: BookingStatus;
-  deposit: {
-    amount: number;
-    currency: string;
-    providerRef: string | null;
-    status: AdminTransactionStatus;
-    payos?: {
-      orderCode: number;
-      paymentLinkId: string;
-      checkoutUrl: string;
-      qrCode: string;
-      paidAt?: string;
-    };
-  };
-  amounts: { totalPaid: number };
-  createdAt: string;
-  updatedAt: string;
-  bookingId: string;
-  _dateSort?: string;
-  renterInfo?: { _id: string; name: string; email: string; phone: string };
-  vehicleInfo?: null | {
-    _id: string;
-    plateNumber: string;
-    brand: string;
-    model: string;
-  };
-  stationInfo?: null | { _id: string; name: string };
-  companyInfo?: null | { _id: string; name: string };
-};
-
-export type AdminTransactionsResponse = {
-  page: number;
-  limit: number;
-  total: number;
-  items: AdminTransactionItem[];
-};
-
-export type DamageReportStatus = "reported" | "charged" | "rejected";
-
-export type DamageReportPhoto = {
-  _id: string;
-  url: string;
-  publicId: string;
-  type: string;
-  provider: string;
-  tags: string[];
-  uploadedBy: string;
-  createdAt: string;
-  updatedAt: string;
-  __v?: number;
-};
-
-export type DamageReportBooking = {
-  _id: string;
-  startTime: string;
-  endTime: string;
-  status: BookingStatus;
-};
-
-export type DamageReportVehicle = {
-  _id: string;
-  plateNumber: string;
-  brand: string;
-  model: string;
-} | null;
-
-export type DamageReportUser = {
-  _id: string;
-  name: string;
-  email: string;
-};
-
-export type AdminAssessment = {
-  chargeAmount: number;
-  admin?: {
-    _id: string;
-    name: string;
-    email: string;
-  };
-  decisionAt?: string;
-  note?: string;
-};
-
-export type DamageReport = {
-  _id: string;
-  booking: DamageReportBooking;
-  vehicle: DamageReportVehicle;
-  reportedBy: DamageReportUser;
-  description: string;
-  photos: DamageReportPhoto[];
-  status: DamageReportStatus;
-  adminAssessment?: AdminAssessment;
-  createdAt: string;
-  updatedAt: string;
-  __v?: number;
-};
-
-export type PaginatedDamageReportsResponse = {
-  success: boolean;
-  message?: string;
-  data: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    items: DamageReport[];
-  };
-};
-
-export type ApproveDamageReportRequest = {
-  chargeAmount: number;
-  note?: string;
-};
-
-export type ApproveDamageReportResponse = {
-  success: boolean;
-  message: string;
-  data?: DamageReport;
-};
-
-export type RejectDamageReportResponse = {
-  success: boolean;
-  message: string;
-  data?: DamageReport;
 };
 
 // ============ ERROR HANDLER ============
@@ -571,9 +428,9 @@ const normalizeBooking = (data: unknown): Booking => {
     _id: bookingId,
     bookingId:
       typeof booking.bookingId === "string" ? booking.bookingId : bookingId,
-    renter: (booking.renter as string | Renter) || ("" as string),
-    vehicle: (booking.vehicle as string | VehicleInBooking) || ("" as string),
-    station: (booking.station as string | StationInfo) || ("" as string),
+    renter: booking.renter as string | Renter,
+    vehicle: booking.vehicle as string | VehicleInBooking,
+    station: booking.station as string | StationInfo,
     company: typeof booking.company === "string" ? booking.company : null,
     startTime: typeof booking.startTime === "string" ? booking.startTime : "",
     endTime: typeof booking.endTime === "string" ? booking.endTime : "",
@@ -701,8 +558,12 @@ const normalizeBooking = (data: unknown): Booking => {
   };
 };
 
-// ============ API FUNCTIONS ============
+// ============ USER API FUNCTIONS ============
 
+/**
+ * POST /api/bookings
+ * Create a new booking
+ */
 export const createBooking = async (
   data: CreateBookingRequest
 ): Promise<CreateBookingResponse> => {
@@ -720,6 +581,10 @@ export const createBooking = async (
   }
 };
 
+/**
+ * GET /api/bookings/mine
+ * Get user's bookings with filters
+ */
 export const getUserBookings = async (
   params: BookingQueryParams = {}
 ): Promise<PaginatedBookingsResponse> => {
@@ -782,6 +647,10 @@ export const getUserBookings = async (
   }
 };
 
+/**
+ * GET /api/bookings/{id}
+ * Get booking by ID
+ */
 export const getBookingById = async (bookingId: string): Promise<Booking> => {
   try {
     const response = await api.get<ApiResponseWrapper<Record<string, unknown>>>(
@@ -815,6 +684,10 @@ export const getBookingById = async (bookingId: string): Promise<Booking> => {
   }
 };
 
+/**
+ * POST /api/bookings/{id}/payment/link
+ * Create payment link for booking
+ */
 export const createPaymentLink = async (
   bookingId: string
 ): Promise<{ checkoutUrl: string; qrCode: string }> => {
@@ -844,6 +717,10 @@ export const createPaymentLink = async (
   }
 };
 
+/**
+ * GET /api/bookings/{id}/payment (status)
+ * Get payment status for booking
+ */
 export const getPaymentStatus = async (
   bookingId: string
 ): Promise<PaymentStatusResponse> => {
@@ -860,6 +737,10 @@ export const getPaymentStatus = async (
   }
 };
 
+/**
+ * POST /api/bookings/{id}/cancel
+ * Cancel a booking
+ */
 export const cancelBooking = async (
   bookingId: string,
   reason?: string
@@ -879,65 +760,10 @@ export const cancelBooking = async (
   }
 };
 
-export const refundBooking = async (
-  bookingId: string
-): Promise<{ success: boolean; message: string }> => {
-  try {
-    const response = await api.post<{ success: boolean; message: string }>(
-      `/bookings/${bookingId}/refund`
-    );
-    return {
-      success: response.data.success !== false,
-      message: response.data.message || "Refund processed successfully",
-    };
-  } catch (err) {
-    handleError(err, "refundBooking");
-    throw err;
-  }
-};
-
-export const markVehicleReturned = async (
-  bookingId: string
-): Promise<MarkReturnedResponse> => {
-  try {
-    const response = await api.put<
-      ApiResponseWrapper<{
-        success: boolean;
-        message: string;
-        booking: Booking;
-      }>
-    >(`/bookings/${bookingId}/mark-returned`);
-
-    const rawData = response.data.data || response.data;
-
-    if (!rawData || typeof rawData !== "object") {
-      throw new Error("Invalid mark returned response");
-    }
-
-    const data = rawData as {
-      success?: boolean;
-      message?: string;
-      booking: Booking | Record<string, unknown>;
-    };
-
-    if (!data.booking || typeof data.booking !== "object") {
-      throw new Error("Invalid mark returned response: missing booking");
-    }
-
-    return {
-      success: data.success !== false,
-      message:
-        typeof data.message === "string"
-          ? data.message
-          : "Vehicle marked as returned",
-      booking: normalizeBooking(data.booking),
-    };
-  } catch (err) {
-    handleError(err, "markVehicleReturned");
-    throw err;
-  }
-};
-
+/**
+ * POST /api/bookings/{id}/extend
+ * Extend booking duration
+ */
 export const extendBooking = async (
   bookingId: string,
   data: ExtendBookingRequest
@@ -1040,6 +866,10 @@ export const extendBooking = async (
   }
 };
 
+/**
+ * GET /api/bookings/{id}/contract
+ * Get booking contract
+ */
 export const getBookingContract = async (
   bookingId: string
 ): Promise<ContractResponse> => {
@@ -1062,262 +892,6 @@ export const getBookingContract = async (
     };
   } catch (err) {
     handleError(err, "getBookingContract");
-    throw err;
-  }
-};
-
-export const getAdminTransactions = async (
-  params: {
-    provider?: string;
-    status?: AdminTransactionStatus | "--";
-    renterPhone?: string;
-    plateNumber?: string;
-    search?: string;
-    from?: string;
-    to?: string;
-    dateField?: "createdAt" | "updatedAt";
-    page?: number;
-    limit?: number;
-  } = {}
-): Promise<AdminTransactionsResponse> => {
-  try {
-    const {
-      provider,
-      status,
-      renterPhone,
-      plateNumber,
-      search,
-      from,
-      to,
-      dateField,
-      page = 1,
-      limit = 20,
-    } = params;
-
-    const response = await api.get<AdminTransactionsResponse>(
-      "/bookings/admin/transactions",
-      {
-        params: {
-          page,
-          limit,
-          ...(provider && { provider }),
-          ...(status && status !== "--" && { status }),
-          ...(renterPhone && { renterPhone }),
-          ...(plateNumber && { plateNumber }),
-          ...(search && { search }),
-          ...(from && { from }),
-          ...(to && { to }),
-          ...(dateField && { dateField }),
-        },
-      }
-    );
-
-    return response.data;
-  } catch (err) {
-    handleError(err, "getAdminTransactions");
-    throw err;
-  }
-};
-
-export const getBookedVehicles = async (
-  params: {
-    page?: number;
-    limit?: number;
-  } = {}
-): Promise<PaginatedBookingsResponse> => {
-  try {
-    const { page = 1, limit = 20 } = params;
-
-    const response = await api.get<PaginatedBookingsResponse>(
-      "/bookings/booked-vehicles",
-      {
-        params: {
-          page,
-          limit,
-        },
-      }
-    );
-
-    return response.data;
-  } catch (err) {
-    handleError(err, "getBookedVehicles");
-    throw err;
-  }
-};
-
-export const getAllDamageReports = async (
-  params: {
-    page?: number;
-    limit?: number;
-    status?: DamageReportStatus;
-  } = {}
-): Promise<PaginatedDamageReportsResponse> => {
-  try {
-    const { page = 1, limit = 20, status } = params;
-
-    const response = await api.get<
-      ApiResponseWrapper<{
-        page: number;
-        limit: number;
-        total: number;
-        totalPages: number;
-        items: DamageReport[];
-      }>
-    >("/damage-reports", {
-      params: {
-        page,
-        limit,
-        ...(status && { status }),
-      },
-    });
-
-    const responseData = response.data.data || response.data;
-
-    if (
-      responseData &&
-      typeof responseData === "object" &&
-      "items" in responseData
-    ) {
-      return {
-        success: response.data.success !== false,
-        message: response.data.message,
-        data: {
-          page:
-            typeof responseData.page === "number" ? responseData.page : page,
-          limit:
-            typeof responseData.limit === "number" ? responseData.limit : limit,
-          total:
-            typeof responseData.total === "number" ? responseData.total : 0,
-          totalPages:
-            typeof responseData.totalPages === "number"
-              ? responseData.totalPages
-              : 1,
-          items: Array.isArray(responseData.items) ? responseData.items : [],
-        },
-      };
-    }
-
-    throw new Error("Invalid damage reports response format");
-  } catch (err) {
-    handleError(err, "getAllDamageReports");
-    throw err;
-  }
-};
-
-export const approveDamageReport = async (
-  damageReportId: string,
-  data: ApproveDamageReportRequest
-): Promise<ApproveDamageReportResponse> => {
-  try {
-    console.log("🔄 Approving damage report:", damageReportId, data);
-
-    const response = await api.post<ApproveDamageReportResponse>(
-      `/damage-reports/${damageReportId}/approve`,
-      data
-    );
-
-    console.log("✅ Approve damage report response:", response.data);
-
-    return response.data;
-  } catch (err) {
-    handleError(err, "approveDamageReport");
-    throw err;
-  }
-};
-
-export const rejectDamageReport = async (
-  damageReportId: string
-): Promise<RejectDamageReportResponse> => {
-  try {
-    console.log("🔄 Rejecting damage report:", damageReportId);
-
-    const response = await api.post<RejectDamageReportResponse>(
-      `/damage-reports/${damageReportId}/reject`
-    );
-
-    console.log("✅ Reject damage report response:", response.data);
-
-    return response.data;
-  } catch (err) {
-    handleError(err, "rejectDamageReport");
-    throw err;
-  }
-};
-
-export const getDamageReportById = async (
-  damageReportId: string
-): Promise<{ success: boolean; message?: string; data: DamageReport }> => {
-  try {
-    console.log("🔄 Fetching damage report by ID:", damageReportId);
-
-    const response = await api.get<ApiResponseWrapper<DamageReport>>(
-      `/damage-reports/${damageReportId}`
-    );
-
-    console.log("✅ Get damage report by ID response:", response.data);
-
-    const responseData = response.data.data || response.data;
-
-    if (
-      responseData &&
-      typeof responseData === "object" &&
-      "_id" in responseData
-    ) {
-      return {
-        success: response.data.success !== false,
-        message: response.data.message,
-        data: responseData as DamageReport,
-      };
-    }
-
-    throw new Error("Invalid damage report response format");
-  } catch (err) {
-    handleError(err, "getDamageReportById");
-    throw err;
-  }
-};
-
-export const getDamageReportByBookingId = async (
-  bookingId: string
-): Promise<{
-  success: boolean;
-  message?: string;
-  data: DamageReport | null;
-}> => {
-  try {
-    console.log("🔄 Fetching damage report by booking ID:", bookingId);
-
-    const response = await api.get<ApiResponseWrapper<DamageReport | null>>(
-      `/damage-reports/booking/${bookingId}`
-    );
-
-    console.log("✅ Get damage report by booking ID response:", response.data);
-
-    const responseData = response.data.data || response.data;
-
-    if (responseData === null) {
-      return {
-        success: response.data.success !== false,
-        message: response.data.message,
-        data: null,
-      };
-    }
-
-    if (
-      responseData &&
-      typeof responseData === "object" &&
-      "_id" in responseData
-    ) {
-      return {
-        success: response.data.success !== false,
-        message: response.data.message,
-        data: responseData as DamageReport,
-      };
-    }
-
-    throw new Error("Invalid damage report response format");
-  } catch (err) {
-    handleError(err, "getDamageReportByBookingId");
     throw err;
   }
 };
@@ -1401,24 +975,15 @@ export const formatDate = (dateString: string): string => {
 
 // ============ EXPORT DEFAULT ============
 
-const bookingApi = {
+const userBookingApi = {
   createBooking,
   getUserBookings,
   getBookingById,
   createPaymentLink,
   getPaymentStatus,
   cancelBooking,
-  refundBooking,
-  markVehicleReturned,
   extendBooking,
   getBookingContract,
-  getAdminTransactions,
-  getBookedVehicles,
-  getAllDamageReports,
-  getDamageReportById,
-  getDamageReportByBookingId,
-  approveDamageReport,
-  rejectDamageReport,
   getBookingStatusColor,
   getBookingStatusLabel,
   getDepositStatusColor,
@@ -1428,4 +993,4 @@ const bookingApi = {
   formatDate,
 };
 
-export default bookingApi;
+export default userBookingApi;
