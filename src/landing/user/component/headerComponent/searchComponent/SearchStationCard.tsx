@@ -88,11 +88,6 @@ const SearchStationCard: React.FC<SearchStationCardProps> = ({
               <h3 className="text-white font-semibold text-lg truncate transition-all duration-300 group-hover:text-gray-100">
                 {highlightText(station.name, searchTerm)}
               </h3>
-              {station.code && (
-                <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full border border-blue-400/30 flex-shrink-0">
-                  {station.code}
-                </span>
-              )}
             </div>
             {station.isActive && (
               <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded-full flex items-center gap-1 border border-green-400/30 flex-shrink-0 ml-2">

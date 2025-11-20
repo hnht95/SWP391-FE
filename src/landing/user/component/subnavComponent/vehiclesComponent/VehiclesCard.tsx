@@ -31,16 +31,34 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
     );
   };
 
-  // ✅ Get vehicle image from defaultPhotos.exterior or interior
+  // ✅ Get vehicle image with proper type checking
   const getVehicleImage = (): string | null => {
     // Try exterior first
-    if (car.defaultPhotos?.exterior?.[0]?.url) {
-      return car.defaultPhotos.exterior[0].url;
+    const exteriorPhoto = car.defaultPhotos?.exterior?.[0];
+    if (exteriorPhoto) {
+      // Check if it's a string URL
+      if (typeof exteriorPhoto === "string") {
+        return exteriorPhoto;
+      }
+      // Check if it's an object with url property
+      if (typeof exteriorPhoto === "object" && "url" in exteriorPhoto) {
+        return exteriorPhoto.url || null;
+      }
     }
+
     // Fallback to interior
-    if (car.defaultPhotos?.interior?.[0]?.url) {
-      return car.defaultPhotos.interior[0].url;
+    const interiorPhoto = car.defaultPhotos?.interior?.[0];
+    if (interiorPhoto) {
+      // Check if it's a string URL
+      if (typeof interiorPhoto === "string") {
+        return interiorPhoto;
+      }
+      // Check if it's an object with url property
+      if (typeof interiorPhoto === "object" && "url" in interiorPhoto) {
+        return interiorPhoto.url || null;
+      }
     }
+
     return null;
   };
 
@@ -51,7 +69,7 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
 
   return (
     <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 shadow border-slate-100">
-      {/* ✅ Image Section - Tăng height và width */}
+      {/* Image Section */}
       <div className="relative h-64 bg-gray-200 overflow-hidden group">
         {vehicleImage ? (
           <img
@@ -59,7 +77,6 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
             alt={`${car.brand} ${car.model}`}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             onError={(e) => {
-              // ✅ Fallback với React Icons khi ảnh lỗi
               const target = e.currentTarget;
               target.style.display = "none";
               const parent = target.parentElement;
@@ -69,10 +86,11 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
                   "fallback-icon w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200";
                 fallbackDiv.innerHTML = `
                   <div class="text-center">
-                    <div class="text-gray-400 mb-2 flex justify-center">
-                      ${/* Use FaCar icon */ ""}
-                    </div>
-                    <p class="text-gray-500 text-sm">No Image</p>
+                    <svg class="w-20 h-20 text-gray-400 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
+                      <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
+                    </svg>
+                    <p class="text-gray-500 text-sm font-medium">No Image</p>
                   </div>
                 `;
                 parent.appendChild(fallbackDiv);
@@ -80,7 +98,6 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
             }}
           />
         ) : (
-          // ✅ Placeholder với React Icons khi không có ảnh
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
             <div className="text-center">
               <FaCar className="text-gray-400 text-7xl mx-auto mb-2" />
@@ -101,7 +118,7 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
           {car.status.charAt(0).toUpperCase() + car.status.slice(1)}
         </div>
 
-        {/* ✅ Photo count indicator với React Icons */}
+        {/* Photo count indicator */}
         {totalPhotos > 1 && (
           <div className="absolute bottom-3 right-3 bg-black/70 text-white text-sm px-3 py-1.5 rounded-full backdrop-blur-sm flex items-center gap-1.5 shadow-lg">
             <FaCamera className="text-xs" />

@@ -23,6 +23,13 @@ import vehicleHeroImage from "../../../../assets/vehicles/Vehicle.svg";
 
 type PriceSortOption = "default" | "price_asc" | "price_desc";
 
+// ✅ LocationState interface
+interface LocationState {
+  stationId?: string;
+  stationName?: string;
+  searchTerm?: string;
+}
+
 const Vehicles: React.FC = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -70,18 +77,23 @@ const Vehicles: React.FC = () => {
     return null;
   };
 
+  // ✅ Handle search term from navigation state
   useEffect(() => {
-    const urlSearchTerm = searchParams.get("search");
-    if (urlSearchTerm) {
-      setSearchTerm(decodeURIComponent(urlSearchTerm));
-    }
-  }, [searchParams]);
+    const state = location.state as LocationState | null;
 
-  useEffect(() => {
-    const state = location.state as {
-      stationId?: string;
-      stationName?: string;
-    } | null;
+    // Handle search term from navigation
+    if (state?.searchTerm) {
+      setSearchTerm(state.searchTerm);
+      // Clear the state after using it
+      window.history.replaceState({}, document.title);
+
+      // Scroll to vehicle grid
+      setTimeout(() => {
+        vehicleGridRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+
+    // Handle station filter from navigation
     if (state?.stationId) {
       setSelectedStation(state.stationId);
       setTimeout(() => {
@@ -89,6 +101,16 @@ const Vehicles: React.FC = () => {
       }, 100);
     }
   }, [location]);
+
+  // ✅ Backward compatibility with URL search params
+  useEffect(() => {
+    const urlSearchTerm = searchParams.get("search");
+    if (urlSearchTerm) {
+      setSearchTerm(decodeURIComponent(urlSearchTerm));
+      // Clear URL params after using
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchInitial = async (): Promise<void> => {
@@ -414,7 +436,7 @@ const Vehicles: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut", delay: 0.3 }}
           >
-            {/* Filters Grid - Changed to 3 columns */}
+            {/* Filters Grid - 3 columns */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Brand Filter Card */}
               <motion.div
