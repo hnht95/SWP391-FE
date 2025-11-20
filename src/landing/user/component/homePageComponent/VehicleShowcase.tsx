@@ -150,7 +150,7 @@ const VehicleShowcase: React.FC = () => {
                 {activeVehicle.brand} - {activeVehicle.year}
               </p>
               <button
-                onClick={() => navigate(`/vehicles/${activeVehicle.id}`)}
+                onClick={() => navigate(`/vehicles`)}
                 className="px-8 py-3 border-2 border-gray-900 text-gray-900 font-medium rounded hover:bg-gray-900 hover:text-white transition-all duration-200"
               >
                 Explore More

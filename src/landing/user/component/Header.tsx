@@ -1,5 +1,6 @@
+// Header.tsx
 import { useState, useEffect } from "react";
-import { MdSearch } from "react-icons/md"; // ✅ Import search icon
+import { MdSearch } from "react-icons/md";
 import Search from "./headerComponent/Search";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 import SubNav from "./SubNav";
@@ -26,6 +27,14 @@ export default function Header({
   const [isScrolled, setIsScrolled] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
 
+  // ✅ Force re-render key when user changes
+  const [userKey, setUserKey] = useState(0);
+
+  // ✅ Update key when user changes
+  useEffect(() => {
+    setUserKey((prev) => prev + 1);
+  }, [isAuthenticated, user?._id, user?.email]);
+
   // Track scroll position
   useEffect(() => {
     const handleScroll = () => {
@@ -43,7 +52,6 @@ export default function Header({
       document.body.style.overflow = "unset";
     }
 
-    // Cleanup on unmount
     return () => {
       document.body.style.overflow = "unset";
     };
@@ -64,6 +72,17 @@ export default function Header({
       }
     }
   }, [isSearchOpen, onHoverChange, onSearchOpenChange]);
+
+  // ✅ Enhanced logout handler
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Force User component to remount
+      setUserKey((prev) => prev + 1);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   // Helper functions for conditional classes
   const getHeaderClasses = () => {
@@ -167,11 +186,13 @@ export default function Header({
                   isSearchOpen
                 )}`}
               >
+                {/* ✅ Use userKey to force remount */}
                 <User
+                  key={userKey}
                   isLoggedIn={isAuthenticated}
                   userName={user?.name}
                   userAvatar={user?.avatarUrl as string | undefined}
-                  onLogout={logout}
+                  onLogout={handleLogout}
                 />
               </div>
 
@@ -197,13 +218,10 @@ export default function Header({
           TRANSITION_CLASSES.BASE
         } ${isSearchOpen ? "h-screen" : "h-0"} overflow-hidden`}
       >
-        {/* Header space - bigger to match header size */}
         <div className={getHeaderSpaceClasses()}></div>
 
-        {/* Search area with expanding animation */}
         <div className={getSearchAreaClasses(isSearchOpen)}>
           <div className={getSearchContentClasses(isSearchOpen)}>
-            {/* Search component */}
             <div className="max-w-4xl mx-auto">
               <Search
                 className="w-full"

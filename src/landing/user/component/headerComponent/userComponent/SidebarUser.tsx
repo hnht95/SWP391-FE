@@ -6,7 +6,8 @@ import {
   MdHome,
 } from "react-icons/md";
 import { ImProfile } from "react-icons/im";
-import { FaCar } from "react-icons/fa";
+import { FaCar, FaFileContract } from "react-icons/fa";
+import { RiRefund2Line } from "react-icons/ri";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { logout as logoutApi } from "../../../../../service/apiUser/auth/API";
@@ -46,12 +47,12 @@ const SidebarUser = ({
     {
       id: "cancelled-paid",
       label: "Cancelled & Paid",
-      icon: <FaCar className="w-5 h-5" />,
+      icon: <FaFileContract className="w-5 h-5" />,
     },
     {
       id: "manual-refunds",
       label: "Manual Refunds",
-      icon: <FaCar className="w-5 h-5" />,
+      icon: <RiRefund2Line className="w-5 h-5" />,
     },
   ];
 
