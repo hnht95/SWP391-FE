@@ -7,7 +7,10 @@ import {
   type Vehicle,
 } from "../../../service/apiAdmin/apiVehicles/API";
 import type { Station } from "../../../service/apiAdmin/apiStation/API";
-import { createBooking } from "../../../service/apiBooking/API";
+import {
+  createBooking,
+  type CreateBookingResponse,
+} from "../../../service/apiUser/booking/API";
 import {
   FaArrowLeft,
   FaBatteryFull,

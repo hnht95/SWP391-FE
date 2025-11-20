@@ -8,7 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
-import { formatCurrency } from "../../../../service/apiBooking/API";
+import { formatCurrency } from "../../../../service/apiAdmin/apiBooking/API";
 import { rangeLabels, type BookingRangeKey } from "./types";
 
 interface BookingChartData {

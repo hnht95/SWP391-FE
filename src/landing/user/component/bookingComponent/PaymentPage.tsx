@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   getPaymentStatus,
   type Booking,
-} from "../../../../service/apiBooking/API";
+} from "../../../../service/apiUser/booking/API";
 import { getVehicleById } from "../../../../service/apiAdmin/apiVehicles/API";
 import type { Vehicle } from "../../../../types/vehicle";
 

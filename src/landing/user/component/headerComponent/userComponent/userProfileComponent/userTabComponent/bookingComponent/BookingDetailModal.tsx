@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import ConfirmModal from "./ConfirmModal";
-import type { Booking } from "../../../../../../../../service/apiBooking/API";
-import bookingApi from "../../../../../../../../service/apiBooking/API";
+import type { Booking } from "../../../../../../../../service/apiUser/booking/API";
+import bookingApi from "../../../../../../../../service/apiUser/booking/API";
 import { getVehicleById } from "../../../../../../../../service/apiAdmin/apiVehicles/API";
 import ContractModal from "./ContractModal";
 import ExtendBookingModal from "./ExtendBookingModal";

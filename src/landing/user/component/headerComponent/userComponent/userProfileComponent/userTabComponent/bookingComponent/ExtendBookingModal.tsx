@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Clock } from "lucide-react";
 import { useState } from "react";
-import bookingApi from "../../../../../../../../service/apiBooking/API";
+import bookingApi from "../../../../../../../../service/apiUser/booking/API";
 
 type Props = {
   isOpen: boolean;

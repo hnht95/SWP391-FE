@@ -13,8 +13,8 @@ import {
   MdSchedule,
   MdLink
 } from "react-icons/md";
-import type { AdminTransactionItem } from "../../../../service/apiBooking/API";
-import { formatCurrency } from "../../../../service/apiBooking/API";
+import type { AdminTransactionItem } from "../../../../service/apiAdmin/apiBooking/API";
+import { formatCurrency } from "../../../../service/apiAdmin/apiBooking/API";
 
 interface DetailUserTransactionModalProps {
   transaction: AdminTransactionItem | null;

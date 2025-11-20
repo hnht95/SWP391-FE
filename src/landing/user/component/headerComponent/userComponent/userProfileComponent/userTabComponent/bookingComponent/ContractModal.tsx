@@ -9,7 +9,7 @@ import {
   ExternalLink,
   AlertCircle,
 } from "lucide-react";
-import bookingApi from "../../../../../../../../service/apiBooking/API";
+import bookingApi from "../../../../../../../../service/apiUser/booking/API";
 
 type Props = { isOpen: boolean; onClose: () => void; bookingId: string };
 

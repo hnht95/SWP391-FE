@@ -8,7 +8,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import QRCode from "qrcode";
-import bookingApi from "../../../../../../../../service/apiBooking/API";
+import bookingApi from "../../../../../../../../service/apiUser/booking/API";
 
 type ExtendPaymentData = {
   bookingId: string;

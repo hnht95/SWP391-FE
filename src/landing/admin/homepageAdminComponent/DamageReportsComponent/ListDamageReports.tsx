@@ -13,12 +13,12 @@ import {
 import {
   getAllDamageReports,
   formatCurrency,
-} from "../../../../service/apiBooking/API";
+} from "../../../../service/apiAdmin/apiBooking/API";
 import type {
   DamageReport,
   DamageReportStatus,
   PaginatedDamageReportsResponse,
-} from "../../../../service/apiBooking/API";
+} from "../../../../service/apiAdmin/apiBooking/API";
 
 interface ListDamageReportsProps {
   onSelectReport: (report: DamageReport) => void;

@@ -5,7 +5,7 @@ import {
   getBookingById,
   getPaymentStatus,
   type Booking,
-} from "../../../../service/apiBooking/API";
+} from "../../../../service/apiUser/booking/API";
 import {
   getVehicleById,
   type Vehicle,
