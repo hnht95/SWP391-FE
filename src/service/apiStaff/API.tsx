@@ -84,20 +84,34 @@ export interface StationRequestItem {
     model: string;
     status: string;
     station?: string | Record<string, unknown>;
-  };
-  station?: string | Record<string, unknown>;
-  reportedBy?: {
-    _id: string;
-    role?: string;
-    name?: string;
-    email?: string;
-  };
+  } | null;
+  station?:
+    | string
+    | {
+        _id: string;
+        name: string;
+        location: {
+          address: string;
+          lat: number;
+          lng: number;
+        };
+      };
+  reportedBy?:
+    | string
+    | {
+        _id: string;
+        role?: string;
+        name?: string;
+        email?: string;
+      };
   reportText?: string;
   evidencePhotos?: EvidencePhoto[];
   status: string; // pending | approved | rejected
   previousVehicleStatus?: string;
   createdAt: string;
   updatedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
 }
 
 export interface PaginatedRequestsResponse {
@@ -118,6 +132,81 @@ interface GetVehiclesParams {
   brand?: string;
   page?: number;
   limit?: number;
+}
+
+// Manual refund detail type (full response)
+export interface RefundDetail {
+  _id: string;
+  booking?: {
+    _id: string;
+    status?: string;
+    deposit?: {
+      amount?: number;
+      currency?: string;
+      provider?: string;
+      providerRef?: string;
+      status?: string;
+      payos?: {
+        orderCode?: number;
+        paymentLinkId?: string;
+        checkoutUrl?: string;
+        qrCode?: string;
+        amountCaptured?: number;
+        paidAt?: string;
+        refund?: Record<string, unknown>;
+        needsRefundReview?: boolean;
+        refundHistory?: unknown[];
+        lastWebhook?: {
+          code?: string;
+          desc?: string;
+          success?: boolean;
+          data?: Record<string, unknown>;
+          signature?: string;
+        };
+      };
+    };
+    amounts?: Record<string, number> & {
+      rentalEstimated?: number;
+      overKmFee?: number;
+      lateFee?: number;
+      batteryFee?: number;
+      damageCharge?: number;
+      discounts?: number;
+      subtotal?: number;
+      tax?: number;
+      grandTotal?: number;
+      totalPaid?: number;
+      earlyReturnRefund?: number;
+    };
+  };
+  renter?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    bankInfo?: Record<string, unknown>;
+  };
+  amount?: number;
+  currency?: string;
+  method?: string;
+  transferredAt?: string;
+  beneficiary?: {
+    bankCode?: string;
+    bankName?: string;
+    accountNumber?: string;
+    accountName?: string;
+  };
+  reference?: string;
+  staff?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+  };
+  status?: string;
+  note?: string | null;
+  attachments?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // API Functions
@@ -235,6 +324,25 @@ export const staffAPI = {
     }
   },
 
+  // Get MY maintenance requests (created by current staff user)
+  getMyMaintenanceRequests: async (params?: {
+    status?: "approved" | "pending" | "rejected" | string;
+    q?: string;
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<PaginatedRequestsResponse> => {
+    try {
+      const response = await api.get("/vehicles/maintenance-mine", {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
   // Get deletion requests (for staff: auto-scoped to their station)
   getDeletionRequests: async (params?: {
     status?: "approved" | "pending" | "rejected" | string;
@@ -245,6 +353,25 @@ export const staffAPI = {
   }): Promise<PaginatedRequestsResponse> => {
     try {
       const response = await api.get("/vehicles/deletion-requests", {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get MY deletion requests (created by current staff user)
+  getMyDeletionRequests: async (params?: {
+    status?: "approved" | "pending" | "rejected" | string;
+    q?: string;
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<PaginatedRequestsResponse> => {
+    try {
+      const response = await api.get("/vehicles/deletion-mine", {
         params,
       });
       return response.data;
@@ -768,16 +895,40 @@ export const staffAPI = {
 
   // Create manual refund request (staff/admin)
   createManualRefund: async (payload: {
-    booking: string;
+    bookingId: string;
     amount: number;
-    reason?: string;
+    reason?: string; // legacy field
+    reference?: string; // new descriptive reference
+    beneficiary?: {
+      bankCode?: string;
+      bankName?: string;
+      accountNumber?: string;
+      accountName?: string;
+    };
     attachments?: File[];
-  }): Promise<any> => {
+  }): Promise<BookingActionResponse> => {
     try {
       const form = new FormData();
-      form.append("booking", payload.booking);
+      form.append("bookingId", payload.bookingId);
       form.append("amount", String(payload.amount));
       if (payload.reason) form.append("reason", payload.reason);
+      if (payload.reference) form.append("reference", payload.reference);
+      if (payload.beneficiary) {
+        if (payload.beneficiary.bankCode)
+          form.append("beneficiary.bankCode", payload.beneficiary.bankCode);
+        if (payload.beneficiary.bankName)
+          form.append("beneficiary.bankName", payload.beneficiary.bankName);
+        if (payload.beneficiary.accountNumber)
+          form.append(
+            "beneficiary.accountNumber",
+            payload.beneficiary.accountNumber
+          );
+        if (payload.beneficiary.accountName)
+          form.append(
+            "beneficiary.accountName",
+            payload.beneficiary.accountName
+          );
+      }
       if (payload.attachments?.length) {
         payload.attachments.forEach((f) => form.append("attachments", f));
       }
@@ -791,6 +942,33 @@ export const staffAPI = {
     }
   },
 
+  // Attempt to fetch beneficiary/payment method details for a booking (if renter saved them)
+  // This endpoint is speculative; adjust path/fields to match backend when available.
+  getManualRefundBeneficiary: async (
+    bookingId: string
+  ): Promise<{
+    success?: boolean;
+    beneficiary?: {
+      bankCode?: string;
+      bankName?: string;
+      accountNumber?: string;
+      accountName?: string;
+    };
+    reference?: string;
+  }> => {
+    try {
+      const response = await api.get(
+        `/manual-refunds/beneficiary-info?bookingId=${encodeURIComponent(
+          bookingId
+        )}`
+      );
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      return {};
+    }
+  },
+
   // Update manual refund request (status/note/add files)
   updateManualRefund: async (
     id: string,
@@ -799,7 +977,7 @@ export const staffAPI = {
       note?: string;
       addFiles?: File[];
     }
-  ): Promise<any> => {
+  ): Promise<BookingActionResponse> => {
     try {
       const form = new FormData();
       if (payload.status) form.append("status", payload.status);
@@ -811,6 +989,18 @@ export const staffAPI = {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get manual refund detail by refund ID
+  getManualRefundDetail: async (id: string): Promise<RefundDetail> => {
+    try {
+      const response = await api.get(`/manual-refunds/${id}`);
+      // Some APIs wrap data, others return directly
+      return response.data?.data || response.data?.item || response.data;
     } catch (error) {
       handleError(error);
       throw error;

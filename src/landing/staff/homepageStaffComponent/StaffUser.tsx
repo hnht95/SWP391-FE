@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   MdPerson,
   MdAdd,
-  MdLocationOn,
   MdCheckCircle,
   MdWarning,
   MdSearch,
@@ -551,15 +550,6 @@ const StaffUser = () => {
                             </span>
                             <span className="font-medium text-gray-900">
                               {user.rentalCount} trips
-                            </span>
-                          </div>
-                          <div className="flex items-center text-gray-700">
-                            <MdLocationOn className="w-4 h-4 mr-2 text-gray-400" />
-                            <span className="text-xs text-gray-500 mr-1">
-                              Station:
-                            </span>
-                            <span className="font-medium text-gray-900">
-                              {user.station?.name || "N/A"}
                             </span>
                           </div>
                         </div>

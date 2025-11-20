@@ -33,6 +33,9 @@ export interface BookingVehicleInfo {
   plateNumber: string;
   brand: string;
   model: string;
+  pricePerDay?: number;
+  pricePerHour?: number;
+  status?: string;
 }
 
 export interface BookingStationInfo {
@@ -42,26 +45,44 @@ export interface BookingStationInfo {
 
 export interface BookingTransactionItem {
   _id: string;
-  renter: string;
-  vehicle: string;
-  station: string;
+  amount: number;
+  renter: string | BookingRenterInfo;
+  vehicle: string | BookingVehicleInfo;
+  station: string | BookingStationInfo;
   company: string | null;
   status: string; // cancelled | expired | created | active ...
   deposit: BookingDepositInfo;
-  amounts: { totalPaid: number };
+  amounts: {
+    totalPaid: number;
+    rentalEstimated?: number;
+    overKmFee?: number;
+    lateFee?: number;
+    batteryFee?: number;
+    damageCharge?: number;
+    discounts?: number;
+    subtotal?: number;
+    tax?: number;
+    grandTotal?: number;
+  };
   createdAt: string;
   updatedAt: string;
-  bookingId: string;
+  bookingId?: string;
   // When item represents a manual refund record, backend may provide its id
   manualRefundId?: string;
   // Optional times (if provided by backend)
   startTime?: string;
   endTime?: string;
-  _dateSort: string;
-  renterInfo: BookingRenterInfo;
-  vehicleInfo: BookingVehicleInfo;
-  stationInfo: BookingStationInfo;
-  companyInfo: unknown | null;
+  // Refund tracking fields
+  refundableRemaining?: number;
+  refundedTotal?: number;
+  manualRefunded?: number;
+  payosRefunded?: number;
+  paid?: number;
+  _dateSort?: string;
+  renterInfo?: BookingRenterInfo;
+  vehicleInfo?: BookingVehicleInfo;
+  stationInfo?: BookingStationInfo;
+  companyInfo?: unknown | null;
   contract?: {
     _id: string;
     url: string;

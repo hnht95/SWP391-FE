@@ -468,6 +468,11 @@ const VehicleHandover = () => {
                           ? booking.bookingId
                           : `BK-${booking._id.substring(0, 8).toUpperCase()}`}
                       </h3>
+                      {booking.deposit?.providerRef && (
+                        <p className="mt-1 text-[10px] text-gray-500 font-mono truncate max-w-[160px]">
+                          REF: {booking.deposit.providerRef.slice(0, 12)}...
+                        </p>
+                      )}
                     </div>
                     <span
                       className={`px-2 py-1 rounded text-xs font-medium ${statusBadge.color}`}
@@ -481,7 +486,9 @@ const VehicleHandover = () => {
                     <MdPerson className="w-4 h-4 mr-1 text-gray-400" />
                     <span className="text-xs text-gray-500">Customer:</span>
                     <span className="ml-2 font-medium text-gray-900">
-                      {booking.renterInfo?.name || "N/A"}
+                      {typeof booking.renter === "object"
+                        ? booking.renter?.name
+                        : booking.renterInfo?.name || "N/A"}
                     </span>
                   </div>
 
@@ -490,7 +497,15 @@ const VehicleHandover = () => {
                     <MdDirectionsCar className="w-4 h-4 mr-1 text-gray-400" />
                     <span className="text-xs text-gray-500">Vehicle:</span>
                     <span className="ml-2 font-medium text-gray-900">
-                      {booking.vehicleInfo?.brand} {booking.vehicleInfo?.model}
+                      {typeof booking.vehicle === "object"
+                        ? `${booking.vehicle?.plateNumber || ""} - ${
+                            booking.vehicle?.brand || ""
+                          } ${booking.vehicle?.model || ""}`
+                        : booking.vehicleInfo
+                        ? `${booking.vehicleInfo.plateNumber || ""} - ${
+                            booking.vehicleInfo.brand || ""
+                          } ${booking.vehicleInfo.model || ""}`
+                        : "N/A"}
                     </span>
                   </div>
 
@@ -539,6 +554,32 @@ const VehicleHandover = () => {
                           : "N/A"}
                       </p>
                     </div>
+                    <div className="col-span-2 flex items-center justify-between mt-1">
+                      <span className="text-gray-500">Deposit Status</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          booking.deposit?.status === "captured"
+                            ? "bg-green-100 text-green-700"
+                            : booking.deposit?.status === "pending"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : booking.deposit?.status === "none"
+                            ? "bg-gray-100 text-gray-500"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {booking.deposit?.status === "none"
+                          ? "NO DEPOSIT"
+                          : booking.deposit?.status || "--"}
+                      </span>
+                    </div>
+                    {booking.deposit?.payos?.orderCode && (
+                      <div className="col-span-2 flex items-center justify-between">
+                        <span className="text-gray-500">Order Code</span>
+                        <span className="text-[11px] font-mono text-gray-800">
+                          {booking.deposit.payos.orderCode}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* View Details Button */}
@@ -632,13 +673,27 @@ const VehicleHandover = () => {
                         {booking.bookingId
                           ? booking.bookingId
                           : `BK-${booking._id.substring(0, 8).toUpperCase()}`}
+                        {booking.deposit?.payos?.orderCode && (
+                          <div className="text-[10px] text-gray-500 font-mono">
+                            OC:{booking.deposit.payos.orderCode}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
-                        {booking.renterInfo?.name || "N/A"}
+                        {typeof booking.renter === "object"
+                          ? booking.renter?.name
+                          : booking.renterInfo?.name || "N/A"}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
-                        {booking.vehicleInfo?.brand}{" "}
-                        {booking.vehicleInfo?.model}
+                        {typeof booking.vehicle === "object"
+                          ? `${booking.vehicle?.plateNumber || ""} ${
+                              booking.vehicle?.brand || ""
+                            } ${booking.vehicle?.model || ""}`
+                          : booking.vehicleInfo
+                          ? `${booking.vehicleInfo.plateNumber || ""} ${
+                              booking.vehicleInfo.brand || ""
+                            } ${booking.vehicleInfo.model || ""}`
+                          : "N/A"}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
                         {new Date(
@@ -653,6 +708,11 @@ const VehicleHandover = () => {
                       <td className="px-4 py-4 text-sm text-gray-900">
                         {booking.amounts?.totalPaid?.toLocaleString() || "0"}{" "}
                         VND
+                        <div className="text-[10px] text-gray-500 font-mono">
+                          {booking.deposit?.status === "none"
+                            ? "NO DEP"
+                            : booking.deposit?.status || "--"}
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         <span
@@ -1023,7 +1083,9 @@ const VehicleHandover = () => {
                         Name
                       </span>
                       <span className="font-medium">
-                        {selected.renterInfo?.name || "N/A"}
+                        {typeof selected.renter === "object"
+                          ? selected.renter?.name
+                          : "N/A"}
                       </span>
                     </div>
                     <div>
@@ -1031,7 +1093,9 @@ const VehicleHandover = () => {
                         Phone
                       </span>
                       <span className="font-medium">
-                        {selected.renterInfo?.phone || "N/A"}
+                        {typeof selected.renter === "object"
+                          ? selected.renter?.phone
+                          : "N/A"}
                       </span>
                     </div>
                     <div className="md:col-span-2">
@@ -1039,7 +1103,9 @@ const VehicleHandover = () => {
                         Email
                       </span>
                       <span className="font-medium">
-                        {selected.renterInfo?.email || "N/A"}
+                        {typeof selected.renter === "object"
+                          ? selected.renter?.email
+                          : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -1056,19 +1122,46 @@ const VehicleHandover = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-900">
                     <div>
                       <span className="text-sm text-gray-600 block mb-1">
-                        Vehicle
+                        Plate Number
                       </span>
                       <span className="font-medium">
-                        {selected.vehicleInfo?.brand}{" "}
-                        {selected.vehicleInfo?.model}
+                        {typeof selected.vehicle === "object"
+                          ? selected.vehicle?.plateNumber
+                          : "N/A"}
                       </span>
                     </div>
                     <div>
                       <span className="text-sm text-gray-600 block mb-1">
-                        Plate Number
+                        Vehicle
                       </span>
                       <span className="font-medium">
-                        {selected.vehicleInfo?.plateNumber || "N/A"}
+                        {typeof selected.vehicle === "object"
+                          ? `${selected.vehicle?.brand || ""} ${
+                              selected.vehicle?.model || ""
+                            }`
+                          : "N/A"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-600 block mb-1">
+                        Price Per Day
+                      </span>
+                      <span className="font-medium">
+                        {typeof selected.vehicle === "object" &&
+                        selected.vehicle?.pricePerDay
+                          ? `${selected.vehicle.pricePerDay.toLocaleString()} VND`
+                          : "N/A"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-600 block mb-1">
+                        Price Per Hour
+                      </span>
+                      <span className="font-medium">
+                        {typeof selected.vehicle === "object" &&
+                        selected.vehicle?.pricePerHour
+                          ? `${selected.vehicle.pricePerHour.toLocaleString()} VND`
+                          : "N/A"}
                       </span>
                     </div>
                     <div className="md:col-span-2">
@@ -1077,7 +1170,9 @@ const VehicleHandover = () => {
                         Station
                       </span>
                       <span className="font-medium">
-                        {selected.stationInfo?.name || "N/A"}
+                        {typeof selected.station === "object"
+                          ? selected.station?.name
+                          : "N/A"}
                       </span>
                     </div>
                   </div>
