@@ -3,14 +3,20 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import type { Vehicle } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { Station } from "../../../../../service/apiAdmin/apiStation/API";
-import { FaBatteryFull, FaCar, FaStar, FaCamera } from "react-icons/fa";
+import {
+  FaBatteryFull,
+  FaCar,
+  FaStar,
+  FaCamera,
+  FaMapMarkerAlt,
+} from "react-icons/fa";
 
 interface VehiclesCardProps {
   car: Vehicle;
   station?: Station;
 }
 
-const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
+const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
   const navigate = useNavigate();
 
   const handleViewDetails = () => {
@@ -66,6 +72,8 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
   const totalPhotos =
     (car.defaultPhotos?.exterior?.length || 0) +
     (car.defaultPhotos?.interior?.length || 0);
+
+  const stationName = station?.name || "N/A";
 
   return (
     <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 shadow border-slate-100">
@@ -134,9 +142,15 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car }) => {
         </h3>
 
         {/* Plate & Year */}
-        <p className="text-gray-600 text-sm mb-3 font-medium">
+        <p className="text-gray-600 text-sm mb-2 font-medium">
           {car.plateNumber} • {car.year}
         </p>
+
+        {/* ✅ Station & Province */}
+        <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-3">
+          <FaMapMarkerAlt className="text-red-500 flex-shrink-0" />
+          <span className="truncate">{stationName}</span>
+        </div>
 
         {/* Features */}
         <div className="flex items-center justify-between mb-4 text-gray-700 text-sm">

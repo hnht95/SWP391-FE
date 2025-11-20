@@ -21,8 +21,6 @@ import {
   FaMoneyBillWave,
   FaArrowLeft,
   FaDownload,
-  FaWhatsapp,
-  FaEnvelope,
 } from "react-icons/fa";
 
 const BookingSuccessPage: React.FC = () => {
