@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -18,8 +18,8 @@ api.interceptors.request.use(
     // If sending FormData, let the browser set the correct multipart boundary
     if (config.data instanceof FormData) {
       if (config.headers) {
-        delete (config.headers as any)["Content-Type"];
-        delete (config.headers as any)["content-type"];
+        delete config.headers["Content-Type"];
+        delete config.headers["content-type"];
       }
     }
     return config;

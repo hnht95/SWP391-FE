@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import SidebarUser from "./SidebarUser";
 import ProfileTab from "./userProfileComponent/userTabComponent/ProfileTab";
 import BookingHistoryTab from "./userProfileComponent/userTabComponent/BookingHistoryTab";
-import EditProfileModal from "./userProfileComponent/userTabComponent/profileComponent/EditProfileModal"; // ✅ Import modal
+
 import profileApi, {
   type UserProfile as UserProfileType,
 } from "../../../../../service/apiUser/profile/API";
@@ -17,7 +17,6 @@ const UserProfile = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false); // ✅ Modal state
 
   const hasFetched = useRef(false);
 
@@ -78,14 +77,6 @@ const UserProfile = () => {
       default:
         return <ProfileTab user={user} onRefresh={handleRefresh} />;
     }
-  };
-
-  const handleEditProfile = () => {
-    setShowEditModal(true); // ✅ Open modal
-  };
-
-  const handleEditSuccess = () => {
-    fetchUserProfile(); // ✅ Refresh data after edit
   };
 
   const handleSignOut = () => {
@@ -150,15 +141,6 @@ const UserProfile = () => {
                   "View your rental booking history and details"}
               </p>
             </div>
-
-            {activeTab === "profile" && (
-              <button
-                onClick={handleEditProfile}
-                className="px-4 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors duration-200"
-              >
-                Edit Profile
-              </button>
-            )}
           </div>
         </div>
 
@@ -170,16 +152,6 @@ const UserProfile = () => {
           </div>
         </div>
       </div>
-
-      {/* ✅ Edit Profile Modal */}
-      {user && (
-        <EditProfileModal
-          isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          user={user}
-          onSuccess={handleEditSuccess}
-        />
-      )}
     </div>
   );
 };
