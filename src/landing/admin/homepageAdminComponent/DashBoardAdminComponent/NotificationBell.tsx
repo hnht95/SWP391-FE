@@ -6,6 +6,7 @@ import {
   MdVerifiedUser,
   MdClose,
   MdArrowForward,
+  MdWarning,
 } from "react-icons/md";
 import type { Notification } from "./types";
 
@@ -167,11 +168,15 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
                             className={`p-2 rounded-lg flex-shrink-0 ${
                               notif.type === "maintenance"
                                 ? "bg-orange-100 text-orange-600"
+                                : notif.type === "damage"
+                                ? "bg-red-100 text-red-600"
                                 : "bg-blue-100 text-blue-600"
                             }`}
                           >
                             {notif.type === "maintenance" ? (
                               <MdBuild className="w-5 h-5" />
+                            ) : notif.type === "damage" ? (
+                              <MdWarning className="w-5 h-5" />
                             ) : (
                               <MdVerifiedUser className="w-5 h-5" />
                             )}
@@ -223,9 +228,11 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
                   onClick={() => {
                     const hasMaintenance = notifications.some((n) => n.type === "maintenance");
                     const hasKYC = notifications.some((n) => n.type === "kyc");
+                    const hasDamage = notifications.some((n) => n.type === "damage");
                     
-                    if (hasMaintenance && hasKYC) {
-                      window.location.href = "/admin/vehicles?tab=requests";
+                    // Priority: damage > maintenance > kyc
+                    if (hasDamage) {
+                      window.location.href = "/admin/damage-reports";
                     } else if (hasMaintenance) {
                       window.location.href = "/admin/vehicles?tab=requests";
                     } else if (hasKYC) {

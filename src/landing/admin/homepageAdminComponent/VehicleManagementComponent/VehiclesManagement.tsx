@@ -14,6 +14,7 @@ import {
   type Vehicle as APIVehicle,
   getPhotoUrls,
   getMaintenanceRequestsPaginated,
+  updateVehicle,
 } from "../../../../service/apiAdmin/apiVehicles/API";
 import {
   getDeletionRequestsPaginated,
@@ -21,8 +22,6 @@ import {
   rejectDeletionRequest,
   approveMaintenanceRequest,
   rejectMaintenanceRequest,
-  getAllTransferLogs,
-  type TransferLog,
 } from "../../../../service/apiAdmin/apiVehicles/API";
 import {
   getAllStations,
@@ -73,7 +72,6 @@ const VehiclesManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [maintenanceRequests, setMaintenanceRequests] = useState<any[]>([]);
   const [deletionRequests, setDeletionRequests] = useState<any[]>([]);
-  const [transferLogs, setTransferLogs] = useState<TransferLog[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsPage, setRequestsPage] = useState(1);
   const [requestsLimit] = useState(20);
@@ -85,6 +83,9 @@ const VehiclesManagement: React.FC = () => {
   const [vehTotalPages, setVehTotalPages] = useState(1);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isDeleteSuccessOpen, setIsDeleteSuccessOpen] = useState(false);
+  const [isMaintenanceSuccessOpen, setIsMaintenanceSuccessOpen] = useState(false);
+  const [maintenanceSuccessMessage, setMaintenanceSuccessMessage] = useState("");
+  const [isTransferSuccessOpen, setIsTransferSuccessOpen] = useState(false);
 
   // ✅ Get station name by ID
   const getStationName = (stationIdOrObject: any): string => {
@@ -241,21 +242,10 @@ const VehiclesManagement: React.FC = () => {
     }
   };
 
-  const fetchTransferLogs = async () => {
-    try {
-      const logs = await getAllTransferLogs();
-      setTransferLogs(logs || []);
-    } catch (e) {
-      console.error("Fetch transfer logs error:", e);
-      setTransferLogs([]);
-    }
-  };
-
   useEffect(() => {
     fetchVehicles(1);
     fetchDeletionRequestsData();
     fetchMaintenanceRequestsData();
-    fetchTransferLogs();
   }, []);
 
   const handleEdit = (vehicle: UIVehicle) => {
@@ -336,7 +326,7 @@ const VehiclesManagement: React.FC = () => {
 
   const handleModalSuccess = () => {
     fetchVehicles();
-    fetchTransferLogs(); // Refresh transfer logs after transfer
+    setIsTransferSuccessOpen(true); // Show success popup
   };
 
   // ✅ Filter vehicles based on search and status with loading effect
@@ -390,7 +380,7 @@ const VehiclesManagement: React.FC = () => {
     {
       id: "vehicles" as const,
       label: "All Vehicles",
-      count: vehicles.length,
+      count: vehTotal, // Use total count instead of current page vehicles
     },
     {
       id: "requests" as const,
@@ -438,7 +428,7 @@ const VehiclesManagement: React.FC = () => {
       <div className="flex items-center justify-between">
         <PageTitle
           title="Vehicle Management"
-          subtitle={`Total of ${vehicles.length} vehicles in the system`}
+          subtitle={`Total of ${vehTotal} vehicles in the system`}
           icon={<MdDirectionsCar className="w-7 h-7 text-gray-700" />}
         />
         <button
@@ -559,7 +549,6 @@ const VehiclesManagement: React.FC = () => {
         <RequestsTab
           maintenanceRequests={maintenanceRequests as any}
           deletionRequests={deletionRequests as any}
-          transferLogs={transferLogs as any}
           isLoading={requestsLoading}
           pagination={{ page: requestsPage, totalPages: requestsTotalPages }}
           onPageChange={(p) => {
@@ -568,17 +557,50 @@ const VehiclesManagement: React.FC = () => {
           }}
           onApproveMaintenance={async (id) => {
             try {
+              // Find the maintenance request to get vehicle ID
+              const request = maintenanceRequests.find(r => r._id === id);
+              const vehicleId = request?.vehicle?._id;
+              
               await approveMaintenanceRequest(id);
+              
+              // Manually update vehicle status to maintenance
+              if (vehicleId) {
+                try {
+                  await updateVehicle(vehicleId, { status: "maintenance" });
+                } catch (updateError) {
+                  console.warn("Could not update vehicle status manually, backend may have handled it:", updateError);
+                }
+              }
+              
               await fetchMaintenanceRequestsData();
               await fetchVehicles(); // Refresh vehicles to update status
+              setMaintenanceSuccessMessage("Đã duyệt yêu cầu bảo trì");
+              setIsMaintenanceSuccessOpen(true);
             } catch (e) {
               console.error("Approve maintenance error:", e);
             }
           }}
           onRejectMaintenance={async (id) => {
             try {
+              // Find the maintenance request to get vehicle ID
+              const request = maintenanceRequests.find(r => r._id === id);
+              const vehicleId = request?.vehicle?._id;
+              
               await rejectMaintenanceRequest(id);
+              
+              // Manually update vehicle status to available
+              if (vehicleId) {
+                try {
+                  await updateVehicle(vehicleId, { status: "available" });
+                } catch (updateError) {
+                  console.warn("Could not update vehicle status manually, backend may have handled it:", updateError);
+                }
+              }
+              
               await fetchMaintenanceRequestsData();
+              await fetchVehicles(); // Refresh vehicles to update status
+              setMaintenanceSuccessMessage("Đã chấp nhận không bảo trì xe này");
+              setIsMaintenanceSuccessOpen(true);
             } catch (e) {
               console.error("Reject maintenance error:", e);
             }
@@ -661,6 +683,18 @@ const VehiclesManagement: React.FC = () => {
         isOpen={isDeleteSuccessOpen}
         title="Vehicle deleted successfully"
         onClose={() => setIsDeleteSuccessOpen(false)}
+      />
+
+      <IosSuccessModal
+        isOpen={isMaintenanceSuccessOpen}
+        title={maintenanceSuccessMessage}
+        onClose={() => setIsMaintenanceSuccessOpen(false)}
+      />
+
+      <IosSuccessModal
+        isOpen={isTransferSuccessOpen}
+        title="Đã chuyển xe thành công"
+        onClose={() => setIsTransferSuccessOpen(false)}
       />
 
       <DeletionRequestDetailModal

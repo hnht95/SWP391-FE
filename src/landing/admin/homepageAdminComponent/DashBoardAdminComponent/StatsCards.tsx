@@ -4,8 +4,8 @@ import { motion } from "framer-motion";
 interface StatCard {
   title: string;
   value: string;
-  change: string;
-  changeType: "increase" | "decrease";
+  change?: string;
+  changeType?: "increase" | "decrease";
   icon: React.ReactNode;
   color: string;
 }
@@ -55,12 +55,14 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats }) => {
               </div>
             </div>
             <h3 className="text-gray-600 text-sm mb-2">{stat.title}</h3>
-            <div className="flex items-center space-x-2 text-xs">
-              <span className={stat.changeType === "increase" ? "text-green-600" : "text-red-600"}>
-                {stat.changeType === "increase" ? "↑" : "↓"} {stat.change}
-              </span>
-              <span className="text-gray-500">vs last month</span>
-            </div>
+            {stat.change && stat.changeType && (
+              <div className="flex items-center space-x-2 text-xs">
+                <span className={stat.changeType === "increase" ? "text-green-600" : "text-red-600"}>
+                  {stat.changeType === "increase" ? "↑" : "↓"} {stat.change}
+                </span>
+                <span className="text-gray-500">vs last month</span>
+              </div>
+            )}
           </motion.div>
         );
       })}

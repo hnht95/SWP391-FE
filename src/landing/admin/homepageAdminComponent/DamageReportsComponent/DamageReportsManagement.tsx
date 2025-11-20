@@ -25,6 +25,7 @@ import type {
   DamageReport,
   DamageReportStatus,
 } from "../../../../service/apiAdmin/apiBooking/API";
+import IosSuccessModal from "../VehicleManagementComponent/components/IosSuccessModal";
 
 const DamageReportsManagement: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<DamageReport | null>(null);
@@ -33,7 +34,10 @@ const DamageReportsManagement: React.FC = () => {
   const [chargeAmount, setChargeAmount] = useState<string>("");
   const [note, setNote] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showApproveConfirm, setShowApproveConfirm] = useState<boolean>(false);
+  const [showRejectConfirm, setShowRejectConfirm] = useState<boolean>(false);
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [successModalTitle, setSuccessModalTitle] = useState<string>("");
 
   useEffect(() => {
     if (isModalOpen) {
@@ -49,7 +53,6 @@ const DamageReportsManagement: React.FC = () => {
       setChargeAmount("");
       setNote("");
       setError(null);
-      setSuccessMessage(null);
     }
     return () => {
       document.body.style.overflow = "unset";
@@ -66,7 +69,7 @@ const DamageReportsManagement: React.FC = () => {
     setSelectedReport(null);
   };
 
-  const handleApprove = async () => {
+  const handleApproveClick = () => {
     if (!selectedReport) return;
 
     const amount = parseFloat(chargeAmount);
@@ -75,9 +78,17 @@ const DamageReportsManagement: React.FC = () => {
       return;
     }
 
+    setShowApproveConfirm(true);
+  };
+
+  const handleApproveConfirm = async () => {
+    if (!selectedReport) return;
+
+    setShowApproveConfirm(false);
     setIsProcessing(true);
     setError(null);
-    setSuccessMessage(null);
+
+    const amount = parseFloat(chargeAmount);
 
     try {
       const response = await approveDamageReport(selectedReport._id, {
@@ -85,52 +96,87 @@ const DamageReportsManagement: React.FC = () => {
         note: note.trim() || undefined,
       });
 
-      if (response.success) {
-        setSuccessMessage("Damage report approved successfully");
+      if (response && response.success !== false) {
+        setSuccessModalTitle("Damage report approved and charged successfully");
+        setShowSuccessModal(true);
         setTimeout(() => {
           handleCloseModal();
           // Refresh the list by triggering a re-render
           window.location.reload();
-        }, 1500);
+        }, 2000);
       } else {
-        setError(response.message || "Cannot approve report");
+        const errorMsg = response?.message || "Failed to approve report. Please try again.";
+        setError(errorMsg);
+        setIsProcessing(false);
       }
     } catch (err: any) {
       console.error("Error approving damage report:", err);
-      setError(err?.message || "An error occurred while approving the report");
-    } finally {
+      
+      // Extract more detailed error message
+      let errorMessage = "An error occurred while approving the report";
+      
+      if (err?.response?.status === 500) {
+        errorMessage = "Server error: Unable to process approval. Please contact support if the issue persists.";
+      } else if (err?.response?.status === 404) {
+        errorMessage = "Damage report not found. It may have been deleted.";
+      } else if (err?.response?.status === 403) {
+        errorMessage = "You don't have permission to approve this report.";
+      } else if (err?.response?.status === 400) {
+        errorMessage = "Invalid request. Please check the charge amount and try again.";
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
       setIsProcessing(false);
     }
   };
 
-  const handleReject = async () => {
+  const handleRejectClick = () => {
+    if (!selectedReport) return;
+    setShowRejectConfirm(true);
+  };
+
+  const handleRejectConfirm = async () => {
     if (!selectedReport) return;
 
-    if (!window.confirm("Are you sure you want to reject this report? (Free)")) {
-      return;
-    }
-
+    setShowRejectConfirm(false);
     setIsProcessing(true);
     setError(null);
-    setSuccessMessage(null);
 
     try {
       const response = await rejectDamageReport(selectedReport._id);
 
-      if (response.success) {
-        setSuccessMessage("Damage report rejected successfully");
+      if (response && response.success !== false) {
+        setSuccessModalTitle("Damage report rejected successfully (No charge)");
+        setShowSuccessModal(true);
         setTimeout(() => {
           handleCloseModal();
           // Refresh the list by triggering a re-render
           window.location.reload();
-        }, 1500);
+        }, 2000);
       } else {
-        setError(response.message || "Cannot reject report");
+        const errorMsg = response?.message || "Failed to reject report. Please try again.";
+        setError(errorMsg);
+        setIsProcessing(false);
       }
     } catch (err: any) {
       console.error("Error rejecting damage report:", err);
-      setError(err?.message || "An error occurred while rejecting the report");
-    } finally {
+      
+      // Extract more detailed error message
+      let errorMessage = "An error occurred while rejecting the report";
+      
+      if (err?.response?.status === 500) {
+        errorMessage = "Server error: Unable to process rejection. Please contact support if the issue persists.";
+      } else if (err?.response?.status === 404) {
+        errorMessage = "Damage report not found. It may have been deleted.";
+      } else if (err?.response?.status === 403) {
+        errorMessage = "You don't have permission to reject this report.";
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
       setIsProcessing(false);
     }
   };
@@ -270,12 +316,7 @@ const DamageReportsManagement: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Success/Error Messages */}
-                    {successMessage && (
-                      <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-green-800">{successMessage}</p>
-                      </div>
-                    )}
+                    {/* Error Messages */}
                     {error && (
                       <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-sm text-red-800">{error}</p>
@@ -482,7 +523,7 @@ const DamageReportsManagement: React.FC = () => {
                             </div>
                             <div className="flex gap-3">
                               <button
-                                onClick={handleApprove}
+                                onClick={handleApproveClick}
                                 disabled={isProcessing || !chargeAmount}
                                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                               >
@@ -490,7 +531,7 @@ const DamageReportsManagement: React.FC = () => {
                                 {isProcessing ? "Processing..." : "Approve and Charge"}
                               </button>
                               <button
-                                onClick={handleReject}
+                                onClick={handleRejectClick}
                                 disabled={isProcessing}
                                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                               >
@@ -528,6 +569,155 @@ const DamageReportsManagement: React.FC = () => {
         </AnimatePresence>,
         document.body
       )}
+
+      {/* Approve Confirmation Modal */}
+      {createPortal(
+        <AnimatePresence>
+          {showApproveConfirm && (
+            <>
+              <motion.div
+                className="fixed inset-0 bg-black/50 z-[10000]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setShowApproveConfirm(false)}
+              />
+              <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96, y: 20 }}
+                  transition={{
+                    type: "spring",
+                    damping: 25,
+                    stiffness: 300,
+                    mass: 0.8,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md pointer-events-auto"
+                >
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <MdCheckCircle className="w-6 h-6 text-green-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Confirm Approval
+                      </h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Are you sure you want to approve this damage report and charge the customer?
+                    </p>
+                    {selectedReport && (
+                      <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                        <p className="text-xs text-gray-500 mb-1">Amount to Charge</p>
+                        <p className="text-lg font-semibold text-green-600">
+                          {formatCurrency(parseFloat(chargeAmount) || 0, "VND")}
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowApproveConfirm(false)}
+                        className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleApproveConfirm}
+                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <MdCheckCircle className="w-5 h-5" />
+                        Confirm
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* Reject Confirmation Modal */}
+      {createPortal(
+        <AnimatePresence>
+          {showRejectConfirm && (
+            <>
+              <motion.div
+                className="fixed inset-0 bg-black/50 z-[10000]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setShowRejectConfirm(false)}
+              />
+              <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96, y: 20 }}
+                  transition={{
+                    type: "spring",
+                    damping: 25,
+                    stiffness: 300,
+                    mass: 0.8,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md pointer-events-auto"
+                >
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <MdCancel className="w-6 h-6 text-red-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Confirm Rejection
+                      </h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Are you sure you want to reject this damage report? The customer will not be charged.
+                    </p>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                      <p className="text-xs text-yellow-800">
+                        <strong>Note:</strong> This action cannot be undone. The report will be marked as rejected and no charge will be applied.
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowRejectConfirm(false)}
+                        className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleRejectConfirm}
+                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <MdCancel className="w-5 h-5" />
+                        Confirm Rejection
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* Success Modal */}
+      <IosSuccessModal
+        isOpen={showSuccessModal}
+        title={successModalTitle}
+        onClose={() => {
+          setShowSuccessModal(false);
+          setSuccessModalTitle("");
+        }}
+      />
     </>
   );
 };
