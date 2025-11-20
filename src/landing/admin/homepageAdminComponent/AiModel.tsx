@@ -4,10 +4,8 @@ import { MdClose, MdSend, MdRefresh } from "react-icons/md";
 import { getAllVehicles, getAllTransferLogs } from "../../../service/apiAdmin/apiVehicles/API";
 import { getAllStations } from "../../../service/apiAdmin/apiStation/API";
 import { getAllBookings } from "../../../service/apiAdmin/apiBooking/API";
+import { getFleetRecommendation } from "../../../service/apiAI/API";
 import logoZami from "../../../assets/loginImage/logoZami.png";
-
-const GOOGLE_AI_API_KEY = "AIzaSyDzSXEWF13kYtsOQmYY8tqSMTzPphGrujQ";
-const GOOGLE_AI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
 
 interface Message {
   role: "user" | "assistant";
@@ -46,7 +44,26 @@ const AiModel: React.FC = () => {
         getAllBookings({ page: 1, limit: 1000 }),
       ]);
 
-      const transferLogs = await getAllTransferLogs();
+      // Try to get transfer logs, but don't block if it fails (403 Forbidden)
+      let transferLogs: any[] = [];
+      try {
+        transferLogs = await getAllTransferLogs();
+      } catch (error: any) {
+        // Silently handle 403 or other errors for transfer logs
+        // It's not critical for AI recommendation
+        if (error?.response?.status !== 403) {
+          console.warn("⚠️ Could not fetch transfer logs:", error?.message);
+        }
+        transferLogs = [];
+      }
+
+      // Store raw data for API context
+      const rawData = {
+        vehicles,
+        stations,
+        bookings: bookings.items,
+        transferLogs,
+      };
 
       // Calculate statistics
       const activeVehicles = vehicles.filter(
@@ -56,7 +73,7 @@ const AiModel: React.FC = () => {
       const vehiclesNeedingMaintenance = vehicles.filter(
         (v) => v.status === "maintenance" || v.status === "pending_maintenance"
       );
-      const transferredVehicles = transferLogs.length;
+      const transferredVehicles = transferLogs?.length || 0;
 
       const activeStations = stations.filter((s) => s.isActive);
       const stationVehicleCounts = activeStations.map((station) => {
@@ -105,10 +122,34 @@ const AiModel: React.FC = () => {
         },
       };
 
-      setDatabaseStats(stats);
+      setDatabaseStats({ ...stats, rawData });
 
-      // Add welcome message with statistics
-      const welcomeMessage = `Xin chào! Tôi là AI Assistant cho hệ thống quản lý thuê xe điện. 
+      // Get initial recommendation from backend
+      const recommendationResponse = await getFleetRecommendation({
+        question: "Xin chào, hãy giới thiệu về bạn và những gì bạn có thể giúp tôi",
+        context: {
+          vehicles: rawData.vehicles,
+          stations: rawData.stations,
+          bookings: rawData.bookings,
+        },
+      });
+
+      // Check if API call was successful
+      const recommendation = 
+        recommendationResponse.recommendation || 
+        recommendationResponse.data?.recommendation;
+      
+      if (recommendation && (recommendationResponse.ok || recommendationResponse.success)) {
+        setMessages([
+          {
+            role: "assistant",
+            content: recommendation,
+            timestamp: new Date(),
+          },
+        ]);
+      } else {
+        // Fallback welcome message if API fails or not ready
+        const welcomeMessage = `Xin chào! Tôi là AI Assistant cho hệ thống quản lý thuê xe điện. 
 
 📊 **Thống kê hiện tại:**
 - **Xe đang hoạt động:** ${stats.vehicles.active}/${stats.vehicles.total}
@@ -126,13 +167,14 @@ Tôi có thể giúp bạn:
 
 Bạn muốn hỏi gì?`;
 
-      setMessages([
-        {
-          role: "assistant",
-          content: welcomeMessage,
-          timestamp: new Date(),
-        },
-      ]);
+        setMessages([
+          {
+            role: "assistant",
+            content: welcomeMessage,
+            timestamp: new Date(),
+          },
+        ]);
+      }
     } catch (error) {
       console.error("Error loading database stats:", error);
       setMessages([
@@ -162,76 +204,56 @@ Bạn muốn hỏi gì?`;
     setLoading(true);
 
     try {
-      // Build context with database statistics
-      const contextPrompt = databaseStats
-        ? `
-Bạn là AI Assistant cho hệ thống quản lý thuê xe điện. Dưới đây là dữ liệu từ database:
-
-**THỐNG KÊ XE:**
-- Tổng số xe: ${databaseStats.vehicles.total}
-- Xe đang hoạt động: ${databaseStats.vehicles.active}
-- Xe cần xóa: ${databaseStats.vehicles.needingDeletion}
-- Xe cần bảo trì: ${databaseStats.vehicles.needingMaintenance}
-- Xe đã chuyển trạm: ${databaseStats.vehicles.transferred}
-
-**THỐNG KÊ TRẠM:**
-- Tổng số trạm: ${databaseStats.stations.total}
-- Trạm đang hoạt động: ${databaseStats.stations.active}
-- Số xe trong từng trạm:
-${databaseStats.stations.vehicleCounts.map((s: any) => `  - ${s.stationName}: ${s.vehicleCount} xe`).join("\n")}
-
-**THỐNG KÊ ĐẶT XE:**
-- Tổng số đặt xe: ${databaseStats.bookings.total}
-- Đặt xe hoàn thành: ${databaseStats.bookings.completed}
-- Đặt xe đang hoạt động: ${databaseStats.bookings.active}
-- Xu hướng theo tháng: ${JSON.stringify(databaseStats.bookings.monthlyTrends)}
-
-Hãy trả lời câu hỏi của người dùng dựa trên dữ liệu này. Nếu họ hỏi về dự báo nhu cầu, hãy phân tích xu hướng và đưa ra gợi ý cụ thể để nâng cấp đội xe.
-`
-        : "";
-
-      const fullPrompt = `${contextPrompt}\n\nNgười dùng hỏi: ${userMessage.content}\n\nHãy trả lời bằng tiếng Việt, ngắn gọn và dễ hiểu.`;
-
-      const response = await fetch(`${GOOGLE_AI_API_URL}?key=${GOOGLE_AI_API_KEY}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: fullPrompt,
-                },
-              ],
-            },
-          ],
-        }),
+      // Call backend AI API
+      const recommendationResponse = await getFleetRecommendation({
+        question: userMessage.content,
+        context: databaseStats?.rawData
+          ? {
+              vehicles: databaseStats.rawData.vehicles,
+              stations: databaseStats.rawData.stations,
+              bookings: databaseStats.rawData.bookings,
+            }
+          : undefined,
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      // Check if API call was successful
+      const recommendation = 
+        recommendationResponse.recommendation || 
+        recommendationResponse.data?.recommendation;
+      
+      if (recommendation && (recommendationResponse.ok || recommendationResponse.success)) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: recommendation,
+            timestamp: new Date(),
+          },
+        ]);
+      } else {
+        // Show error message from API or fallback
+        const errorMessage =
+          recommendationResponse.message ||
+          recommendationResponse.error ||
+          "Xin lỗi, AI endpoint chưa sẵn sàng. Vui lòng thử lại sau.";
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: errorMessage,
+            timestamp: new Date(),
+          },
+        ]);
       }
-
-      const data = await response.json();
-      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "Xin lỗi, tôi không thể trả lời câu hỏi này.";
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: aiResponse,
-          timestamp: new Date(),
-        },
-      ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error calling AI API:", error);
+      const errorMessage =
+        error?.message || "Xin lỗi, có lỗi xảy ra khi kết nối với AI. Vui lòng thử lại sau.";
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Xin lỗi, có lỗi xảy ra khi kết nối với AI. Vui lòng thử lại sau.",
+          content: errorMessage,
           timestamp: new Date(),
         },
       ]);
