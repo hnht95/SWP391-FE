@@ -1,5 +1,5 @@
 // pages/PaymentPage.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import {
@@ -13,6 +13,7 @@ import {
   FaCarSide,
   FaMoneyBillWave,
   FaLightbulb,
+  FaCopy,
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -25,14 +26,17 @@ import {
 } from "../../../../service/apiAdmin/apiVehicles/API";
 import logoBankMB from "../../../../assets/bank/mbBank.jpg";
 import { ThreeDots } from "react-loader-spinner";
+import {
+  parseVietQRCode,
+  formatAccountNumber,
+} from "../../../../hooks/qrCodeParser";
 
 const PAYMENT_TIMEOUT_MINUTES = 15;
 const PAYMENT_TIMEOUT_SECONDS = PAYMENT_TIMEOUT_MINUTES * 60;
 
-// ✅ Banking info constants
+// ✅ Banking info constants (fallback only)
 const BANKING_INFO = {
   accountName: "NGUYEN NGO GIA MINH",
-  accountNumber: "VQRQAFKLH4926",
   bankName: "MB Bank",
   bankLogo: logoBankMB,
 } as const;
@@ -42,7 +46,6 @@ interface PaymentTimer {
   expiryTime: number;
 }
 
-// ✅ Complete totals type
 interface CalculatedTotals {
   dailyRate: number;
   hourlyRate: number;
@@ -109,9 +112,31 @@ const PaymentPage: React.FC = () => {
   const [isExpired, setIsExpired] = useState(false);
   const [loading, setLoading] = useState(!booking);
   const [error, setError] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const timerInitializedRef = useRef(false);
+
+  // ✅ Parse QR code to extract account number and content
+  const parsedQRData = useMemo(() => {
+    const qrCode = booking?.deposit?.payos?.qrCode;
+    if (!qrCode) {
+      return {
+        accountNumber: null,
+        content: null,
+        isValid: false,
+      };
+    }
+    return parseVietQRCode(qrCode);
+  }, [booking?.deposit?.payos?.qrCode]);
+
+  // ✅ Copy to clipboard handler
+  const handleCopy = (text: string, field: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    });
+  };
 
   // Initialize or restore payment timer
   useEffect(() => {
@@ -194,7 +219,6 @@ const PaymentPage: React.FC = () => {
     fetchBookingData();
   }, [bookingId, booking]);
 
-  // ✅ Calculate totals with proper return type
   const calculateTotals = (): CalculatedTotals => {
     if (calculatedTotals) {
       return {
@@ -222,7 +246,6 @@ const PaymentPage: React.FC = () => {
       };
     }
 
-    // Get vehicle valuation for deposit calculation
     let vehicleValue = 0;
     if (typeof booking.vehicle === "object" && booking.vehicle !== null) {
       const vehicleData = booking.vehicle as Record<string, unknown>;
@@ -232,10 +255,8 @@ const PaymentPage: React.FC = () => {
       vehicleValue = (valuation?.valueVND as number) || 0;
     }
 
-    // Calculate deposit: 1.5% of vehicle value
     const deposit = Math.round(vehicleValue * 0.015);
 
-    // Get rental cost from pricingSnapshot.basePrice
     const pricingSnapshot = booking.pricingSnapshot as
       | Record<string, unknown>
       | undefined;
@@ -244,10 +265,8 @@ const PaymentPage: React.FC = () => {
       booking.amounts?.rentalEstimated ||
       0;
 
-    // Total = rental + deposit
     const total = rentalCost + deposit;
 
-    // ✅ Duration - check both days and hours
     const days = (pricingSnapshot?.days as number) || 0;
     const hours = (pricingSnapshot?.hours as number) || 0;
 
@@ -262,7 +281,6 @@ const PaymentPage: React.FC = () => {
       durationText = "0d";
     }
 
-    // Rates
     const dailyRate = (pricingSnapshot?.unitPriceDay as number) || 0;
     const hourlyRate = (pricingSnapshot?.unitPriceHour as number) || 0;
 
@@ -280,7 +298,6 @@ const PaymentPage: React.FC = () => {
 
   const totals = calculateTotals();
 
-  // ✅ Get vehicle image URL
   const getVehicleImageUrl = (): string | null => {
     if (!vehicle && typeof booking?.vehicle === "object") {
       const bookingVehicle = booking.vehicle as Record<string, unknown>;
@@ -562,6 +579,7 @@ const PaymentPage: React.FC = () => {
               )}
             </AnimatePresence>
 
+            {/* Status Messages */}
             <AnimatePresence mode="wait">
               {isExpired && (
                 <motion.div
@@ -649,7 +667,7 @@ const PaymentPage: React.FC = () => {
                 transition={{ delay: 0.2 }}
                 className="space-y-4"
               >
-                {/* ✅ Banking Info Section - English, Centered Logo */}
+                {/* ✅ Banking Info Section - Dynamic from QR Code */}
                 <div className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
                   {/* Header with MB Bank Logo - Centered */}
                   <div className="flex flex-col items-center justify-center gap-3 mb-4 pb-3 border-b border-gray-200">
@@ -679,16 +697,52 @@ const PaymentPage: React.FC = () => {
                         {BANKING_INFO.accountName}
                       </p>
                     </div>
-
-                    {/* Account Number */}
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">
-                        Account Number:
-                      </p>
-                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                        <p className="text-lg font-bold text-gray-900 font-mono tracking-wider">
-                          {BANKING_INFO.accountNumber}
+                    {/* ✅ Account Number - From QR Code */}
+                    {parsedQRData.accountNumber && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">
+                          Account Number:
                         </p>
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 flex items-center justify-between gap-2">
+                          <p className="text-lg font-bold text-gray-900 font-mono tracking-wider">
+                            {formatAccountNumber(parsedQRData.accountNumber)}
+                          </p>
+                          <button
+                            onClick={() =>
+                              handleCopy(parsedQRData.accountNumber!, "account")
+                            }
+                            className="text-gray-600 hover:text-gray-900 transition-colors"
+                            title="Copy account number"
+                          >
+                            {copiedField === "account" ? (
+                              <FaCheckCircle className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <FaCopy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {/* ✅ Amount to Transfer */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Amount:</p>
+                      <div className="bg-green-50 rounded-lg p-3 border border-green-200 flex items-center justify-between gap-2">
+                        <p className="text-xl font-bold text-green-900">
+                          {totals.total.toLocaleString()}đ
+                        </p>
+                        <button
+                          onClick={() =>
+                            handleCopy(totals.total.toString(), "amount")
+                          }
+                          className="text-green-700 hover:text-green-900 transition-colors"
+                          title="Copy amount"
+                        >
+                          {copiedField === "amount" ? (
+                            <FaCheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <FaCopy className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -854,7 +908,6 @@ const PaymentPage: React.FC = () => {
                       <div className="flex justify-between items-center pb-3 border-b border-black/10">
                         <span className="text-black/70">Duration</span>
                         <div className="text-right">
-                          {/* <div className="font-semibold">{totals.duration}</div> */}
                           {(totals.durationDays > 0 ||
                             totals.durationHours > 0) && (
                             <div className="text-base text-black/70 mt-0.5 font-semibold">

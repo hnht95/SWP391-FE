@@ -8,12 +8,16 @@ import profileApi, {
 } from "../../../../../service/apiUser/profile/API";
 import CancelledPaidBookingsPage from "./userProfileComponent/userTabComponent/CancelledPaidBookingsPage";
 import ManualRefundsDonePage from "./userProfileComponent/userTabComponent/ManualRefundsDonePage";
+import { useLocation } from "react-router-dom";
 
 type TabType = "profile" | "booking" | "cancelled-paid" | "manual-refunds";
 
 const UserProfile = () => {
+  const location = useLocation();
+  const initialTab = (location.state?.tab as TabType) || "profile";
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [user, setUser] = useState<UserProfileType | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>("profile");
+  // const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

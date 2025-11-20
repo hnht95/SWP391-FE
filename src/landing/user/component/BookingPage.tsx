@@ -715,12 +715,6 @@ const BookingPage: React.FC = () => {
                   </h3>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                      <span className="text-gray-600">Booking ID</span>
-                      <span className="font-mono font-semibold text-gray-900">
-                        {bookingData._id.slice(0, 8)}...
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
                       <span className="text-gray-600">Status</span>
                       <span className="capitalize font-semibold text-green-600">
                         {bookingData.status}

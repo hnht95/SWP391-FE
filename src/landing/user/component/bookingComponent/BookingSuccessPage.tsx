@@ -20,7 +20,6 @@ import {
   FaCalendarAlt,
   FaMoneyBillWave,
   FaArrowLeft,
-  FaDownload,
 } from "react-icons/fa";
 
 const BookingSuccessPage: React.FC = () => {
@@ -298,10 +297,6 @@ const BookingSuccessPage: React.FC = () => {
               >
                 {statusBadge.text}
               </h1>
-              <p className={`${statusBadge.textColor} text-lg`}>
-                Booking ID:{" "}
-                <span className="font-mono font-bold">{booking.bookingId}</span>
-              </p>
             </div>
           </div>
         </div>
@@ -426,34 +421,12 @@ const BookingSuccessPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Payment Summary */}
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2 border-t pt-4">
-                <FaMoneyBillWave className="text-yellow-600" />
-                Payment Summary
-              </h3>
-
               <div className="space-y-3 text-sm">
-                {/* Daily Rate */}
-                {dailyRate > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Daily Rate:</span>
-                    <span className="font-medium">
-                      {dailyRate.toLocaleString()}đ
-                    </span>
-                  </div>
-                )}
-
-                {/* Hourly Rate */}
-                {hourlyRate > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Hourly Rate:</span>
-                    <span className="font-medium">
-                      {hourlyRate.toLocaleString()}đ
-                    </span>
-                  </div>
-                )}
-
                 <hr className="border-gray-200" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2 border-t pt-4">
+                  <FaMoneyBillWave className="text-yellow-600" />
+                  Payment Summary
+                </h3>
 
                 {/* Days Calculation */}
                 {durationDetails.days > 0 && (
@@ -571,21 +544,13 @@ const BookingSuccessPage: React.FC = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
-            onClick={() => navigate("/profile")}
+            onClick={() => navigate("/profile", { state: { tab: "booking" } })}
             className="bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
           >
             <FaCar />
             My Bookings
-          </button>
-
-          <button
-            onClick={() => window.print()}
-            className="bg-gray-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
-          >
-            <FaDownload />
-            Print Receipt
           </button>
 
           <button

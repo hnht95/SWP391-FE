@@ -11,7 +11,6 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
-  Battery,
   Info as InfoIcon,
 } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -21,10 +20,8 @@ import type {
   DepositStatus,
 } from "../../../../../../../../service/apiUser/booking/API";
 import bookingApi from "../../../../../../../../service/apiUser/booking/API";
-import { getVehicleById } from "../../../../../../../../service/apiAdmin/apiVehicles/API";
 import ContractModal from "./ContractModal";
-import ExtendBookingModal from "./ExtendBookingModal";
-import ExtendPaymentModal from "./ExtendPaymentModal";
+// import ExtendBookingModal from "./ExtendBookingModal";
 
 type BookingDetailModalProps = {
   isOpen: boolean;
@@ -32,80 +29,30 @@ type BookingDetailModalProps = {
   bookingId: string;
 };
 
-// ✅ VehiclePhoto type
-type VehiclePhoto = {
-  _id?: string;
-  url: string;
-  type?: string;
-};
+// ✅ Helper function to get vehicle image URL from booking
+const getVehicleImageUrl = (booking: Booking | null): string | null => {
+  if (!booking?.vehicle || typeof booking.vehicle === "string") {
+    return null;
+  }
 
-// ✅ Updated VehicleDetails type
-type VehicleDetails = {
-  defaultPhotos?: {
-    exterior?: Array<string | VehiclePhoto>;
-    interior?: Array<string | VehiclePhoto>;
-  };
-  batteryCapacity?: number;
-  mileage?: number;
-  color?: string;
-  year?: number;
-};
+  // Try photos array first (flat array)
+  if (booking.vehicle.photos && booking.vehicle.photos.length > 0) {
+    return booking.vehicle.photos[0];
+  }
 
-// ✅ Updated ExtendPaymentData with all status values
-type ExtendPaymentData = {
-  bookingId: string;
-  status:
-    | "pending"
-    | "reserved"
-    | "active"
-    | "returning"
-    | "completed"
-    | "cancelled"
-    | "expired";
-  endTime: string;
-  feeEstimated: number;
-  pricingSnapshot?: {
-    baseMode?: "day+hour" | string;
-    days?: number;
-    hours?: number;
-    unitPriceDay?: number;
-    unitPriceHour?: number;
-    baseUnit?: string;
-    basePrice?: number;
-  };
-  payment?: {
-    provider: string;
-    type: "extension";
-    orderCode: number;
-    checkoutUrl: string;
-    qrCode: string;
-  };
-};
+  // Try defaultPhotos.exterior
+  const firstPhoto = booking.vehicle.defaultPhotos?.exterior?.[0];
+  if (!firstPhoto) return null;
 
-type ExtendedInfo = {
-  additionalCharge: number;
-  newEndTime: string;
-  raw?: {
-    bookingId?: string;
-    orderCode?: number;
-    checkoutUrl?: string;
-    qrCode?: string;
-    pricing?: {
-      days?: number;
-      hours?: number;
-      unitPriceDay?: number;
-      unitPriceHour?: number;
-    };
-  };
-};
+  // Handle both string and object formats
+  if (typeof firstPhoto === "string") {
+    return firstPhoto;
+  }
 
-// ✅ Helper function to safely extract image URL
-const getImageUrl = (
-  photo: string | VehiclePhoto | { url: string } | undefined
-): string | null => {
-  if (!photo) return null;
-  if (typeof photo === "string") return photo;
-  if (typeof photo === "object" && "url" in photo) return photo.url;
+  if (typeof firstPhoto === "object" && "url" in firstPhoto) {
+    return firstPhoto.url;
+  }
+
   return null;
 };
 
@@ -115,9 +62,6 @@ const BookingDetailModal = ({
   bookingId,
 }: BookingDetailModalProps) => {
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails | null>(
-    null
-  );
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [cancelError, setCancelError] = useState<string>("");
@@ -128,19 +72,15 @@ const BookingDetailModal = ({
 
   // Child modals
   const [openContract, setOpenContract] = useState<boolean>(false);
-  const [openExtend, setOpenExtend] = useState<boolean>(false);
+  // const [openExtend, setOpenExtend] = useState<boolean>(false);
 
-  // Payment modal for extension
-  const [openPay, setOpenPay] = useState<boolean>(false);
-  const [extendData, setExtendData] = useState<ExtendPaymentData | null>(null);
-
-  // ✅ Check if booking can be extended
-  const canExtend = useMemo(
-    () =>
-      !!booking &&
-      (booking.status === "active" || booking.status === "reserved"),
-    [booking]
-  );
+  // // ✅ Check if booking can be extended
+  // const canExtend = useMemo(
+  //   () =>
+  //     !!booking &&
+  //     (booking.status === "active" || booking.status === "reserved"),
+  //   [booking]
+  // );
 
   // ✅ Check if booking can be cancelled (before start time)
   const canCancel = useMemo(() => {
@@ -204,6 +144,11 @@ const BookingDetailModal = ({
     return { display, days, hours };
   }, [booking]);
 
+  // ✅ Get vehicle image URL directly from booking
+  const vehicleImage = useMemo<string | null>(() => {
+    return getVehicleImageUrl(booking);
+  }, [booking]);
+
   const fetchBookingDetails = useCallback(async () => {
     if (!isOpen || !bookingId) return;
     try {
@@ -212,26 +157,6 @@ const BookingDetailModal = ({
       setCancelError("");
       const bookingData = await bookingApi.getBookingById(bookingId);
       setBooking(bookingData);
-
-      const vehId =
-        typeof bookingData.vehicle === "object"
-          ? bookingData.vehicle._id
-          : String(bookingData.vehicle);
-
-      if (vehId) {
-        try {
-          const v = await getVehicleById(vehId);
-          setVehicleDetails({
-            defaultPhotos: v.defaultPhotos,
-            batteryCapacity: v.batteryCapacity,
-            mileage: v.mileage,
-            color: v.color,
-            year: v.year,
-          });
-        } catch {
-          // Ignore vehicle fetch errors
-        }
-      }
     } catch (e: unknown) {
       setError(
         e instanceof Error ? e.message : "Failed to load booking details"
@@ -252,20 +177,20 @@ const BookingDetailModal = ({
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (
-        e.key === "Escape" &&
-        !showConfirmCancel &&
-        !openContract &&
-        !openExtend
-      ) {
-        onClose();
-      }
-    };
-    if (isOpen) window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [isOpen, showConfirmCancel, openContract, openExtend, onClose]);
+  // useEffect(() => {
+  //   const handleEsc = (e: KeyboardEvent) => {
+  //     if (
+  //       e.key === "Escape" &&
+  //       !showConfirmCancel &&
+  //       !openContract &&
+  //       !openExtend
+  //     ) {
+  //       onClose();
+  //     }
+  //   };
+  //   if (isOpen) window.addEventListener("keydown", handleEsc);
+  //   return () => window.removeEventListener("keydown", handleEsc);
+  // }, [isOpen, showConfirmCancel, openContract, openExtend, onClose]);
 
   const handleCancelBooking = async () => {
     if (!booking) return;
@@ -292,30 +217,10 @@ const BookingDetailModal = ({
     }
   };
 
-  const handleExtendedCreated = (payload: ExtendedInfo) => {
-    const bid = payload.raw?.bookingId || bookingId;
-    const ext: ExtendPaymentData = {
-      bookingId: bid,
-      status: booking?.status || "reserved",
-      endTime: payload.newEndTime,
-      feeEstimated: payload.additionalCharge,
-      pricingSnapshot: {
-        days: payload.raw?.pricing?.days,
-        hours: payload.raw?.pricing?.hours,
-        unitPriceDay: payload.raw?.pricing?.unitPriceDay,
-        unitPriceHour: payload.raw?.pricing?.unitPriceHour,
-      },
-      payment: {
-        provider: "payos",
-        type: "extension",
-        orderCode: payload.raw?.orderCode || 0,
-        checkoutUrl: payload.raw?.checkoutUrl || "",
-        qrCode: payload.raw?.qrCode || "",
-      },
-    };
-    setExtendData(ext);
-    setOpenPay(true);
-  };
+  // const handleExtendedCreated = () => {
+  //   // Extension will navigate to payment page, just close modal
+  //   onClose();
+  // };
 
   const formatDate = (dateString: string): string =>
     new Intl.DateTimeFormat("en-US", {
@@ -325,12 +230,6 @@ const BookingDetailModal = ({
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(dateString));
-
-  // ✅ Updated vehicleImage with helper function
-  const vehicleImage = useMemo<string | null>(() => {
-    const firstPhoto = vehicleDetails?.defaultPhotos?.exterior?.[0];
-    return getImageUrl(firstPhoto);
-  }, [vehicleDetails]);
 
   const content = (
     <AnimatePresence mode="wait">
@@ -477,6 +376,16 @@ const BookingDetailModal = ({
                             src={vehicleImage}
                             alt={`${booking.vehicle.brand} ${booking.vehicle.model}`}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                              e.currentTarget.parentElement!.innerHTML = `
+                                <div class="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                  <svg class="w-24 h-24 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                  </svg>
+                                </div>
+                              `;
+                            }}
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                           <div className="absolute top-4 right-4">
@@ -535,28 +444,14 @@ const BookingDetailModal = ({
                               booking.vehicle.pricePerHour
                             )}
                           />
-                          {vehicleDetails?.year && (
+                          {booking.vehicle.year && (
                             <Info
                               label="Year"
-                              value={String(vehicleDetails.year)}
+                              value={String(booking.vehicle.year)}
                             />
                           )}
-                          {vehicleDetails?.color && (
-                            <Info label="Color" value={vehicleDetails.color} />
-                          )}
-                          {typeof vehicleDetails?.batteryCapacity ===
-                            "number" && (
-                            <Info
-                              label="Battery"
-                              value={`${vehicleDetails.batteryCapacity}%`}
-                              icon={<Battery className="w-3 h-3 mr-1" />}
-                            />
-                          )}
-                          {typeof vehicleDetails?.mileage === "number" && (
-                            <Info
-                              label="Mileage"
-                              value={`${vehicleDetails.mileage.toLocaleString()} km`}
-                            />
+                          {booking.vehicle.color && (
+                            <Info label="Color" value={booking.vehicle.color} />
                           )}
                         </div>
                       </div>
@@ -700,14 +595,14 @@ const BookingDetailModal = ({
                 )}
 
                 {/* Extend */}
-                {canExtend && (
+                {/* {canExtend && (
                   <button
                     onClick={() => setOpenExtend(true)}
                     className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                   >
                     Extend
                   </button>
-                )}
+                )} */}
 
                 {/* ✅ Cancel Booking - Only when reserved AND before start time */}
                 {canCancel && (
@@ -728,22 +623,13 @@ const BookingDetailModal = ({
             onClose={() => setOpenContract(false)}
             bookingId={bookingId}
           />
-
+          {/* 
           <ExtendBookingModal
             isOpen={openExtend}
             onClose={() => setOpenExtend(false)}
             bookingId={bookingId}
             onExtended={handleExtendedCreated}
-          />
-
-          <ExtendPaymentModal
-            isOpen={openPay}
-            onClose={() => setOpenPay(false)}
-            extendResult={extendData}
-            onPaid={async () => {
-              await fetchBookingDetails();
-            }}
-          />
+          /> */}
         </>
       )}
     </AnimatePresence>
