@@ -20,11 +20,11 @@ import {
   approveDamageReport,
   rejectDamageReport,
   formatCurrency,
-} from "../../../../service/apiBooking/API";
+} from "../../../../service/apiAdmin/apiBooking/API";
 import type {
   DamageReport,
   DamageReportStatus,
-} from "../../../../service/apiBooking/API";
+} from "../../../../service/apiAdmin/apiBooking/API";
 
 const DamageReportsManagement: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<DamageReport | null>(null);

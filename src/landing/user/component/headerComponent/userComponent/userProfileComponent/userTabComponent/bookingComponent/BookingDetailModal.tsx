@@ -11,16 +11,17 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
-  Battery,
+  Info as InfoIcon,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import ConfirmModal from "./ConfirmModal";
-import type { Booking } from "../../../../../../../../service/apiBooking/API";
-import bookingApi from "../../../../../../../../service/apiBooking/API";
-import { getVehicleById } from "../../../../../../../../service/apiAdmin/apiVehicles/API";
+import type {
+  Booking,
+  DepositStatus,
+} from "../../../../../../../../service/apiUser/booking/API";
+import bookingApi from "../../../../../../../../service/apiUser/booking/API";
 import ContractModal from "./ContractModal";
-import ExtendBookingModal from "./ExtendBookingModal";
-import ExtendPaymentModal from "./ExtendPaymentModal";
+// import ExtendBookingModal from "./ExtendBookingModal";
 
 type BookingDetailModalProps = {
   isOpen: boolean;
@@ -28,45 +29,31 @@ type BookingDetailModalProps = {
   bookingId: string;
 };
 
-type VehicleDetails = {
-  defaultPhotos?: {
-    exterior?: Array<{ url: string }>;
-    interior?: Array<{ url: string }>;
-  };
-  batteryCapacity?: number;
-  mileage?: number;
-  color?: string;
-  year?: number;
-};
+// ✅ Helper function to get vehicle image URL from booking
+const getVehicleImageUrl = (booking: Booking | null): string | null => {
+  if (!booking?.vehicle || typeof booking.vehicle === "string") {
+    return null;
+  }
 
-// Kiểu dữ liệu cho modal thanh toán gia hạn
-type ExtendPaymentData = {
-  bookingId: string;
-  status:
-    | "reserved"
-    | "active"
-    | "returning"
-    | "completed"
-    | "cancelled"
-    | "expired";
-  endTime: string;
-  feeEstimated: number;
-  pricingSnapshot?: {
-    baseMode?: "day+hour" | string;
-    days?: number;
-    hours?: number;
-    unitPriceDay?: number;
-    unitPriceHour?: number;
-    baseUnit?: string;
-    basePrice?: number;
-  };
-  payment?: {
-    provider: string;
-    type: "extension";
-    orderCode: number;
-    checkoutUrl: string;
-    qrCode: string;
-  };
+  // Try photos array first (flat array)
+  if (booking.vehicle.photos && booking.vehicle.photos.length > 0) {
+    return booking.vehicle.photos[0];
+  }
+
+  // Try defaultPhotos.exterior
+  const firstPhoto = booking.vehicle.defaultPhotos?.exterior?.[0];
+  if (!firstPhoto) return null;
+
+  // Handle both string and object formats
+  if (typeof firstPhoto === "string") {
+    return firstPhoto;
+  }
+
+  if (typeof firstPhoto === "object" && "url" in firstPhoto) {
+    return firstPhoto.url;
+  }
+
+  return null;
 };
 
 const BookingDetailModal = ({
@@ -75,61 +62,101 @@ const BookingDetailModal = ({
   bookingId,
 }: BookingDetailModalProps) => {
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails | null>(
-    null
-  );
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
+  const [cancelError, setCancelError] = useState<string>("");
 
   // Cancel
   const [showConfirmCancel, setShowConfirmCancel] = useState<boolean>(false);
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
 
-  // Return
-  const [showConfirmReturn, setShowConfirmReturn] = useState<boolean>(false);
-
   // Child modals
   const [openContract, setOpenContract] = useState<boolean>(false);
-  const [openExtend, setOpenExtend] = useState<boolean>(false);
+  // const [openExtend, setOpenExtend] = useState<boolean>(false);
 
-  // Payment modal for extension
-  const [openPay, setOpenPay] = useState<boolean>(false);
-  const [extendData, setExtendData] = useState<ExtendPaymentData | null>(null);
+  // // ✅ Check if booking can be extended
+  // const canExtend = useMemo(
+  //   () =>
+  //     !!booking &&
+  //     (booking.status === "active" || booking.status === "reserved"),
+  //   [booking]
+  // );
 
-  const canExtend = useMemo(
-    () =>
-      !!booking &&
-      (booking.status === "active" || booking.status === "reserved"),
-    [booking]
-  );
+  // ✅ Check if booking can be cancelled (before start time)
+  const canCancel = useMemo(() => {
+    if (!booking || booking.status !== "reserved") return false;
+
+    const now = new Date();
+    const startTime = new Date(booking.startTime);
+
+    return now < startTime;
+  }, [booking]);
+
+  // ✅ Calculate time until start
+  const timeUntilStart = useMemo(() => {
+    if (!booking) return null;
+
+    const now = new Date();
+    const startTime = new Date(booking.startTime);
+    const diffMs = startTime.getTime() - now.getTime();
+
+    if (diffMs < 0) return null;
+
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours > 24) {
+      const days = Math.floor(hours / 24);
+      return `${days} day${days > 1 ? "s" : ""} until start`;
+    }
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m until start`;
+    }
+
+    return `${minutes} minute${minutes > 1 ? "s" : ""} until start`;
+  }, [booking]);
+
+  // ✅ Calculate duration with days + hours breakdown
+  const bookingDuration = useMemo(() => {
+    if (!booking) return { display: "N/A", days: 0, hours: 0 };
+
+    const start = new Date(booking.startTime);
+    const end = new Date(booking.endTime);
+    const diffMs = end.getTime() - start.getTime();
+    const totalHours = diffMs / (1000 * 60 * 60);
+
+    const days = Math.floor(totalHours / 24);
+    const hours = Math.ceil(totalHours % 24);
+
+    let display = "";
+    if (days > 0) {
+      display += `${days} day${days > 1 ? "s" : ""}`;
+    }
+    if (hours > 0) {
+      display +=
+        days > 0 ? ` ${hours}h` : `${hours} hour${hours > 1 ? "s" : ""}`;
+    }
+    if (days === 0 && hours === 0) {
+      display = "Less than 1 hour";
+    }
+
+    return { display, days, hours };
+  }, [booking]);
+
+  // ✅ Get vehicle image URL directly from booking
+  const vehicleImage = useMemo<string | null>(() => {
+    return getVehicleImageUrl(booking);
+  }, [booking]);
 
   const fetchBookingDetails = useCallback(async () => {
     if (!isOpen || !bookingId) return;
     try {
       setIsLoading(true);
       setError("");
+      setCancelError("");
       const bookingData = await bookingApi.getBookingById(bookingId);
       setBooking(bookingData);
-
-      const vehId =
-        typeof bookingData.vehicle === "object"
-          ? bookingData.vehicle._id
-          : String(bookingData.vehicle);
-
-      if (vehId) {
-        try {
-          const v = await getVehicleById(vehId);
-          setVehicleDetails({
-            defaultPhotos: v.defaultPhotos,
-            batteryCapacity: v.batteryCapacity,
-            mileage: v.mileage,
-            color: v.color,
-            year: v.year,
-          });
-        } catch {
-          // ignore
-        }
-      }
     } catch (e: unknown) {
       setError(
         e instanceof Error ? e.message : "Failed to load booking details"
@@ -150,84 +177,50 @@ const BookingDetailModal = ({
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (
-        e.key === "Escape" &&
-        !showConfirmCancel &&
-        !openContract &&
-        !openExtend &&
-        !showConfirmReturn
-      ) {
-        onClose();
-      }
-    };
-    if (isOpen) window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [
-    isOpen,
-    showConfirmCancel,
-    openContract,
-    openExtend,
-    showConfirmReturn,
-    onClose,
-  ]);
+  // useEffect(() => {
+  //   const handleEsc = (e: KeyboardEvent) => {
+  //     if (
+  //       e.key === "Escape" &&
+  //       !showConfirmCancel &&
+  //       !openContract &&
+  //       !openExtend
+  //     ) {
+  //       onClose();
+  //     }
+  //   };
+  //   if (isOpen) window.addEventListener("keydown", handleEsc);
+  //   return () => window.removeEventListener("keydown", handleEsc);
+  // }, [isOpen, showConfirmCancel, openContract, openExtend, onClose]);
 
   const handleCancelBooking = async () => {
     if (!booking) return;
+
+    if (!canCancel) {
+      setCancelError("Cannot cancel booking after start time has passed");
+      setShowConfirmCancel(false);
+      return;
+    }
+
     try {
       setIsCancelling(true);
+      setCancelError("");
       await bookingApi.cancelBooking(booking._id, "Cancelled by user");
       setShowConfirmCancel(false);
       onClose();
-    } catch {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to cancel booking";
+      setCancelError(errorMessage);
       setShowConfirmCancel(false);
     } finally {
       setIsCancelling(false);
     }
   };
 
-  // Nhận data từ ExtendBookingModal sau khi gọi API extend
-  const handleExtendedCreated = (payload: {
-    additionalCharge: number;
-    newEndTime: string;
-    // Cho phép truyền thêm raw để build modal thanh toán
-    raw?: {
-      bookingId?: string;
-      orderCode?: number;
-      checkoutUrl?: string;
-      qrCode?: string;
-      pricing?: {
-        days?: number;
-        hours?: number;
-        unitPriceDay?: number;
-        unitPriceHour?: number;
-      };
-    };
-  }) => {
-    const bid = payload.raw?.bookingId || bookingId;
-    const ext: ExtendPaymentData = {
-      bookingId: bid,
-      status: booking?.status || "reserved",
-      endTime: payload.newEndTime,
-      feeEstimated: payload.additionalCharge,
-      pricingSnapshot: {
-        days: payload.raw?.pricing?.days,
-        hours: payload.raw?.pricing?.hours,
-        unitPriceDay: payload.raw?.pricing?.unitPriceDay,
-        unitPriceHour: payload.raw?.pricing?.unitPriceHour,
-      },
-      payment: {
-        provider: "payos",
-        type: "extension",
-        orderCode: payload.raw?.orderCode || 0,
-        checkoutUrl: payload.raw?.checkoutUrl || "",
-        qrCode: payload.raw?.qrCode || "",
-      },
-    };
-    setExtendData(ext);
-    setOpenPay(true);
-  };
+  // const handleExtendedCreated = () => {
+  //   // Extension will navigate to payment page, just close modal
+  //   onClose();
+  // };
 
   const formatDate = (dateString: string): string =>
     new Intl.DateTimeFormat("en-US", {
@@ -237,11 +230,6 @@ const BookingDetailModal = ({
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(dateString));
-
-  const vehicleImage = useMemo<string | null>(() => {
-    const url = vehicleDetails?.defaultPhotos?.exterior?.[0]?.url;
-    return url || null;
-  }, [vehicleDetails]);
 
   const content = (
     <AnimatePresence mode="wait">
@@ -289,14 +277,13 @@ const BookingDetailModal = ({
                       transition={{ delay: 0.2 }}
                       className="text-sm text-gray-300"
                     >
-                      {booking
+                      {booking && typeof booking.vehicle === "object"
                         ? `${booking.vehicle.brand} ${booking.vehicle.model}`
                         : ""}
                     </motion.p>
                   </div>
                 </div>
 
-                {/* Only close on header */}
                 <motion.button
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
@@ -323,16 +310,82 @@ const BookingDetailModal = ({
                   </div>
                 )}
 
+                {/* ✅ Cancel Error Alert */}
+                {!!cancelError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 bg-red-50 border-2 border-red-200 rounded-xl p-4 flex items-start gap-3"
+                  >
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-red-800 mb-1">
+                        Cannot Cancel Booking
+                      </p>
+                      <p className="text-sm text-red-600">{cancelError}</p>
+                    </div>
+                  </motion.div>
+                )}
+
                 {booking && !isLoading && !error && (
                   <div className="space-y-6">
+                    {/* ✅ Warning if can't cancel */}
+                    {booking.status === "reserved" && !canCancel && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 flex items-start gap-3"
+                      >
+                        <InfoIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-amber-800 mb-1">
+                            Cancellation Not Available
+                          </p>
+                          <p className="text-sm text-amber-700">
+                            This booking has already started and cannot be
+                            cancelled.
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* ✅ Time until start info */}
+                    {booking.status === "reserved" && timeUntilStart && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 flex items-start gap-3"
+                      >
+                        <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-blue-800 mb-1">
+                            Booking Starts Soon
+                          </p>
+                          <p className="text-sm text-blue-700">
+                            {timeUntilStart}
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+
                     {/* Hero */}
                     <div className="relative bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                      {vehicleImage ? (
+                      {vehicleImage && typeof booking.vehicle === "object" ? (
                         <div className="relative h-64 w-full">
                           <img
                             src={vehicleImage}
                             alt={`${booking.vehicle.brand} ${booking.vehicle.model}`}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                              e.currentTarget.parentElement!.innerHTML = `
+                                <div class="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                  <svg class="w-24 h-24 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                  </svg>
+                                </div>
+                              `;
+                            }}
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                           <div className="absolute top-4 right-4">
@@ -370,52 +423,41 @@ const BookingDetailModal = ({
                     </div>
 
                     {/* Vehicle info */}
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <Car className="w-5 h-5 text-gray-700" />
-                        <h3 className="text-lg font-bold text-gray-900">
-                          Vehicle Information
-                        </h3>
-                      </div>
-                      <div className="grid grid-cols-2 gap-6">
-                        <Info
-                          label="Price per Day"
-                          value={bookingApi.formatCurrency(
-                            booking.vehicle.pricePerDay
+                    {typeof booking.vehicle === "object" && (
+                      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div className="flex items-center space-x-2 mb-4">
+                          <Car className="w-5 h-5 text-gray-700" />
+                          <h3 className="text-lg font-bold text-gray-900">
+                            Vehicle Information
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-2 gap-6">
+                          <Info
+                            label="Price per Day"
+                            value={bookingApi.formatCurrency(
+                              booking.vehicle.pricePerDay
+                            )}
+                          />
+                          <Info
+                            label="Price per Hour"
+                            value={bookingApi.formatCurrency(
+                              booking.vehicle.pricePerHour
+                            )}
+                          />
+                          {booking.vehicle.year && (
+                            <Info
+                              label="Year"
+                              value={String(booking.vehicle.year)}
+                            />
                           )}
-                        />
-                        <Info
-                          label="Price per Hour"
-                          value={bookingApi.formatCurrency(
-                            booking.vehicle.pricePerHour
+                          {booking.vehicle.color && (
+                            <Info label="Color" value={booking.vehicle.color} />
                           )}
-                        />
-                        {vehicleDetails?.year ? (
-                          <Info
-                            label="Year"
-                            value={String(vehicleDetails.year)}
-                          />
-                        ) : null}
-                        {vehicleDetails?.color ? (
-                          <Info label="Color" value={vehicleDetails.color} />
-                        ) : null}
-                        {typeof vehicleDetails?.batteryCapacity === "number" ? (
-                          <Info
-                            label="Battery"
-                            value={`${vehicleDetails.batteryCapacity}%`}
-                            icon={<Battery className="w-3 h-3 mr-1" />}
-                          />
-                        ) : null}
-                        {typeof vehicleDetails?.mileage === "number" ? (
-                          <Info
-                            label="Mileage"
-                            value={`${vehicleDetails.mileage.toLocaleString()} km`}
-                          />
-                        ) : null}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Period */}
+                    {/* ✅ Period with detailed duration */}
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                       <div className="flex items-center space-x-2 mb-4">
                         <Calendar className="w-5 h-5 text-gray-700" />
@@ -432,14 +474,30 @@ const BookingDetailModal = ({
                           label="End Time"
                           value={formatDate(booking.endTime)}
                         />
-                        <Info
-                          label="Duration"
-                          value={`${bookingApi.calculateDuration(
-                            booking.startTime,
-                            booking.endTime
-                          )} days`}
-                          icon={<Clock className="w-3 h-3 mr-1" />}
-                        />
+
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-500 font-medium flex items-center">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Duration
+                          </p>
+
+                          {(bookingDuration.days > 0 ||
+                            bookingDuration.hours > 0) && (
+                            <div className="text-base font-semibold text-gray-900 mt-1">
+                              {bookingDuration.days > 0 &&
+                                `${bookingDuration.days} day${
+                                  bookingDuration.days > 1 ? "s" : ""
+                                }`}
+                              {bookingDuration.days > 0 &&
+                                bookingDuration.hours > 0 &&
+                                " + "}
+                              {bookingDuration.hours > 0 &&
+                                `${bookingDuration.hours} hour${
+                                  bookingDuration.hours > 1 ? "s" : ""
+                                }`}
+                            </div>
+                          )}
+                        </div>
                         <Info
                           label="Created At"
                           value={formatDate(booking.createdAt)}
@@ -448,22 +506,24 @@ const BookingDetailModal = ({
                     </div>
 
                     {/* Station */}
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <MapPin className="w-5 h-5 text-gray-700" />
-                        <h3 className="text-lg font-bold text-gray-900">
-                          Pickup Station
-                        </h3>
+                    {typeof booking.station === "object" && (
+                      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div className="flex items-center space-x-2 mb-4">
+                          <MapPin className="w-5 h-5 text-gray-700" />
+                          <h3 className="text-lg font-bold text-gray-900">
+                            Pickup Station
+                          </h3>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-base font-semibold text-gray-900">
+                            {booking.station.name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {booking.station.location.address}
+                          </p>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-base font-semibold text-gray-900">
-                          {booking.station.name}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {booking.station.location.address}
-                        </p>
-                      </div>
-                    </div>
+                    )}
 
                     {/* Payment */}
                     <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 shadow-sm border border-green-100">
@@ -484,7 +544,7 @@ const BookingDetailModal = ({
                           <span className="text-green-700">Deposit Status</span>
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-medium ${bookingApi.getDepositStatusColor(
-                              booking.deposit.status
+                              booking.deposit.status as DepositStatus
                             )}`}
                           >
                             {booking.deposit.status.toUpperCase()}
@@ -528,27 +588,27 @@ const BookingDetailModal = ({
                   <button
                     type="button"
                     onClick={() => setOpenContract(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     View Contract
                   </button>
                 )}
 
                 {/* Extend */}
-                {canExtend && (
+                {/* {canExtend && (
                   <button
                     onClick={() => setOpenExtend(true)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                   >
                     Extend
                   </button>
-                )}
+                )} */}
 
-                {/* Cancel Booking when reserved */}
-                {booking?.status === "reserved" && (
+                {/* ✅ Cancel Booking - Only when reserved AND before start time */}
+                {canCancel && (
                   <button
                     onClick={() => setShowConfirmCancel(true)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                   >
                     Cancel Booking
                   </button>
@@ -563,29 +623,13 @@ const BookingDetailModal = ({
             onClose={() => setOpenContract(false)}
             bookingId={bookingId}
           />
-
+          {/* 
           <ExtendBookingModal
             isOpen={openExtend}
             onClose={() => setOpenExtend(false)}
             bookingId={bookingId}
-            onExtended={(info) => {
-              // info: { additionalCharge, newEndTime, ...optional raw}
-              handleExtendedCreated({
-                additionalCharge: info.additionalCharge,
-                newEndTime: info.newEndTime,
-                raw: info.raw,
-              });
-            }}
-          />
-
-          <ExtendPaymentModal
-            isOpen={openPay}
-            onClose={() => setOpenPay(false)}
-            extendResult={extendData}
-            onPaid={async () => {
-              await fetchBookingDetails();
-            }}
-          />
+            onExtended={handleExtendedCreated}
+          /> */}
         </>
       )}
     </AnimatePresence>

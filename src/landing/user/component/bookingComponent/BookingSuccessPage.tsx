@@ -5,7 +5,7 @@ import {
   getBookingById,
   getPaymentStatus,
   type Booking,
-} from "../../../../service/apiBooking/API";
+} from "../../../../service/apiUser/booking/API";
 import {
   getVehicleById,
   type Vehicle,
@@ -20,9 +20,6 @@ import {
   FaCalendarAlt,
   FaMoneyBillWave,
   FaArrowLeft,
-  FaDownload,
-  FaWhatsapp,
-  FaEnvelope,
 } from "react-icons/fa";
 
 const BookingSuccessPage: React.FC = () => {
@@ -34,6 +31,23 @@ const BookingSuccessPage: React.FC = () => {
   const [paymentStatus, setPaymentStatus] = useState<string>("pending");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // ✅ Helper function to get vehicle image URL
+  const getVehicleImageUrl = (vehicle: Vehicle | null): string | null => {
+    if (!vehicle?.defaultPhotos?.exterior?.[0]) return null;
+
+    const firstPhoto = vehicle.defaultPhotos.exterior[0];
+
+    if (typeof firstPhoto === "string") {
+      return firstPhoto;
+    }
+
+    if (typeof firstPhoto === "object" && "url" in firstPhoto) {
+      return (firstPhoto as { url: string }).url;
+    }
+
+    return null;
+  };
 
   // ✅ Calculate duration with days + hours (same as BookingPage)
   const calculateDurationDetails = (startTime?: string, endTime?: string) => {
@@ -76,8 +90,9 @@ const BookingSuccessPage: React.FC = () => {
           const paymentData = await getPaymentStatus(bookingId);
           console.log("💳 Payment data:", paymentData);
 
+          // ✅ Fixed: Correct path to deposit status
           const status =
-            paymentData.current?.depositStatus ||
+            paymentData.current?.deposit?.status ||
             paymentData.deposit?.status ||
             bookingData.deposit?.status ||
             "pending";
@@ -88,6 +103,7 @@ const BookingSuccessPage: React.FC = () => {
             "Payment status fetch failed, using booking deposit status"
           );
           setPaymentStatus(bookingData.deposit?.status || "pending");
+          throw paymentErr;
         }
 
         if (bookingData.vehicle) {
@@ -103,13 +119,15 @@ const BookingSuccessPage: React.FC = () => {
           } catch (vehicleErr) {
             console.warn("Vehicle fetch failed:", vehicleErr);
             if (typeof bookingData.vehicle === "object") {
-              setVehicle(bookingData.vehicle as any);
+              setVehicle(bookingData.vehicle as Vehicle);
             }
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch booking details:", err);
-        setError(err.message || "Failed to load booking details");
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to load booking details";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -248,6 +266,9 @@ const BookingSuccessPage: React.FC = () => {
   // Total = Rental Cost + Deposit
   const totalAmount = rentalCost + depositAmount;
 
+  // ✅ Get vehicle image URL using helper function
+  const vehicleImageUrl = getVehicleImageUrl(vehicle);
+
   console.log("💰 Calculation breakdown:", {
     durationDetails,
     dailyRate,
@@ -258,6 +279,7 @@ const BookingSuccessPage: React.FC = () => {
     vehicleValue: vehicle?.valuation?.valueVND,
     depositAmount,
     totalAmount,
+    vehicleImageUrl,
   });
 
   return (
@@ -275,10 +297,6 @@ const BookingSuccessPage: React.FC = () => {
               >
                 {statusBadge.text}
               </h1>
-              <p className={`${statusBadge.textColor} text-lg`}>
-                Booking ID:{" "}
-                <span className="font-mono font-bold">{booking.bookingId}</span>
-              </p>
             </div>
           </div>
         </div>
@@ -298,10 +316,11 @@ const BookingSuccessPage: React.FC = () => {
 
               {vehicle ? (
                 <div className="space-y-4">
+                  {/* ✅ Fixed: Using helper function to get image URL */}
                   <div className="w-full h-48 bg-gray-200 rounded-lg overflow-hidden">
-                    {vehicle.defaultPhotos?.exterior?.[0]?.url ? (
+                    {vehicleImageUrl ? (
                       <img
-                        src={vehicle.defaultPhotos.exterior[0].url}
+                        src={vehicleImageUrl}
                         alt={`${vehicle.brand} ${vehicle.model}`}
                         className="w-full h-full object-cover"
                       />
@@ -402,30 +421,12 @@ const BookingSuccessPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Payment Summary */}
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2 border-t pt-4">
-                <FaMoneyBillWave className="text-yellow-600" />
-                Payment Summary
-              </h3>
-
               <div className="space-y-3 text-sm">
-                {/* Daily Rate */}
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Daily Rate:</span>
-                  <span className="font-medium">
-                    {dailyRate.toLocaleString()}đ
-                  </span>
-                </div>
-
-                {/* Hourly Rate */}
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Hourly Rate:</span>
-                  <span className="font-medium">
-                    {hourlyRate.toLocaleString()}đ
-                  </span>
-                </div>
-
                 <hr className="border-gray-200" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2 border-t pt-4">
+                  <FaMoneyBillWave className="text-yellow-600" />
+                  Payment Summary
+                </h3>
 
                 {/* Days Calculation */}
                 {durationDetails.days > 0 && (
@@ -543,21 +544,13 @@ const BookingSuccessPage: React.FC = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
-            onClick={() => navigate("/profile")}
+            onClick={() => navigate("/profile", { state: { tab: "booking" } })}
             className="bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
           >
             <FaCar />
             My Bookings
-          </button>
-
-          <button
-            onClick={() => window.print()}
-            className="bg-gray-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
-          >
-            <FaDownload />
-            Print Receipt
           </button>
 
           <button

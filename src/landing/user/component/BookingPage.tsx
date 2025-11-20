@@ -1,5 +1,5 @@
 // pages/BookingPage.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 import {
@@ -7,7 +7,10 @@ import {
   type Vehicle,
 } from "../../../service/apiAdmin/apiVehicles/API";
 import type { Station } from "../../../service/apiAdmin/apiStation/API";
-import { createBooking } from "../../../service/apiBooking/API";
+import {
+  createBooking,
+  type CreateBookingResponse,
+} from "../../../service/apiUser/booking/API";
 import {
   FaArrowLeft,
   FaBatteryFull,
@@ -33,8 +36,6 @@ const BookingPage: React.FC = () => {
   const [formError, setFormError] = useState<string>("");
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
   const [bookingData, setBookingData] = useState<CreateBookingResponse | null>(
     null
   );
@@ -43,6 +44,34 @@ const BookingPage: React.FC = () => {
   const [pickupTime, setPickupTime] = useState("10:00");
   const [returnDate, setReturnDate] = useState("");
   const [returnTime, setReturnTime] = useState("10:00");
+
+  // ✅ Get user avatar URL
+  const userAvatar = useMemo(() => {
+    if (!user?.avatarUrl) return null;
+
+    const avatarValue = user.avatarUrl;
+
+    if (typeof avatarValue === "string") {
+      return avatarValue;
+    }
+
+    if (typeof avatarValue === "object" && "url" in avatarValue) {
+      return (avatarValue as { url: string }).url || null;
+    }
+
+    return null;
+  }, [user?.avatarUrl]);
+
+  // ✅ Get user initials
+  const getUserInitials = (name?: string): string => {
+    if (!name) return "G";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   useEffect(() => {
     const fetchVehicle = async () => {
@@ -58,9 +87,11 @@ const BookingPage: React.FC = () => {
         const data = await getVehicleById(vehicleId);
         console.log("Fetched vehicle for booking:", data);
         setVehicle(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch vehicle:", err);
-        setError(err.message || "Failed to load vehicle details");
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to load vehicle details";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -69,7 +100,7 @@ const BookingPage: React.FC = () => {
     fetchVehicle();
   }, [vehicleId]);
 
-  // ✅ NEW: Calculate duration with days + hours
+  // ✅ Calculate duration with days + hours
   const calculateDurationDetails = () => {
     if (!pickupDate || !returnDate) {
       return { totalHours: 0, days: 0, hours: 0 };
@@ -80,16 +111,16 @@ const BookingPage: React.FC = () => {
 
     // Calculate total hours difference
     const diffMs = Math.abs(end.getTime() - start.getTime());
-    const totalHours = diffMs / (1000 * 60 * 60); // Convert ms to hours
+    const totalHours = diffMs / (1000 * 60 * 60);
 
     // Calculate full days and remaining hours
     const days = Math.floor(totalHours / 24);
-    const hours = Math.ceil(totalHours % 24); // Round up remaining hours
+    const hours = Math.ceil(totalHours % 24);
 
     return { totalHours, days, hours };
   };
 
-  // ✅ NEW: Calculate rental cost based on days + hours
+  // ✅ Calculate rental cost based on days + hours
   const calculateRentalCost = () => {
     if (!vehicle) return 0;
 
@@ -152,11 +183,13 @@ const BookingPage: React.FC = () => {
 
       setBookingData(response);
       setShowSuccessModal(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("❌ Failed to create booking:", err);
-      setFormError(
-        err.message || "Failed to create booking. Please try again."
-      );
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to create booking. Please try again.";
+      setFormError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -289,7 +322,7 @@ const BookingPage: React.FC = () => {
                         <p className="text-sm text-gray-600">{vehicle.year}</p>
                       </div>
 
-                      {/* ✅ Updated Price Badge - Show both rates */}
+                      {/* Price Badge */}
                       <div className="absolute bottom-4 right-4 bg-black/90 backdrop-blur-sm rounded-xl px-5 py-3 shadow-lg">
                         <p className="text-xl font-bold text-white">
                           {vehicle.pricePerDay.toLocaleString()}đ/day
@@ -365,7 +398,7 @@ const BookingPage: React.FC = () => {
                             <p className="font-bold text-lg mb-1">
                               {station.name}
                             </p>
-                            <p className="text-sm">
+                            <p className="text-sm text-gray-600">
                               {station.location.address}
                             </p>
                           </div>
@@ -392,7 +425,7 @@ const BookingPage: React.FC = () => {
                             <p className="font-bold text-lg">
                               1.5% of vehicle value
                             </p>
-                            <p className="text-sm mt-1">
+                            <p className="text-sm text-gray-600 mt-1">
                               Refundable upon return in original condition
                             </p>
                           </div>
@@ -410,11 +443,37 @@ const BookingPage: React.FC = () => {
                     transition={{ delay: 0.2 }}
                     className="sticky top-24 space-y-6"
                   >
-                    {/* User Info Card */}
+                    {/* ✅ Updated User Info Card with Avatar */}
                     <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 border border-gray-200/50 rounded-2xl p-6">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center text-white font-bold">
-                          {user?.name?.charAt(0).toUpperCase() || "G"}
+                        {/* ✅ Show actual avatar or initials */}
+                        <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-gray-200">
+                          {userAvatar ? (
+                            <img
+                              src={userAvatar}
+                              alt={user?.name || "User"}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  const initials = getUserInitials(user?.name);
+                                  parent.innerHTML = `
+                                    <div class="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                                      <span class="text-white text-sm font-bold">${initials}</span>
+                                    </div>
+                                  `;
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                              <span className="text-white text-sm font-bold">
+                                {getUserInitials(user?.name)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <p className="text-sm text-gray-600 font-medium">
@@ -490,28 +549,13 @@ const BookingPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* ✅ UPDATED Booking Summary */}
+                      {/* Booking Summary */}
                       <div className="shadow border-slate-200 rounded-2xl p-6 text-black">
-                        <h3 className="font-bold mb-4 text-lg flex items-center gap-2">
-                          <FaCreditCard className="text-black text-lg" />
-                          Booking Summary
-                        </h3>
                         <div className="space-y-3 text-sm">
-                          {/* Daily Rate */}
-                          <div className="flex justify-between items-center pb-3 border-b border-black/10">
-                            <span className="text-black/70">Daily Rate</span>
-                            <span className="font-semibold">
-                              {vehicle.pricePerDay.toLocaleString()}đ
-                            </span>
-                          </div>
-
-                          {/* Hourly Rate */}
-                          <div className="flex justify-between items-center pb-3 border-b border-black/10">
-                            <span className="text-black/70">Hourly Rate</span>
-                            <span className="font-semibold">
-                              {vehicle.pricePerHour.toLocaleString()}đ
-                            </span>
-                          </div>
+                          <h3 className="font-bold mb-4 text-lg flex items-center gap-2">
+                            <FaCreditCard className="text-black text-lg" />
+                            Booking Summary
+                          </h3>
 
                           {/* Duration Breakdown */}
                           <div className="flex justify-between items-center pb-3 border-b border-black/10">
@@ -544,13 +588,13 @@ const BookingPage: React.FC = () => {
                             <div className="text-right">
                               {durationDetails.days > 0 && (
                                 <div className="text-xs text-gray-600">
-                                  {durationDetails.days} ×{" "}
+                                  {durationDetails.days} day(s) ×{" "}
                                   {vehicle.pricePerDay.toLocaleString()}đ
                                 </div>
                               )}
                               {durationDetails.hours > 0 && (
                                 <div className="text-xs text-blue-600">
-                                  + {durationDetails.hours} ×{" "}
+                                  + {durationDetails.hours} hour(s) ×{" "}
                                   {vehicle.pricePerHour.toLocaleString()}đ
                                 </div>
                               )}
@@ -573,7 +617,7 @@ const BookingPage: React.FC = () => {
                           {/* Total */}
                           <div className="flex justify-between items-center pt-2">
                             <span className="text-lg font-bold">Total</span>
-                            <span className="text-2xl font-bold text-green-400">
+                            <span className="text-2xl font-bold text-green-600">
                               {grandTotal.toLocaleString()}đ
                             </span>
                           </div>
@@ -638,7 +682,7 @@ const BookingPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-9999 p-4"
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -671,12 +715,6 @@ const BookingPage: React.FC = () => {
                   </h3>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                      <span className="text-gray-600">Booking ID</span>
-                      <span className="font-mono font-semibold text-gray-900">
-                        {bookingData._id.slice(0, 8)}...
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
                       <span className="text-gray-600">Status</span>
                       <span className="capitalize font-semibold text-green-600">
                         {bookingData.status}
@@ -688,7 +726,6 @@ const BookingPage: React.FC = () => {
                         {vehicle?.brand} {vehicle?.model}
                       </span>
                     </div>
-                    {/* ✅ Show duration breakdown in modal */}
                     <div className="flex justify-between items-center py-2 border-b border-gray-200">
                       <span className="text-gray-600">Duration</span>
                       <span className="font-semibold text-gray-900">

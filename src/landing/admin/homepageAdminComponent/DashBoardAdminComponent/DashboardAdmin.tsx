@@ -3,25 +3,23 @@ import { motion } from "framer-motion";
 import { MdDirectionsCar, MdWarning, MdCheckCircle, MdLocationOn, MdPeople } from "react-icons/md";
 import { PageTransition } from "../../component/animations";
 import PageTitle from "../../component/PageTitle";
-import { getAdminTransactions } from "../../../../service/apiBooking/API";
-import type { AdminTransactionItem } from "../../../../service/apiBooking/API";
+import { getAdminTransactions } from "../../../../service/apiAdmin/apiBooking/API";
+import type { AdminTransactionItem } from "../../../../service/apiAdmin/apiBooking/API";
 import Bookedmanagement from "../BookingManagementComponent/Bookedmanagement";
 import { getAllVehicles } from "../../../../service/apiAdmin/apiVehicles/API";
 import { getAllStations } from "../../../../service/apiAdmin/apiStation/API";
 import { getAllUsers } from "../../../../service/apiAdmin/apiListUser/API";
 import type { Station as StationType } from "../../../../service/apiAdmin/apiStation/API";
-import {
-  NotificationBell,
-  StatsCards,
-  BookingVolumeChart,
-  PaymentStatisticsChart,
-  StationSection,
-  StationModal,
-  FleetBatteryMonitor,
-  RecentActivity,
-  useNotifications,
-  type BookingRangeKey,
-} from "./index";
+import NotificationBell from "./NotificationBell";
+import StatsCards from "./StatsCards";
+import BookingVolumeChart from "./BookingVolumeChart";
+import PaymentStatisticsChart from "./PaymentStatisticsChart";
+import StationSection from "./StationSection";
+import StationModal from "./StationModal";
+import FleetBatteryMonitor from "./FleetBatteryMonitor";
+import RecentActivity from "./RecentActivity";
+import type { BookingRangeKey } from "./types";
+import { useNotifications } from "./hooks/useNotifications";
 
 const DashboardAdmin: React.FC = () => {
   // State for API data

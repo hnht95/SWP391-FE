@@ -260,7 +260,7 @@ const VehiclesDetail: React.FC = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-center"
           >
-            <h1 className="text-5xl font-bold text-white mb-2 drop-shadow-lg">
+            <h1 className="text-5xl font-bold text-shadow text-stroke-black-2 text-white mb-2 drop-shadow-lg">
               {vehicle.brand} {vehicle.model}
             </h1>
             <div className="flex items-center gap-4 text-sm text-white/90 justify-center">

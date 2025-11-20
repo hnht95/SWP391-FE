@@ -13,13 +13,13 @@ import VehiclesStaff from "../landing/staff/homepageStaffComponent/VehiclesStaff
 import StaffUser from "../landing/staff/homepageStaffComponent/StaffUser";
 import LayoutAdmin from "../landing/admin/LayoutAdmin";
 import DashboardAdmin from "../landing/admin/homepageAdminComponent/DashBoardAdminComponent/DashboardAdmin";
-import VehiclesManagement from "../landing/admin/homepageAdminComponent/VehicleManagementComponent";
+import VehiclesManagement from "../landing/admin/homepageAdminComponent/VehicleManagementComponent/VehiclesManagement";
 // import StationManagementAdmin from "../landing/admin/homepageAdminComponent/StationManagementAdmin";
 import ListUserManagement from "../landing/admin/homepageAdminComponent/UserManagerComponent/ListUserManagement";
 import UserVerification from "../landing/admin/homepageAdminComponent/UserManagerComponent/UserVerification";
-import TransactionHistory from "../landing/admin/homepageAdminComponent/BookingManagementComponent";
-import DamageReportsManagement from "../landing/admin/homepageAdminComponent/DamageReportsComponent";
-import ManualRefundsManagement from "../landing/admin/homepageAdminComponent/ManualRefundsComponent";
+import TransactionHistory from "../landing/admin/homepageAdminComponent/BookingManagementComponent/TransactionHistory";
+import DamageReportsManagement from "../landing/admin/homepageAdminComponent/DamageReportsComponent/DamageReportsManagement";
+import ManualRefundsManagement from "../landing/admin/homepageAdminComponent/ManualRefundsComponent/ManualRefundsManagement";
 // import ReportsAndAI from "../landing/admin/homepageAdminComponent/ReportsAndAI";
 import AboutUs from "../landing/user/component/subnavComponent/AboutUs";
 import Vehicles from "../landing/user/component/subnavComponent/Vehicles";

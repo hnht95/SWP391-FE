@@ -1,5 +1,5 @@
 // pages/PaymentPage.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import {
@@ -13,21 +13,48 @@ import {
   FaCarSide,
   FaMoneyBillWave,
   FaLightbulb,
+  FaCopy,
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   getPaymentStatus,
   type Booking,
-} from "../../../../service/apiBooking/API";
-import { getVehicleById } from "../../../../service/apiAdmin/apiVehicles/API";
-import type { Vehicle } from "../../../../types/vehicle";
+} from "../../../../service/apiUser/booking/API";
+import {
+  getVehicleById,
+  type Vehicle,
+} from "../../../../service/apiAdmin/apiVehicles/API";
+import logoBankMB from "../../../../assets/bank/mbBank.jpg";
+import { ThreeDots } from "react-loader-spinner";
+import {
+  parseVietQRCode,
+  formatAccountNumber,
+} from "../../../../hooks/qrCodeParser";
 
 const PAYMENT_TIMEOUT_MINUTES = 15;
 const PAYMENT_TIMEOUT_SECONDS = PAYMENT_TIMEOUT_MINUTES * 60;
 
+// ✅ Banking info constants (fallback only)
+const BANKING_INFO = {
+  accountName: "NGUYEN NGO GIA MINH",
+  bankName: "MB Bank",
+  bankLogo: logoBankMB,
+} as const;
+
 interface PaymentTimer {
   bookingId: string;
   expiryTime: number;
+}
+
+interface CalculatedTotals {
+  dailyRate: number;
+  hourlyRate: number;
+  durationDays: number;
+  durationHours: number;
+  duration: string;
+  rentalCost: number;
+  deposit: number;
+  total: number;
 }
 
 const getPaymentTimerKey = (bookingId: string) => `payment_timer_${bookingId}`;
@@ -41,7 +68,7 @@ const getPaymentTimer = (bookingId: string): PaymentTimer | null => {
   const saved = localStorage.getItem(getPaymentTimerKey(bookingId));
   if (!saved) return null;
   try {
-    return JSON.parse(saved);
+    return JSON.parse(saved) as PaymentTimer;
   } catch {
     return null;
   }
@@ -65,13 +92,7 @@ const PaymentPage: React.FC = () => {
   const locationState = location.state as {
     booking?: Booking;
     vehicle?: Vehicle;
-    calculatedTotals?: {
-      dailyRate: number;
-      duration: number;
-      rentalCost: number;
-      deposit: number;
-      total: number;
-    };
+    calculatedTotals?: Partial<CalculatedTotals>;
   } | null;
 
   const [booking, setBooking] = useState<Booking | null>(
@@ -80,7 +101,7 @@ const PaymentPage: React.FC = () => {
   const [vehicle, setVehicle] = useState<Vehicle | null>(
     locationState?.vehicle || null
   );
-  const [calculatedTotals, setCalculatedTotals] = useState(
+  const [calculatedTotals] = useState<Partial<CalculatedTotals> | null>(
     locationState?.calculatedTotals || null
   );
 
@@ -91,9 +112,31 @@ const PaymentPage: React.FC = () => {
   const [isExpired, setIsExpired] = useState(false);
   const [loading, setLoading] = useState(!booking);
   const [error, setError] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const timerInitializedRef = useRef(false);
+
+  // ✅ Parse QR code to extract account number and content
+  const parsedQRData = useMemo(() => {
+    const qrCode = booking?.deposit?.payos?.qrCode;
+    if (!qrCode) {
+      return {
+        accountNumber: null,
+        content: null,
+        isValid: false,
+      };
+    }
+    return parseVietQRCode(qrCode);
+  }, [booking?.deposit?.payos?.qrCode]);
+
+  // ✅ Copy to clipboard handler
+  const handleCopy = (text: string, field: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    });
+  };
 
   // Initialize or restore payment timer
   useEffect(() => {
@@ -176,13 +219,26 @@ const PaymentPage: React.FC = () => {
     fetchBookingData();
   }, [bookingId, booking]);
 
-  // ✅ FIXED: Calculate totals with correct fields
-  const calculateTotals = () => {
-    if (calculatedTotals) return calculatedTotals;
+  const calculateTotals = (): CalculatedTotals => {
+    if (calculatedTotals) {
+      return {
+        dailyRate: calculatedTotals.dailyRate || 0,
+        hourlyRate: calculatedTotals.hourlyRate || 0,
+        durationDays: calculatedTotals.durationDays || 0,
+        durationHours: calculatedTotals.durationHours || 0,
+        duration: calculatedTotals.duration || "0d",
+        rentalCost: calculatedTotals.rentalCost || 0,
+        deposit: calculatedTotals.deposit || 0,
+        total: calculatedTotals.total || 0,
+      };
+    }
 
     if (!booking) {
       return {
         dailyRate: 0,
+        hourlyRate: 0,
+        durationDays: 0,
+        durationHours: 0,
         duration: "0d",
         rentalCost: 0,
         deposit: 0,
@@ -190,27 +246,29 @@ const PaymentPage: React.FC = () => {
       };
     }
 
-    // Get vehicle valuation for deposit calculation
     let vehicleValue = 0;
     if (typeof booking.vehicle === "object" && booking.vehicle !== null) {
-      const vehicle = booking.vehicle as any;
-      vehicleValue = vehicle.valuation?.valueVND || 0;
+      const vehicleData = booking.vehicle as Record<string, unknown>;
+      const valuation = vehicleData.valuation as
+        | Record<string, unknown>
+        | undefined;
+      vehicleValue = (valuation?.valueVND as number) || 0;
     }
 
-    // Calculate deposit: 1.5% of vehicle value
     const deposit = Math.round(vehicleValue * 0.015);
 
-    // Get rental cost from pricingSnapshot.basePrice
-    const pricingSnapshot = booking.pricingSnapshot as any;
+    const pricingSnapshot = booking.pricingSnapshot as
+      | Record<string, unknown>
+      | undefined;
     const rentalCost =
-      pricingSnapshot?.basePrice || booking.amounts?.rentalEstimated || 0;
+      (pricingSnapshot?.basePrice as number) ||
+      booking.amounts?.rentalEstimated ||
+      0;
 
-    // Total = rental + deposit
     const total = rentalCost + deposit;
 
-    // ✅ FIX: Duration - check both days and hours
-    const days = pricingSnapshot?.days || 0;
-    const hours = pricingSnapshot?.hours || 0;
+    const days = (pricingSnapshot?.days as number) || 0;
+    const hours = (pricingSnapshot?.hours as number) || 0;
 
     let durationText: string;
     if (days > 0 && hours > 0) {
@@ -223,23 +281,14 @@ const PaymentPage: React.FC = () => {
       durationText = "0d";
     }
 
-    // Daily rate
-    const dailyRate = pricingSnapshot?.unitPriceDay || 0;
-
-    console.log("💰 Payment breakdown:", {
-      vehicleValue: vehicleValue.toLocaleString(),
-      deposit: deposit.toLocaleString(),
-      rentalCost: rentalCost.toLocaleString(),
-      total: total.toLocaleString(),
-      days,
-      hours,
-      durationText,
-      dailyRate: dailyRate.toLocaleString(),
-      pricingSnapshot, // ✅ Debug full object
-    });
+    const dailyRate = (pricingSnapshot?.unitPriceDay as number) || 0;
+    const hourlyRate = (pricingSnapshot?.unitPriceHour as number) || 0;
 
     return {
       dailyRate,
+      hourlyRate,
+      durationDays: days,
+      durationHours: hours,
       duration: durationText,
       rentalCost,
       deposit,
@@ -248,6 +297,38 @@ const PaymentPage: React.FC = () => {
   };
 
   const totals = calculateTotals();
+
+  const getVehicleImageUrl = (): string | null => {
+    if (!vehicle && typeof booking?.vehicle === "object") {
+      const bookingVehicle = booking.vehicle as Record<string, unknown>;
+      const defaultPhotos = bookingVehicle?.defaultPhotos as
+        | Record<string, unknown>
+        | undefined;
+      const exterior = defaultPhotos?.exterior as Array<unknown> | undefined;
+      const exteriorPhoto = exterior?.[0];
+
+      if (typeof exteriorPhoto === "string") return exteriorPhoto;
+      if (
+        exteriorPhoto &&
+        typeof exteriorPhoto === "object" &&
+        "url" in exteriorPhoto
+      ) {
+        return (exteriorPhoto as { url: string }).url;
+      }
+    }
+
+    if (vehicle?.defaultPhotos?.exterior?.[0]) {
+      const photo = vehicle.defaultPhotos.exterior[0];
+      if (typeof photo === "string") return photo;
+      if (typeof photo === "object" && "url" in photo) {
+        return (photo as { url: string }).url;
+      }
+    }
+
+    return null;
+  };
+
+  const vehicleImageUrl = getVehicleImageUrl();
 
   // Generate QR Code
   useEffect(() => {
@@ -279,7 +360,7 @@ const PaymentPage: React.FC = () => {
     if (!bookingId || isExpired || paymentStatus === "captured") return;
 
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
+      setTimeLeft(() => {
         const savedTimer = getPaymentTimer(bookingId);
         if (!savedTimer) return 0;
 
@@ -382,6 +463,16 @@ const PaymentPage: React.FC = () => {
         >
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-300 border-t-gray-900 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <ThreeDots
+              height="40"
+              width="40"
+              radius="9"
+              color="#000000"
+              ariaLabel="three-dots-loading"
+              wrapperStyle={{}}
+              wrapperClass=""
+              visible={true}
+            />
             Loading Payment...
           </h2>
         </motion.div>
@@ -422,11 +513,17 @@ const PaymentPage: React.FC = () => {
   const vehicleInfo =
     typeof booking.vehicle === "object" && booking.vehicle !== null
       ? {
-          brand: (booking.vehicle as any).brand || "Unknown",
-          model: (booking.vehicle as any).model || "Vehicle",
-          licensePlate: (booking.vehicle as any).plateNumber || "N/A",
+          brand:
+            ((booking.vehicle as Record<string, unknown>).brand as string) ||
+            "Unknown",
+          model:
+            ((booking.vehicle as Record<string, unknown>).model as string) ||
+            "Vehicle",
+          licensePlate:
+            ((booking.vehicle as Record<string, unknown>)
+              .plateNumber as string) || "N/A",
         }
-      : vehicle || { brand: "Unknown", model: "Vehicle", licensePlate: "N/A" };
+      : vehicle || { brand: "Unknown", model: "Vehicle", plateNumber: "N/A" };
 
   return (
     <div className="min-h-screen">
@@ -482,6 +579,7 @@ const PaymentPage: React.FC = () => {
               )}
             </AnimatePresence>
 
+            {/* Status Messages */}
             <AnimatePresence mode="wait">
               {isExpired && (
                 <motion.div
@@ -509,30 +607,6 @@ const PaymentPage: React.FC = () => {
                         <FaArrowLeft />
                         Back to Vehicles
                       </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {!isExpired && paymentStatus === "pending" && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-2xl p-6"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 animate-pulse">
-                      <FaClock className="text-white text-xl" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-blue-900 text-lg mb-1">
-                        Awaiting Payment
-                      </h3>
-                      <p className="text-sm text-blue-700">
-                        Scan the QR code with your banking app or use the
-                        payment button below
-                      </p>
                     </div>
                   </div>
                 </motion.div>
@@ -586,13 +660,97 @@ const PaymentPage: React.FC = () => {
             </AnimatePresence>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* LEFT COLUMN - BANKING INFO & QR CODE */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
+                className="space-y-4"
               >
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 border border-gray-200">
-                  <div className="flex items-center gap-3 mb-6">
+                {/* ✅ Banking Info Section - Dynamic from QR Code */}
+                <div className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
+                  {/* Header with MB Bank Logo - Centered */}
+                  <div className="flex flex-col items-center justify-center gap-3 mb-4 pb-3 border-b border-gray-200">
+                    <img
+                      src={BANKING_INFO.bankLogo}
+                      alt="MB Bank"
+                      className="w-auto h-20 object-contain"
+                    />
+                    <div className="text-center">
+                      <h3 className="text-base font-bold text-gray-900">
+                        Military Commercial Joint Stock Bank
+                      </h3>
+                      <p className="text-xs text-gray-600">
+                        Transfer Information
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Banking Details */}
+                  <div className="space-y-3">
+                    {/* Account Name */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">
+                        Account Name:
+                      </p>
+                      <p className="text-base font-bold text-gray-900 uppercase">
+                        {BANKING_INFO.accountName}
+                      </p>
+                    </div>
+                    {/* ✅ Account Number - From QR Code */}
+                    {parsedQRData.accountNumber && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">
+                          Account Number:
+                        </p>
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 flex items-center justify-between gap-2">
+                          <p className="text-lg font-bold text-gray-900 font-mono tracking-wider">
+                            {formatAccountNumber(parsedQRData.accountNumber)}
+                          </p>
+                          <button
+                            onClick={() =>
+                              handleCopy(parsedQRData.accountNumber!, "account")
+                            }
+                            className="text-gray-600 hover:text-gray-900 transition-colors"
+                            title="Copy account number"
+                          >
+                            {copiedField === "account" ? (
+                              <FaCheckCircle className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <FaCopy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {/* ✅ Amount to Transfer */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Amount:</p>
+                      <div className="bg-green-50 rounded-lg p-3 border border-green-200 flex items-center justify-between gap-2">
+                        <p className="text-xl font-bold text-green-900">
+                          {totals.total.toLocaleString()}đ
+                        </p>
+                        <button
+                          onClick={() =>
+                            handleCopy(totals.total.toString(), "amount")
+                          }
+                          className="text-green-700 hover:text-green-900 transition-colors"
+                          title="Copy amount"
+                        >
+                          {copiedField === "amount" ? (
+                            <FaCheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <FaCopy className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* QR Code Section */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
                       <FaQrcode className="text-white text-lg" />
                     </div>
@@ -606,7 +764,7 @@ const PaymentPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-2xl p-6 shadow-lg">
+                  <div className="bg-white rounded-2xl p-4 shadow-lg">
                     <div className="flex items-center justify-center">
                       {qrCodeUrl && !isExpired ? (
                         <motion.div
@@ -617,20 +775,20 @@ const PaymentPage: React.FC = () => {
                           <img
                             src={qrCodeUrl}
                             alt="Payment QR Code"
-                            className="w-72 h-72 rounded-xl"
+                            className="w-64 h-64 rounded-xl"
                           />
                         </motion.div>
                       ) : isExpired ? (
-                        <div className="w-72 h-72 flex flex-col items-center justify-center bg-gray-100 rounded-xl">
+                        <div className="w-64 h-64 flex flex-col items-center justify-center bg-gray-100 rounded-xl">
                           <FaExclamationTriangle className="text-gray-400 text-4xl mb-3" />
                           <p className="text-gray-500 font-semibold">
                             QR Code Expired
                           </p>
                         </div>
                       ) : (
-                        <div className="w-72 h-72 flex flex-col items-center justify-center bg-gray-100 rounded-xl">
+                        <div className="w-64 h-64 flex flex-col items-center justify-center bg-gray-100 rounded-xl">
                           <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-gray-900 mb-3"></div>
-                          <p className="text-gray-600 font-medium">
+                          <p className="text-gray-600 font-medium text-sm">
                             Generating QR Code...
                           </p>
                         </div>
@@ -638,8 +796,8 @@ const PaymentPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <p className="text-sm text-blue-900 font-medium text-center flex items-center justify-center gap-2">
+                  <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                    <p className="text-xs text-blue-900 font-medium text-center flex items-center justify-center gap-2">
                       <FaLightbulb className="text-blue-600" />
                       Open your banking app and scan this code
                     </p>
@@ -647,65 +805,128 @@ const PaymentPage: React.FC = () => {
                 </div>
               </motion.div>
 
+              {/* RIGHT COLUMN - BOOKING SUMMARY */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
               >
                 <div className="space-y-6">
-                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
-                        <FaCarSide className="text-white text-xl" />
+                  {/* Vehicle Card with Image */}
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl overflow-hidden border border-gray-200">
+                    {vehicleImageUrl && (
+                      <div className="relative h-48 w-full">
+                        <img
+                          src={vehicleImageUrl}
+                          alt={`${vehicleInfo.brand} ${vehicleInfo.model}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                        <div className="absolute bottom-4 left-4">
+                          <h3 className="text-xl font-bold text-white">
+                            {vehicleInfo.brand} {vehicleInfo.model}
+                          </h3>
+                          {vehicleInfo.plateNumber &&
+                            vehicleInfo.plateNumber !== "N/A" && (
+                              <p className="text-sm text-white/90 font-mono">
+                                {vehicleInfo.plateNumber}
+                              </p>
+                            )}
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">
-                          Booking Summary
-                        </h3>
-                        <p className="text-xs text-gray-600">
-                          Review your details
-                        </p>
-                      </div>
-                    </div>
+                    )}
 
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                        <span className="text-sm text-gray-600">Vehicle</span>
-                        <span className="font-semibold text-gray-900">
-                          {vehicleInfo.brand} {vehicleInfo.model}
-                        </span>
+                    <div className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
+                          <FaCarSide className="text-white text-xl" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900">
+                            Booking Summary
+                          </h3>
+                          <p className="text-xs text-gray-600">
+                            Review your details
+                          </p>
+                        </div>
                       </div>
-                      {vehicleInfo.licensePlate &&
-                        vehicleInfo.licensePlate !== "N/A" && (
+
+                      {!vehicleImageUrl && (
+                        <div className="space-y-3">
                           <div className="flex items-center justify-between py-2 border-b border-gray-200">
                             <span className="text-sm text-gray-600">
-                              License Plate
+                              Vehicle
                             </span>
-                            <span className="font-semibold text-gray-900 font-mono">
-                              {vehicleInfo.licensePlate}
+                            <span className="font-semibold text-gray-900">
+                              {vehicleInfo.brand} {vehicleInfo.model}
                             </span>
                           </div>
-                        )}
+                          {vehicleInfo.plateNumber &&
+                            vehicleInfo.plateNumber !== "N/A" && (
+                              <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                                <span className="text-sm text-gray-600">
+                                  License Plate
+                                </span>
+                                <span className="font-semibold text-gray-900 font-mono">
+                                  {vehicleInfo.plateNumber}
+                                </span>
+                              </div>
+                            )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
+                  {/* Payment Breakdown */}
                   <div className="bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl p-6 text-black">
                     <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                       <FaMoneyBillWave className="text-black" />
-                      Payment Breakdown
+                      Note:
                     </h3>
 
                     <div className="space-y-3 text-sm">
-                      <div className="flex justify-between items-center pb-3 border-b border-black/10">
-                        <span className="text-black/70">Daily Rate</span>
-                        <span className="font-semibold">
-                          {totals.dailyRate.toLocaleString()}đ
-                        </span>
-                      </div>
+                      {totals.dailyRate > 0 && (
+                        <div className="flex justify-between items-center pb-3 border-b border-black/10">
+                          <span className="text-black/70">Daily Rate</span>
+                          <span className="font-semibold">
+                            {totals.dailyRate.toLocaleString()}đ
+                          </span>
+                        </div>
+                      )}
+                      {totals.hourlyRate > 0 && (
+                        <div className="flex justify-between items-center pb-3 border-b border-black/10">
+                          <span className="text-black/70">Hourly Rate</span>
+                          <span className="font-semibold">
+                            {totals.hourlyRate.toLocaleString()}đ
+                          </span>
+                        </div>
+                      )}
+                      <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                        <FaMoneyBillWave className="text-black" />
+                        Payment Detail:
+                      </h3>
                       <div className="flex justify-between items-center pb-3 border-b border-black/10">
                         <span className="text-black/70">Duration</span>
-                        <span className="font-semibold">{totals.duration}</span>
+                        <div className="text-right">
+                          {(totals.durationDays > 0 ||
+                            totals.durationHours > 0) && (
+                            <div className="text-base text-black/70 mt-0.5 font-semibold">
+                              {totals.durationDays > 0 &&
+                                `${totals.durationDays} day${
+                                  totals.durationDays > 1 ? "s" : ""
+                                }`}
+                              {totals.durationDays > 0 &&
+                                totals.durationHours > 0 &&
+                                " + "}
+                              {totals.durationHours > 0 &&
+                                `${totals.durationHours} hour${
+                                  totals.durationHours > 1 ? "s" : ""
+                                }`}
+                            </div>
+                          )}
+                        </div>
                       </div>
+
                       <div className="flex justify-between items-center pb-3 border-b border-black/10">
                         <span className="text-black/70">Rental Cost</span>
                         <span className="font-semibold">
@@ -721,13 +942,14 @@ const PaymentPage: React.FC = () => {
 
                       <div className="flex justify-between items-center pt-3">
                         <span className="text-lg font-bold">Total Amount</span>
-                        <span className="text-3xl font-bold text-green-400">
+                        <span className="text-3xl font-bold text-green-600">
                           {totals.total.toLocaleString()}đ
                         </span>
                       </div>
                     </div>
                   </div>
 
+                  {/* Action Buttons */}
                   {!isExpired && (
                     <div className="space-y-3">
                       <button

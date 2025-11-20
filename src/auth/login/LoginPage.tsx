@@ -53,11 +53,11 @@ const LoginPage = () => {
           const { role } = user;
 
           if (role === "admin") {
-            navigate("/admin");
+            window.location.href = "/admin";
           } else if (role === "staff") {
-            navigate("/staff");
+            window.location.href = "/staff";
           } else if (role === "renter") {
-            navigate("/home");
+            window.location.href = "/home";
           } else {
             navigate("/home");
           }
