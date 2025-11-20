@@ -10,7 +10,6 @@ import {
   MdAccessTime,
   MdInfo,
   MdCheckCircle,
-  MdCancel,
   MdSchedule,
   MdLink
 } from "react-icons/md";

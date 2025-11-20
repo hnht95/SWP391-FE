@@ -58,7 +58,7 @@ const UpdateUserModal: React.FC<UpdateUserModalProps> = ({ user, isOpen, onClose
         name: user.name,
         email: user.email,
         phone: user.phone,
-        gender: user.gender || "male",
+        gender: (user.gender as "male" | "female" | "other") || "male",
         isActive: user.status === "active",
       });
       setErrors({});

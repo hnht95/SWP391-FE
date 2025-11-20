@@ -5,7 +5,7 @@ import type { RawApiUser } from "../../../types/userTypes";
 
 // ✅ User query filters
 export interface UserListFilters {
-  role?: "admin" | "staff" | "renter" | "partner";
+  role?: "admin" | "staff" | "renter" ;
   isActive?: boolean;
   page?: number;
   limit?: number;
@@ -248,7 +248,7 @@ export interface UserStats {
     admin: number;
     staff: number;
     renter: number;
-    partner: number;
+    
   };
 }
 
@@ -269,7 +269,7 @@ export const getUserStats = async (): Promise<UserStats> => {
         admin: 0,
         staff: 0,
         renter: 0,
-        partner: 0,
+       
       },
     };
   } catch (error) {
@@ -281,7 +281,7 @@ export const getUserStats = async (): Promise<UserStats> => {
         admin: 0,
         staff: 0,
         renter: 0,
-        partner: 0,
+       
       },
     };
   }

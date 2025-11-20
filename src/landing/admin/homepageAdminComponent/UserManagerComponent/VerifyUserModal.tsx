@@ -25,18 +25,6 @@ const InfoRow = ({ label, value }: { label: string; value?: React.ReactNode }) =
   </div>
 );
 
-const ImageBox = ({ label, url }: { label: string; url: string | null }) => (
-  <div>
-    <p className="text-sm text-gray-600 mb-2">{label}</p>
-    {url ? (
-      <img src={url} alt={label} className="w-full h-44 object-cover rounded-lg border" />
-    ) : (
-      <div className="w-full h-44 rounded-lg border flex items-center justify-center text-gray-400 text-sm">
-        No image
-      </div>
-    )}
-  </div>
-);
 
 const VerifyUserModal: React.FC<VerifyUserModalProps> = ({ user, isOpen, onClose, onApprove }) => {
   if (!isOpen || !user) return null;
@@ -98,7 +86,7 @@ const VerifyUserModal: React.FC<VerifyUserModalProps> = ({ user, isOpen, onClose
                   <div className="mt-4 pt-4 border-t">
                     <h5 className="text-sm font-semibold text-gray-800 mb-2">KYC</h5>
                     <InfoRow label="ID Number" value={user.kyc?.idNumber} />
-                    <InfoRow label="License Number" value={user.kyc?.licenseNumber as any} />
+                    <InfoRow label="License Number" value={(user.kyc as any)?.licenseNumber || "N/A"} />
                     <InfoRow label="Verified" value={user.kyc?.verified ? "Yes" : "No"} />
                     {user.kyc?.verifiedAt && (
                       <InfoRow label="Verified At" value={new Date(user.kyc.verifiedAt).toLocaleString()} />

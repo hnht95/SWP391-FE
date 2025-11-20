@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { MdSearch, MdFilterList } from "react-icons/md";
+import { MdSearch } from "react-icons/md";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface VehicleFiltersProps {

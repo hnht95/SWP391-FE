@@ -42,7 +42,7 @@ const ReportMaintenanceModal: React.FC<ReportMaintenanceModalProps> = ({
     setError(null);
 
     try {
-      await reportMaintenance(vehicle.id || vehicle._id || "", formData);
+      await reportMaintenance(vehicle._id || "", formData);
       onSuccess?.();
       onClose();
     } catch (err) {

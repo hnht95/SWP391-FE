@@ -9,9 +9,6 @@ const Bookedmanagement: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [total, setTotal] = useState<number>(0);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [modalBookings, setModalBookings] = useState<Booking[]>([]);
   const [modalLoading, setModalLoading] = useState<boolean>(false);
@@ -21,17 +18,26 @@ const Bookedmanagement: React.FC = () => {
   const limit = 3;
   const modalLimit = 10;
 
-  const fetchBookings = useCallback(async (page: number) => {
+  const fetchBookings = useCallback(async (_page: number) => {
     try {
       setLoading(true);
       setError(null);
+      // Fetch more items to ensure we get the newest bookings, then take only the first 'limit' items
+      // This ensures widget shows the same newest bookings as modal
+      const fetchLimit = Math.max(limit * 2, 10); // Fetch at least 10 items to ensure we have enough
       const response: PaginatedBookingsResponse = await getBookedVehicles({
-        page,
-        limit,
+        page: 1, // Always fetch page 1 for widget to get newest bookings
+        limit: fetchLimit,
       });
-      setBookings(response.items || []);
-      setTotalPages(response.totalPages || 1);
-      setTotal(response.total || 0);
+      // Sort bookings by createdAt (newest booking received first)
+      const sortedBookings = (response.items || []).sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA; // Descending order (newest booking first)
+      });
+      // Take only the first 'limit' items for display (3 newest bookings)
+      const displayBookings = sortedBookings.slice(0, limit);
+      setBookings(displayBookings);
     } catch (err: any) {
       console.error("Error fetching booked vehicles:", err);
       setError(err?.message || "Failed to load bookings");
@@ -48,7 +54,13 @@ const Bookedmanagement: React.FC = () => {
         page,
         limit: modalLimit,
       });
-      setModalBookings(response.items || []);
+      // Sort bookings by createdAt (newest booking received first)
+      const sortedBookings = (response.items || []).sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA; // Descending order (newest booking first)
+      });
+      setModalBookings(sortedBookings);
       setModalTotalPages(response.totalPages || 1);
       setModalTotal(response.total || 0);
     } catch (err: any) {
@@ -60,8 +72,8 @@ const Bookedmanagement: React.FC = () => {
   }, [modalLimit]);
 
   useEffect(() => {
-    fetchBookings(currentPage);
-  }, [currentPage, fetchBookings]);
+    fetchBookings(1); // Always fetch page 1 for widget (newest bookings)
+  }, [fetchBookings]);
 
   useEffect(() => {
     if (showModal) {
@@ -245,57 +257,7 @@ const Bookedmanagement: React.FC = () => {
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-3 lg:mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-gray-200 pt-3 lg:pt-4 flex-shrink-0">
-              <div className="text-xs text-gray-600 whitespace-nowrap">
-                Hiển thị {(currentPage - 1) * limit + 1} - {Math.min(currentPage * limit, total)} / {total}
-              </div>
-              <div className="flex items-center gap-1.5 lg:gap-2 w-full sm:w-auto justify-end">
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg border border-gray-300 text-xs lg:text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Trước
-                </button>
-                <div className="flex items-center gap-0.5 lg:gap-1">
-                  {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                    let pageNum: number;
-                    if (totalPages <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 2) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 1) {
-                      pageNum = totalPages - 2 + i;
-                    } else {
-                      pageNum = currentPage - 1 + i;
-                    }
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg text-xs lg:text-sm font-medium ${
-                          currentPage === pageNum
-                            ? "bg-blue-600 text-white"
-                            : "border border-gray-300 text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg border border-gray-300 text-xs lg:text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Sau
-                </button>
-              </div>
-            </div>
-          )}
+          {/* No pagination for widget - always shows 3 newest bookings */}
         </>
       )}
 

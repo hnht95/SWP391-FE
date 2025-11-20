@@ -12,7 +12,7 @@ const hasAllKycFields = (u: RawApiUser): boolean => {
   const k = u.kyc || ({} as any);
   const required = [
     k.idNumber,
-    k.licenseNumber,
+    (k as any).licenseNumber,
     k.idFrontImage,
     k.idBackImage,
     k.licenseFrontImage,
@@ -171,7 +171,7 @@ const UserVerification: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
                           <div>ID: {u.kyc?.idNumber}</div>
-                          <div>License: {u.kyc?.licenseNumber}</div>
+                          <div>License: {(u.kyc as any)?.licenseNumber || "N/A"}</div>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <button

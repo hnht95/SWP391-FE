@@ -25,10 +25,12 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     pending_maintenance: { color: "bg-amber-100 text-amber-700", text: "Pending Maintenance" },
   };
 
-  const config = statusConfig[status] || { 
-    color: "bg-gray-100 text-gray-800", 
-    text: status || "Unknown" 
-  };
+  const config = status && status in statusConfig 
+    ? statusConfig[status as VehicleStatus] 
+    : { 
+        color: "bg-gray-100 text-gray-800", 
+        text: status || "Unknown" 
+      };
 
   return (
     <span
