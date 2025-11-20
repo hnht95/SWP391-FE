@@ -207,7 +207,7 @@ export default function Header({
             <div className="max-w-4xl mx-auto">
               <Search
                 className="w-full"
-                placeholder="Tìm kiếm xe điện, địa điểm, dịch vụ..."
+                placeholder="Finding vehicles, stations by name or location..."
                 onSearchComplete={() => setIsSearchOpen(false)}
                 isSearchOpen={isSearchOpen}
               />
