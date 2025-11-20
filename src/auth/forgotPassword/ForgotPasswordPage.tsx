@@ -1,40 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaEnvelope, FaArrowLeft } from "react-icons/fa";
 import { motion, type Variants } from "framer-motion";
+import { Loader2 } from "lucide-react";
 import AuthLayout from "../AuthLayout";
 import { forgotPassword, resetPassword } from "../../service/apiUser/auth/API";
-
-/* Local loading dots component (bouncing) */
-const LoadingDots: React.FC<{ color?: string }> = ({ color = "bg-white" }) => (
-  <div className="flex items-center gap-1">
-    <span className={`w-2 h-2 rounded-full ${color}`} />
-    <span className={`w-2 h-2 rounded-full ${color}`} />
-    <span className={`w-2 h-2 rounded-full ${color}`} />
-    <style jsx>{`
-      div > span {
-        animation: bounce 0.9s infinite ease-in-out;
-      }
-      div > span:nth-child(2) {
-        animation-delay: 0.15s;
-      }
-      div > span:nth-child(3) {
-        animation-delay: 0.3s;
-      }
-      @keyframes bounce {
-        0%,
-        80%,
-        100% {
-          transform: translateY(0);
-          opacity: 0.6;
-        }
-        40% {
-          transform: translateY(-6px);
-          opacity: 1;
-        }
-      }
-    `}</style>
-  </div>
-);
 
 const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState<string>("");
@@ -429,7 +398,7 @@ const ForgotPasswordPage: React.FC = () => {
             >
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2">
-                  <LoadingDots />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Processing...</span>
                 </div>
               ) : (
@@ -466,7 +435,7 @@ const ForgotPasswordPage: React.FC = () => {
             >
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2">
-                  <LoadingDots color="bg-black" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Sending...</span>
                 </div>
               ) : (
@@ -574,7 +543,7 @@ const ForgotPasswordPage: React.FC = () => {
         >
           {isLoading ? (
             <div className="flex items-center justify-center gap-2">
-              <LoadingDots />
+              <Loader2 className="w-4 h-4 animate-spin" />
               <span>Sending...</span>
             </div>
           ) : (

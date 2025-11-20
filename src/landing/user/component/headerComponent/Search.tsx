@@ -17,6 +17,7 @@ import {
   type Station,
 } from "../../../../service/apiAdmin/apiStation/API";
 import "../../../../styles/searchCardAnimations.css";
+
 interface SearchProps {
   onSearch?: (query: string) => void;
   placeholder?: string;
@@ -37,11 +38,16 @@ interface SearchResult {
 }
 
 const transformVehicleToSearchResult = (vehicle: Vehicle): SearchResult => {
-  const image = vehicle.defaultPhotos?.exterior?.[0]
-    ? typeof vehicle.defaultPhotos.exterior[0] === "string"
-      ? vehicle.defaultPhotos.exterior[0]
-      : vehicle.defaultPhotos.exterior[0].url
-    : undefined;
+  const firstPhoto = vehicle.defaultPhotos?.exterior?.[0];
+
+  let image: string | undefined;
+  if (firstPhoto) {
+    if (typeof firstPhoto === "string") {
+      image = firstPhoto;
+    } else if (typeof firstPhoto === "object" && "url" in firstPhoto) {
+      image = firstPhoto.url;
+    }
+  }
 
   return {
     id: vehicle._id,
@@ -99,7 +105,7 @@ const Search: React.FC<SearchProps> = ({
     fetchVehicles();
   }, []);
 
-  // Filter vehicles based on search query
+  // ✅ Filter vehicles - ONLY AVAILABLE STATUS
   const vehicleResults = React.useMemo(() => {
     if (!debouncedSearchQuery.trim()) return [];
 
@@ -107,6 +113,9 @@ const Search: React.FC<SearchProps> = ({
 
     return allVehicles
       .filter((vehicle) => {
+        // ✅ Only show available vehicles
+        if (vehicle.status !== "available") return false;
+
         const searchText =
           `${vehicle.brand} ${vehicle.model} ${vehicle.plateNumber}`.toLowerCase();
         return searchText.includes(query);
@@ -196,14 +205,15 @@ const Search: React.FC<SearchProps> = ({
     }
   }, [isSearchOpen]);
 
+  // ✅ Updated handleSearch - Enter redirects to /vehicles (no search param)
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+
     if (selectedIndex >= 0 && totalItems > 0) {
       if (selectedIndex < vehicleResults.length) {
-        // Selected a vehicle
+        // ✅ Selected a vehicle - go to vehicle detail page
         const selectedCar = vehicleResults[selectedIndex];
-        setSearchQuery(selectedCar.name);
-        navigate(`/vehicles?search=${encodeURIComponent(selectedCar.name)}`);
+        navigate(`/vehicles/${selectedCar.id}`);
       } else if (
         selectedIndex <
         vehicleResults.length + stationResults.length
@@ -213,29 +223,41 @@ const Search: React.FC<SearchProps> = ({
         const selectedStation = stationResults[stationIndex];
         navigate(`/stations/${selectedStation._id}`);
       } else {
-        // Selected fixed suggestion
-        navigate(`/vehicles?search=${encodeURIComponent(searchQuery)}`);
+        // ✅ Selected "view all" suggestion - go to vehicles list with search term
+        navigate("/vehicles", {
+          state: { searchTerm: searchQuery.trim() },
+        });
       }
-      setShowResults(false);
-      setSelectedIndex(-1);
-      setStationResults([]);
-      onSearchComplete?.();
     } else if (searchQuery.trim()) {
-      // No selection - check if we should redirect to station
+      // ✅ No selection - check if we should redirect to station or vehicles list
       if (vehicleResults.length === 0 && stationResults.length > 0) {
-        // ✅ Only active stations found - redirect to first station
+        // Only active stations found - redirect to first station
         navigate(`/stations/${stationResults[0]._id}`);
       } else {
-        // Search vehicles
-        navigate(`/vehicles?search=${encodeURIComponent(searchQuery.trim())}`);
+        // ✅ Go to vehicles list page with search term in state
+        navigate("/vehicles", {
+          state: { searchTerm: searchQuery.trim() },
+        });
       }
-      setShowResults(false);
-      setSelectedIndex(-1);
-      setStationResults([]);
-      onSearchComplete?.();
     } else if (onSearch) {
       onSearch(searchQuery);
     }
+
+    setShowResults(false);
+    setSelectedIndex(-1);
+    setStationResults([]);
+    onSearchComplete?.();
+  };
+
+  // ✅ Updated handleSuggestionClick
+  const handleSuggestionClick = () => {
+    navigate("/vehicles", {
+      state: { searchTerm: searchQuery.trim() },
+    });
+    setShowResults(false);
+    setSelectedIndex(-1);
+    setStationResults([]);
+    onSearchComplete?.();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -322,26 +344,18 @@ const Search: React.FC<SearchProps> = ({
     }, SEARCH_TIMING.BLUR_DELAY);
   };
 
+  // ✅ Updated handleResultClick - Click vehicle goes to detail page
   const handleResultClick = (car: SearchResult) => {
-    setSearchQuery(car.name);
-    navigate(`/vehicles?search=${encodeURIComponent(car.name)}`);
+    navigate(`/vehicles/${car.id}`);
     setShowResults(false);
     setSelectedIndex(-1);
     setStationResults([]);
     onSearchComplete?.();
   };
 
-  // ✅ Updated to redirect to /stations/:id
+  // ✅ Station click - redirect to /stations/:id
   const handleStationClick = (station: Station) => {
     navigate(`/stations/${station._id}`);
-    setShowResults(false);
-    setSelectedIndex(-1);
-    setStationResults([]);
-    onSearchComplete?.();
-  };
-
-  const handleSuggestionClick = () => {
-    navigate(`/vehicles?search=${encodeURIComponent(searchQuery)}`);
     setShowResults(false);
     setSelectedIndex(-1);
     setStationResults([]);
@@ -419,7 +433,7 @@ const Search: React.FC<SearchProps> = ({
               </div>
             ) : (
               <>
-                {/* Vehicle Results */}
+                {/* Vehicle Results - ONLY AVAILABLE */}
                 {vehicleResults.length > 0 && (
                   <div className="relative">
                     <div
@@ -537,6 +551,9 @@ const Search: React.FC<SearchProps> = ({
                         />
                       </svg>
                       <div>{SEARCH_TEXTS.NO_RESULTS}</div>
+                      <div className="text-sm text-gray-500">
+                        No available vehicles found for "{searchQuery}"
+                      </div>
                     </div>
                   </div>
                 )}
@@ -544,7 +561,7 @@ const Search: React.FC<SearchProps> = ({
                 {hasResults && (
                   <>
                     <div className="border-t border-white my-2 opacity-30"></div>
-                    {[{ text: `${searchQuery} - view all` }].map(
+                    {[{ text: "View all vehicles" }].map(
                       (suggestion, index) => {
                         const suggestionIndex =
                           vehicleResults.length + stationResults.length + index;
