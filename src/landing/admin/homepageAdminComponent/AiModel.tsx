@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MdSmartToy, MdClose, MdSend, MdRefresh } from "react-icons/md";
-import { getAllVehicles, type Vehicle, getAllTransferLogs } from "../../../service/apiAdmin/apiVehicles/API";
-import { getAllStations, type Station } from "../../../service/apiAdmin/apiStation/API";
+import { MdClose, MdSend, MdRefresh } from "react-icons/md";
+import { getAllVehicles, getAllTransferLogs } from "../../../service/apiAdmin/apiVehicles/API";
+import { getAllStations } from "../../../service/apiAdmin/apiStation/API";
 import { getAllBookings } from "../../../service/apiAdmin/apiBooking/API";
 import logoZami from "../../../assets/loginImage/logoZami.png";
 
