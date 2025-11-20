@@ -78,7 +78,7 @@ const VehiclesCard: React.FC<VehiclesCardProps> = ({ car, station }) => {
   return (
     <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 shadow border-slate-100">
       {/* Image Section */}
-      <div className="relative h-64 bg-gray-200 overflow-hidden group">
+      <div className="relative h-64 bg-white overflow-hidden group">
         {vehicleImage ? (
           <img
             src={vehicleImage}

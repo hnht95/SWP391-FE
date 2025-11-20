@@ -57,7 +57,7 @@ const LoginPage = () => {
           } else if (role === "staff") {
             window.location.href = "/staff";
           } else if (role === "renter") {
-            window.location.href = "/h";
+            window.location.href = "/home";
           } else {
             navigate("/home");
           }
