@@ -36,28 +36,41 @@ import type {
 
 const ManualRefundsManagement: React.FC = () => {
   // Tab state
-  const [activeTab, setActiveTab] = useState<"candidates" | "requests">("candidates");
+  const [activeTab, setActiveTab] = useState<"candidates" | "requests">(
+    "candidates"
+  );
 
   // Refund modal state
-  const [selectedRefund, setSelectedRefund] = useState<ManualRefund | null>(null);
+  const [selectedRefund, setSelectedRefund] = useState<ManualRefund | null>(
+    null
+  );
   const [isRefundModalOpen, setIsRefundModalOpen] = useState<boolean>(false);
   const [isProcessingRefund, setIsProcessingRefund] = useState<boolean>(false);
-  const [refundStatus, setRefundStatus] = useState<ManualRefundStatus>("pending");
+  const [refundStatus, setRefundStatus] =
+    useState<ManualRefundStatus>("pending");
   const [refundNote, setRefundNote] = useState<string>("");
   const [refundAttachments, setRefundAttachments] = useState<File[]>([]);
   const [refundError, setRefundError] = useState<string | null>(null);
-  const [refundSuccessMessage, setRefundSuccessMessage] = useState<string | null>(null);
-  const [isLoadingRefundDetail, setIsLoadingRefundDetail] = useState<boolean>(false);
+  const [refundSuccessMessage, setRefundSuccessMessage] = useState<
+    string | null
+  >(null);
+  const [isLoadingRefundDetail, setIsLoadingRefundDetail] =
+    useState<boolean>(false);
 
   // Candidate modal state
-  const [selectedCandidate, setSelectedCandidate] = useState<ManualRefundCandidate | null>(null);
-  const [isCandidateModalOpen, setIsCandidateModalOpen] = useState<boolean>(false);
-  const [isProcessingCandidate, setIsProcessingCandidate] = useState<boolean>(false);
+  const [selectedCandidate, setSelectedCandidate] =
+    useState<ManualRefundCandidate | null>(null);
+  const [isCandidateModalOpen, setIsCandidateModalOpen] =
+    useState<boolean>(false);
+  const [isProcessingCandidate, setIsProcessingCandidate] =
+    useState<boolean>(false);
   const [refundAmount, setRefundAmount] = useState<number>(0);
   const [refundReason, setRefundReason] = useState<string>("");
   const [candidateNote, setCandidateNote] = useState<string>("");
   const [candidateError, setCandidateError] = useState<string | null>(null);
-  const [candidateSuccessMessage, setCandidateSuccessMessage] = useState<string | null>(null);
+  const [candidateSuccessMessage, setCandidateSuccessMessage] = useState<
+    string | null
+  >(null);
 
   // Reset refund modal state
   useEffect(() => {
@@ -109,7 +122,7 @@ const ManualRefundsManagement: React.FC = () => {
     setIsRefundModalOpen(true);
     setRefundError(null);
     setIsLoadingRefundDetail(true);
-    
+
     try {
       const response = await getManualRefundById(refund._id);
       if (response.success && response.data) {
@@ -156,7 +169,8 @@ const ManualRefundsManagement: React.FC = () => {
       const response = await updateManualRefund(selectedRefund._id, {
         status: refundStatus,
         note: refundNote.trim() || undefined,
-        attachments: refundAttachments.length > 0 ? refundAttachments : undefined,
+        attachments:
+          refundAttachments.length > 0 ? refundAttachments : undefined,
       });
 
       if (response.success) {
@@ -170,7 +184,9 @@ const ManualRefundsManagement: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Error updating manual refund:", err);
-      setRefundError(err?.message || "An error occurred while updating the refund");
+      setRefundError(
+        err?.message || "An error occurred while updating the refund"
+      );
     } finally {
       setIsProcessingRefund(false);
     }
@@ -213,7 +229,9 @@ const ManualRefundsManagement: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Error creating manual refund:", err);
-      setCandidateError(err?.message || "An error occurred while creating the refund");
+      setCandidateError(
+        err?.message || "An error occurred while creating the refund"
+      );
     } finally {
       setIsProcessingCandidate(false);
     }
@@ -251,7 +269,6 @@ const ManualRefundsManagement: React.FC = () => {
     });
   };
 
-
   const getBookingId = (refund: ManualRefund): string => {
     return refund.booking?._id?.slice(-8) || "N/A";
   };
@@ -275,7 +292,11 @@ const ManualRefundsManagement: React.FC = () => {
     if (!candidate.vehicle) return "N/A";
     if (typeof candidate.vehicle === "string") return candidate.vehicle;
     const vehicle = candidate.vehicle;
-    return `${vehicle.brand || ""} ${vehicle.model || ""} ${vehicle.plateNumber || ""}`.trim() || "N/A";
+    return (
+      `${vehicle.brand || ""} ${vehicle.model || ""} ${
+        vehicle.plateNumber || ""
+      }`.trim() || "N/A"
+    );
   };
 
   return (
@@ -372,7 +393,9 @@ const ManualRefundsManagement: React.FC = () => {
                     {/* Success/Error Messages */}
                     {candidateSuccessMessage && (
                       <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-green-800">{candidateSuccessMessage}</p>
+                        <p className="text-sm text-green-800">
+                          {candidateSuccessMessage}
+                        </p>
                       </div>
                     )}
                     {candidateError && (
@@ -390,7 +413,9 @@ const ManualRefundsManagement: React.FC = () => {
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Booking ID</p>
+                            <p className="text-sm text-gray-500 mb-1">
+                              Booking ID
+                            </p>
                             <p className="text-base font-medium text-gray-900">
                               {selectedCandidate._id.slice(-8)}
                             </p>
@@ -402,13 +427,17 @@ const ManualRefundsManagement: React.FC = () => {
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Start Time</p>
+                            <p className="text-sm text-gray-500 mb-1">
+                              Start Time
+                            </p>
                             <p className="text-base font-medium text-gray-900">
                               {formatDate(selectedCandidate.startTime)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">End Time</p>
+                            <p className="text-sm text-gray-500 mb-1">
+                              End Time
+                            </p>
                             <p className="text-base font-medium text-gray-900">
                               {formatDate(selectedCandidate.endTime)}
                             </p>
@@ -416,15 +445,27 @@ const ManualRefundsManagement: React.FC = () => {
                           {selectedCandidate.amounts && (
                             <>
                               <div>
-                                <p className="text-sm text-gray-500 mb-1">Total Paid</p>
+                                <p className="text-sm text-gray-500 mb-1">
+                                  Total Paid
+                                </p>
                                 <p className="text-base font-medium text-gray-900">
-                                  {formatCurrency(selectedCandidate.amounts.totalPaid || selectedCandidate.paid || 0, "VND")}
+                                  {formatCurrency(
+                                    selectedCandidate.amounts.totalPaid ||
+                                      selectedCandidate.paid ||
+                                      0,
+                                    "VND"
+                                  )}
                                 </p>
                               </div>
                               <div>
-                                <p className="text-sm text-gray-500 mb-1">Refundable Amount</p>
+                                <p className="text-sm text-gray-500 mb-1">
+                                  Refundable Amount
+                                </p>
                                 <p className="text-base font-semibold text-green-600">
-                                  {formatCurrency(selectedCandidate.refundableRemaining || 0, "VND")}
+                                  {formatCurrency(
+                                    selectedCandidate.refundableRemaining || 0,
+                                    "VND"
+                                  )}
                                 </p>
                               </div>
                             </>
@@ -459,12 +500,19 @@ const ManualRefundsManagement: React.FC = () => {
                           </div>
                           {selectedCandidate.renter?.bankInfo && (
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Bank Account</p>
+                              <p className="text-sm text-gray-500 mb-1">
+                                Bank Account
+                              </p>
                               <p className="text-base font-medium text-gray-900">
-                                {selectedCandidate.renter.bankInfo.accountName || "N/A"} - {selectedCandidate.renter.bankInfo.bankName || "N/A"}
+                                {selectedCandidate.renter.bankInfo
+                                  .accountName || "N/A"}{" "}
+                                -{" "}
+                                {selectedCandidate.renter.bankInfo.bankName ||
+                                  "N/A"}
                               </p>
                               <p className="text-xs text-gray-500">
-                                {selectedCandidate.renter.bankInfo.accountNumber || ""}
+                                {selectedCandidate.renter.bankInfo
+                                  .accountNumber || ""}
                               </p>
                             </div>
                           )}
@@ -495,19 +543,26 @@ const ManualRefundsManagement: React.FC = () => {
                         <div className="space-y-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Refund Amount <span className="text-red-500">*</span>
+                              Refund Amount{" "}
+                              <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="number"
                               value={refundAmount}
-                              onChange={(e) => setRefundAmount(Number(e.target.value))}
+                              onChange={(e) =>
+                                setRefundAmount(Number(e.target.value))
+                              }
                               min="0"
                               max={selectedCandidate.refundableRemaining || 0}
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               disabled={isProcessingCandidate}
                             />
                             <p className="text-xs text-gray-500 mt-1">
-                              Maximum: {formatCurrency(selectedCandidate.refundableRemaining || 0, "VND")}
+                              Maximum:{" "}
+                              {formatCurrency(
+                                selectedCandidate.refundableRemaining || 0,
+                                "VND"
+                              )}
                             </p>
                           </div>
                           <div>
@@ -538,11 +593,17 @@ const ManualRefundsManagement: React.FC = () => {
                           </div>
                           <button
                             onClick={handleCreateRefund}
-                            disabled={isProcessingCandidate || !refundReason.trim() || refundAmount <= 0}
+                            disabled={
+                              isProcessingCandidate ||
+                              !refundReason.trim() ||
+                              refundAmount <= 0
+                            }
                             className="w-full px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                           >
                             <MdAdd className="w-5 h-5" />
-                            {isProcessingCandidate ? "Creating..." : "Create Refund"}
+                            {isProcessingCandidate
+                              ? "Creating..."
+                              : "Create Refund"}
                           </button>
                         </div>
                       </div>
@@ -633,7 +694,9 @@ const ManualRefundsManagement: React.FC = () => {
                     {/* Success/Error Messages */}
                     {refundSuccessMessage && (
                       <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-green-800">{refundSuccessMessage}</p>
+                        <p className="text-sm text-green-800">
+                          {refundSuccessMessage}
+                        </p>
                       </div>
                     )}
                     {refundError && (
@@ -651,13 +714,17 @@ const ManualRefundsManagement: React.FC = () => {
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Booking ID</p>
+                            <p className="text-sm text-gray-500 mb-1">
+                              Booking ID
+                            </p>
                             <p className="text-base font-medium text-gray-900">
                               {getBookingId(selectedRefund)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Booking Status</p>
+                            <p className="text-sm text-gray-500 mb-1">
+                              Booking Status
+                            </p>
                             <p className="text-base font-medium text-gray-900">
                               {selectedRefund.booking?.status || "N/A"}
                             </p>
@@ -665,15 +732,27 @@ const ManualRefundsManagement: React.FC = () => {
                           {selectedRefund.booking?.amounts && (
                             <>
                               <div>
-                                <p className="text-sm text-gray-500 mb-1">Total Paid</p>
+                                <p className="text-sm text-gray-500 mb-1">
+                                  Total Paid
+                                </p>
                                 <p className="text-base font-medium text-gray-900">
-                                  {formatCurrency(selectedRefund.booking.amounts.totalPaid || 0, "VND")}
+                                  {formatCurrency(
+                                    selectedRefund.booking.amounts.totalPaid ||
+                                      0,
+                                    "VND"
+                                  )}
                                 </p>
                               </div>
                               <div>
-                                <p className="text-sm text-gray-500 mb-1">Grand Total</p>
+                                <p className="text-sm text-gray-500 mb-1">
+                                  Grand Total
+                                </p>
                                 <p className="text-base font-medium text-gray-900">
-                                  {formatCurrency(selectedRefund.booking.amounts.grandTotal || 0, "VND")}
+                                  {formatCurrency(
+                                    selectedRefund.booking.amounts.grandTotal ||
+                                      0,
+                                    "VND"
+                                  )}
                                 </p>
                               </div>
                             </>
@@ -717,14 +796,20 @@ const ManualRefundsManagement: React.FC = () => {
                         </h3>
                         <div className="space-y-3">
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Refund Amount</p>
+                            <p className="text-sm text-gray-500 mb-1">
+                              Refund Amount
+                            </p>
                             <p className="text-base font-semibold text-green-600">
-                              {selectedRefund.amount ? formatCurrency(selectedRefund.amount, "VND") : "N/A"}
+                              {selectedRefund.amount
+                                ? formatCurrency(selectedRefund.amount, "VND")
+                                : "N/A"}
                             </p>
                           </div>
                           {selectedRefund.method && (
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Method</p>
+                              <p className="text-sm text-gray-500 mb-1">
+                                Method
+                              </p>
                               <p className="text-base text-gray-700">
                                 {selectedRefund.method}
                               </p>
@@ -732,7 +817,9 @@ const ManualRefundsManagement: React.FC = () => {
                           )}
                           {selectedRefund.transferredAt && (
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Transferred At</p>
+                              <p className="text-sm text-gray-500 mb-1">
+                                Transferred At
+                              </p>
                               <p className="text-base text-gray-700">
                                 {formatDate(selectedRefund.transferredAt)}
                               </p>
@@ -740,7 +827,9 @@ const ManualRefundsManagement: React.FC = () => {
                           )}
                           {selectedRefund.reference && (
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Reference</p>
+                              <p className="text-sm text-gray-500 mb-1">
+                                Reference
+                              </p>
                               <p className="text-base text-gray-700">
                                 {selectedRefund.reference}
                               </p>
@@ -766,17 +855,24 @@ const ManualRefundsManagement: React.FC = () => {
                         <div className="space-y-3">
                           {selectedRefund.staff && (
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Processed By</p>
+                              <p className="text-sm text-gray-500 mb-1">
+                                Processed By
+                              </p>
                               <p className="text-base font-medium text-gray-900">
-                                {getStaffName(selectedRefund)} ({selectedRefund.staff.email || "N/A"})
+                                {getStaffName(selectedRefund)} (
+                                {selectedRefund.staff.email || "N/A"})
                               </p>
                             </div>
                           )}
                           {selectedRefund.beneficiary && (
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Beneficiary</p>
+                              <p className="text-sm text-gray-500 mb-1">
+                                Beneficiary
+                              </p>
                               <p className="text-base font-medium text-gray-900">
-                                {selectedRefund.beneficiary.accountName} - {selectedRefund.beneficiary.bankName} ({selectedRefund.beneficiary.accountNumber})
+                                {selectedRefund.beneficiary.accountName} -{" "}
+                                {selectedRefund.beneficiary.bankName} (
+                                {selectedRefund.beneficiary.accountNumber})
                               </p>
                             </div>
                           )}
@@ -784,50 +880,55 @@ const ManualRefundsManagement: React.FC = () => {
                       </div>
 
                       {/* Attachments */}
-                      {selectedRefund.attachments && selectedRefund.attachments.length > 0 && (
-                        <div className="bg-gray-50 rounded-xl p-4">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <MdAttachFile className="w-5 h-5 text-blue-600" />
-                            Attachments ({selectedRefund.attachments.length})
-                          </h3>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {selectedRefund.attachments.map((attachmentUrl, index) => {
-                              const isImage = attachmentUrl && (
-                                attachmentUrl.endsWith('.jpg') ||
-                                attachmentUrl.endsWith('.jpeg') ||
-                                attachmentUrl.endsWith('.png') ||
-                                attachmentUrl.endsWith('.gif') ||
-                                attachmentUrl.endsWith('.webp')
-                              );
-                              
-                              return (
-                                <div
-                                  key={index}
-                                  className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
-                                >
-                                  {isImage ? (
-                                    <img
-                                      src={attachmentUrl}
-                                      alt="Attachment"
-                                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                      onClick={() => window.open(attachmentUrl, "_blank")}
-                                    />
-                                  ) : (
-                                    <a
-                                      href={attachmentUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="w-full h-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+                      {selectedRefund.attachments &&
+                        selectedRefund.attachments.length > 0 && (
+                          <div className="bg-gray-50 rounded-xl p-4">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                              <MdAttachFile className="w-5 h-5 text-blue-600" />
+                              Attachments ({selectedRefund.attachments.length})
+                            </h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                              {selectedRefund.attachments.map(
+                                (attachmentUrl, index) => {
+                                  const isImage =
+                                    attachmentUrl &&
+                                    (attachmentUrl.endsWith(".jpg") ||
+                                      attachmentUrl.endsWith(".jpeg") ||
+                                      attachmentUrl.endsWith(".png") ||
+                                      attachmentUrl.endsWith(".gif") ||
+                                      attachmentUrl.endsWith(".webp"));
+
+                                  return (
+                                    <div
+                                      key={index}
+                                      className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
                                     >
-                                      <MdAttachFile className="w-8 h-8 text-gray-600" />
-                                    </a>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                      {isImage ? (
+                                        <img
+                                          src={attachmentUrl}
+                                          alt="Attachment"
+                                          className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                          onClick={() =>
+                                            window.open(attachmentUrl, "_blank")
+                                          }
+                                        />
+                                      ) : (
+                                        <a
+                                          href={attachmentUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="w-full h-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+                                        >
+                                          <MdAttachFile className="w-8 h-8 text-gray-600" />
+                                        </a>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       {/* Update Form */}
                       <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
@@ -842,7 +943,11 @@ const ManualRefundsManagement: React.FC = () => {
                             </label>
                             <select
                               value={refundStatus}
-                              onChange={(e) => setRefundStatus(e.target.value as ManualRefundStatus)}
+                              onChange={(e) =>
+                                setRefundStatus(
+                                  e.target.value as ManualRefundStatus
+                                )
+                              }
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               disabled={isProcessingRefund}
                             >
@@ -875,7 +980,9 @@ const ManualRefundsManagement: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <label className="flex-1 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
                                 <MdUpload className="w-5 h-5 text-gray-600" />
-                                <span className="text-sm text-gray-700">Choose Files</span>
+                                <span className="text-sm text-gray-700">
+                                  Choose Files
+                                </span>
                                 <input
                                   type="file"
                                   multiple
@@ -897,7 +1004,9 @@ const ManualRefundsManagement: React.FC = () => {
                                     </span>
                                     <button
                                       type="button"
-                                      onClick={() => removeRefundAttachment(index)}
+                                      onClick={() =>
+                                        removeRefundAttachment(index)
+                                      }
                                       className="ml-2 text-red-600 hover:text-red-800"
                                       disabled={isProcessingRefund}
                                     >
@@ -910,11 +1019,18 @@ const ManualRefundsManagement: React.FC = () => {
                           </div>
                           <button
                             onClick={handleUpdateRefund}
-                            disabled={isProcessingRefund || (refundStatus === selectedRefund.status && refundNote === (selectedRefund.note || "") && refundAttachments.length === 0)}
+                            disabled={
+                              isProcessingRefund ||
+                              (refundStatus === selectedRefund.status &&
+                                refundNote === (selectedRefund.note || "") &&
+                                refundAttachments.length === 0)
+                            }
                             className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                           >
                             <MdEdit className="w-5 h-5" />
-                            {isProcessingRefund ? "Processing..." : "Update Refund"}
+                            {isProcessingRefund
+                              ? "Processing..."
+                              : "Update Refund"}
                           </button>
                         </div>
                       </div>

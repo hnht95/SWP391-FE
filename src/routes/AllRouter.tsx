@@ -6,7 +6,6 @@ import HomePage from "../landing/user/component/HomePage";
 import SignUpPage from "../auth/signUp/SignUpPage";
 import ForgotPasswordPage from "../auth/forgotPassword/ForgotPasswordPage";
 import LayoutStaff from "../landing/staff/LayoutStaff";
-import DashboardStaff from "../landing/staff/homepageStaffComponent/DashboardStaff";
 import VehicleHandover from "../landing/staff/homepageStaffComponent/VehicleHandover";
 
 import StaffReport from "../landing/staff/homepageStaffComponent/StaffReport";
@@ -103,8 +102,8 @@ const AllRouter = () => {
           </ProtectedRoute>
         }
       >
-        <Route path="/staff" element={<DashboardStaff />} />
-        <Route path="/staff/dashboard" element={<DashboardStaff />} />
+        <Route path="/staff" element={<StaffUser />} />
+
         <Route path="/staff/users" element={<StaffUser />} />
         <Route path="/staff/handover" element={<VehicleHandover />} />
         <Route path="/staff/vehicles" element={<VehiclesStaff />} />
@@ -130,8 +129,14 @@ const AllRouter = () => {
           element={<UserVerification />}
         />
         <Route path="/admin/transactions" element={<TransactionHistory />} />
-        <Route path="/admin/damage-reports" element={<DamageReportsManagement />} />
-        <Route path="/admin/manual-refunds" element={<ManualRefundsManagement />} />
+        <Route
+          path="/admin/damage-reports"
+          element={<DamageReportsManagement />}
+        />
+        <Route
+          path="/admin/manual-refunds"
+          element={<ManualRefundsManagement />}
+        />
         {/* <Route path="/admin/reports" element={<ReportsAndAI />} /> */}
       </Route>
     </Routes>

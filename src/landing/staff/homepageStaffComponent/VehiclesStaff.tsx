@@ -560,12 +560,6 @@ const VehiclesStaff = () => {
                       {/* Details Grid */}
                       <div className="space-y-2 text-xs text-gray-600 mb-3">
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Order completed</span>
-                          <span className="font-medium text-gray-900">
-                            {vehicle.rentalHistory || 0}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
                           <span className="text-gray-500">
                             Last check-in/out
                           </span>
