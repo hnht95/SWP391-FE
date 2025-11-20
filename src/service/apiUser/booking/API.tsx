@@ -299,11 +299,6 @@ export type SubmitRatingResponse = {
   };
 };
 
-export type ReportIncidentRequest = {
-  description: string;
-  incidentPhotos?: string[];
-};
-
 export type UserIncidentReport = {
   reported: boolean;
   description: string;
@@ -311,16 +306,53 @@ export type UserIncidentReport = {
   reportedAt: string;
 };
 
-export type ReportIncidentResponse = {
+export interface ReportIncidentRequest {
+  description: string;
+  incidentPhotos?: string[];
+}
+
+export interface IncidentReport {
+  _id: string;
+  booking: {
+    _id: string;
+    startTime: string;
+    endTime: string;
+    status: string;
+  };
+  vehicle: {
+    plateNumber: string;
+    brand: string;
+    model: string;
+    id: string;
+    isPartnerVehicle: boolean;
+  };
+  kind: string;
+  reportedBy: {
+    _id: string;
+    role: string;
+    name: string;
+    email: string;
+    id: string;
+  };
+  at: {
+    time: string;
+  };
+  cost: number;
+  proof: Array<{
+    url?: string;
+    publicId?: string;
+    type?: string;
+    uploadedAt?: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReportIncidentResponse {
   success: boolean;
   message: string;
-  data: {
-    bookingId: string;
-    userIncidentReport: UserIncidentReport;
-    vehicle: Record<string, unknown>;
-  };
-};
-
+  data: IncidentReport;
+}
 // ============ ERROR HANDLER ============
 
 const handleError = (error: unknown, context: string): never => {
@@ -1073,65 +1105,31 @@ export const reportIncident = async (
       throw new Error("Maximum 5 photos allowed for incident report");
     }
 
-    const response = await api.post<
-      ApiResponseWrapper<{
-        bookingId: string;
-        userIncidentReport: {
-          reported: boolean;
-          description: string;
-          photos: Array<Record<string, unknown>>;
-          reportedAt: string;
-        };
-        vehicle: Record<string, unknown>;
-      }>
-    >(`/bookings/${bookingId}/report-incident`, data);
+    const response = await api.post<ApiResponseWrapper<IncidentReport>>(
+      `/bookings/${bookingId}/report-incident`,
+      data
+    );
 
-    const rawPayload = response.data?.data || response.data;
+    // ✅ Response structure từ server
+    const rawData = response.data?.data || response.data;
 
-    if (!rawPayload || typeof rawPayload !== "object") {
+    if (!rawData || typeof rawData !== "object") {
       throw new Error("Invalid incident report response");
     }
 
-    const payload = rawPayload as {
-      bookingId?: string;
-      userIncidentReport?: {
-        reported: boolean;
-        description: string;
-        photos: Array<Record<string, unknown>>;
-        reportedAt: string;
-      };
-      vehicle?: Record<string, unknown>;
-      message?: string;
-    };
+    const incidentReport = rawData as IncidentReport;
 
-    if (!payload.userIncidentReport) {
-      throw new Error("Invalid incident report response: missing report data");
+    // ✅ Validate response có đủ field cần thiết
+    if (!incidentReport._id || !incidentReport.booking) {
+      throw new Error(
+        "Invalid incident report response: missing required data"
+      );
     }
 
     return {
       success: true,
-      message:
-        payload.message ||
-        "Incident reported successfully. Staff will be notified.",
-      data: {
-        bookingId: payload.bookingId || bookingId,
-        userIncidentReport: {
-          reported: payload.userIncidentReport.reported,
-          description: payload.userIncidentReport.description,
-          photos: (payload.userIncidentReport.photos || []).map((photo) => ({
-            url: typeof photo.url === "string" ? photo.url : undefined,
-            publicId:
-              typeof photo.publicId === "string" ? photo.publicId : undefined,
-            type: typeof photo.type === "string" ? photo.type : undefined,
-            uploadedAt:
-              typeof photo.uploadedAt === "string"
-                ? photo.uploadedAt
-                : undefined,
-          })),
-          reportedAt: payload.userIncidentReport.reportedAt,
-        },
-        vehicle: payload.vehicle || {},
-      },
+      message: "Incident reported successfully. Staff will be notified.",
+      data: incidentReport,
     };
   } catch (err) {
     handleError(err, "reportIncident");

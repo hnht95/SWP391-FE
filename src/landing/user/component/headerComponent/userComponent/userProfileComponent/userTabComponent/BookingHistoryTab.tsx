@@ -1,4 +1,3 @@
-// pages/BookingHistoryTab.tsx
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -11,7 +10,6 @@ import {
   Loader2,
   AlertCircle,
   ArrowRight,
-  Filter,
   ChevronDown,
 } from "lucide-react";
 import { FaStar } from "react-icons/fa";
@@ -22,22 +20,7 @@ import userBookingApi from "../../../../../../../service/apiUser/booking/API";
 import type {
   Booking,
   BookingQueryParams,
-  BookingStatus,
 } from "../../../../../../../service/apiUser/booking/API";
-
-// Status filter options
-const STATUS_OPTIONS = [
-  { value: "all", label: "All Bookings" },
-  { value: "pending", label: "Pending Payment" },
-  { value: "reserved", label: "Reserved" },
-  { value: "active", label: "Active" },
-  { value: "returning", label: "Returning" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "expired", label: "Expired" },
-] as const;
-
-type StatusFilter = (typeof STATUS_OPTIONS)[number]["value"];
 
 // Status badge component
 const StatusBadge = ({ status }: { status: string }) => {
@@ -113,30 +96,22 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-// ✅ Helper to get vehicle image URL from booking
+// Get vehicle image URL from booking
 const getVehicleImageUrl = (booking: Booking): string | null => {
   if (!booking.vehicle || typeof booking.vehicle === "string") {
     return null;
   }
-
-  // Try photos array first (flat array)
   if (booking.vehicle.photos && booking.vehicle.photos.length > 0) {
     return booking.vehicle.photos[0];
   }
-
-  // Try defaultPhotos.exterior
   const firstPhoto = booking.vehicle.defaultPhotos?.exterior?.[0];
   if (!firstPhoto) return null;
-
-  // Handle both string and object formats
   if (typeof firstPhoto === "string") {
     return firstPhoto;
   }
-
   if (typeof firstPhoto === "object" && "url" in firstPhoto) {
     return firstPhoto.url;
   }
-
   return null;
 };
 
@@ -149,36 +124,26 @@ const BookingHistoryTab = () => {
     null
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   // Rating & Report Modal States
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [selectedBookingForAction, setSelectedBookingForAction] =
     useState<Booking | null>(null);
-
-  // Pagination & Filter states
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  // Pagination
   const [displayCount, setDisplayCount] = useState(8);
   const [totalCount, setTotalCount] = useState(0);
 
-  // ✅ Fetch bookings function (memoized with useCallback)
+  // Fetch bookings function
   const fetchBookings = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
-
       const params: BookingQueryParams = {
         limit: 100,
         sortBy: "createdAt",
         sortOrder: "desc",
       };
-
-      if (statusFilter !== "all") {
-        params.status = statusFilter as BookingStatus;
-      }
-
       const response = await userBookingApi.getUserBookings(params);
-
       if (response.success && response.items) {
         setBookings(response.items);
         setTotalCount(response.items.length);
@@ -192,16 +157,16 @@ const BookingHistoryTab = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, []);
 
-  // Fetch bookings on mount and when filter changes
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
 
+  // Reset displayCount when bookings change
   useEffect(() => {
     setDisplayCount(8);
-  }, [statusFilter]);
+  }, [bookings.length]);
 
   const handleOpenRating = (e: React.MouseEvent, booking: Booking) => {
     e.stopPropagation();
@@ -215,7 +180,7 @@ const BookingHistoryTab = () => {
     setReportModalOpen(true);
   };
 
-  // ✅ Refetch bookings after successful action
+  // Refetch bookings after successful action
   const handleActionSuccess = useCallback(() => {
     fetchBookings();
   }, [fetchBookings]);
@@ -244,10 +209,6 @@ const BookingHistoryTab = () => {
       year: "numeric",
     });
   };
-
-  const currentFilterLabel =
-    STATUS_OPTIONS.find((opt) => opt.value === statusFilter)?.label ||
-    "All Bookings";
 
   const displayedBookings = bookings.slice(0, displayCount);
   const canLoadMore = displayCount < totalCount;
@@ -281,71 +242,15 @@ const BookingHistoryTab = () => {
   return (
     <>
       <div className="space-y-6">
-        {/* Filter Section */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm"
-        >
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Filter className="w-5 h-5 text-gray-600" />
-              <h3 className="font-semibold text-gray-900">Filter by Status</h3>
-            </div>
-
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as StatusFilter)
-                }
-                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2.5 pr-10 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent cursor-pointer transition-all"
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-            </div>
-          </div>
-
-          {bookings.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <p className="text-sm text-gray-600">
-                Showing{" "}
-                <span className="font-semibold">
-                  {Math.min(displayCount, totalCount)}
-                </span>{" "}
-                of <span className="font-semibold">{totalCount}</span> bookings
-                {statusFilter !== "all" && (
-                  <span className="text-gray-500">
-                    {" "}
-                    • Filter: {currentFilterLabel}
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
-        </motion.div>
-
         {bookings.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
             <Car className="w-16 h-16 text-gray-300 mb-4" />
-            <p className="text-gray-500 font-medium">
-              {statusFilter === "all"
-                ? "No bookings yet"
-                : `No ${currentFilterLabel} bookings`}
-            </p>
+            <p className="text-gray-500 font-medium">No bookings yet</p>
             <p className="text-sm text-gray-400 mt-2">
-              {statusFilter === "all"
-                ? "Your booking history will appear here"
-                : "Try selecting a different filter"}
+              Your booking history will appear here
             </p>
           </div>
         )}
-
         {/* Bookings List */}
         <div className="space-y-4">
           {displayedBookings.map((booking, index) => {
@@ -372,10 +277,8 @@ const BookingHistoryTab = () => {
               ? "N/A"
               : booking.station?.name || "N/A";
 
-            // Get vehicle image directly from booking
             const vehicleImage = getVehicleImageUrl(booking);
 
-            // Status checks
             const isPending = booking.status === "pending";
             const isCompleted = booking.status === "completed";
             const hasRating = !!booking.rating;
@@ -388,7 +291,6 @@ const BookingHistoryTab = () => {
                 transition={{ delay: index * 0.05 }}
                 className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all"
               >
-                {/* Main Card - Clickable */}
                 <div
                   onClick={() => handleViewDetails(booking._id)}
                   className="p-5 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -418,10 +320,7 @@ const BookingHistoryTab = () => {
                         </div>
                       )}
                     </div>
-
-                    {/* Booking Info */}
                     <div className="flex-1 min-w-0">
-                      {/* Header with Status */}
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <h3 className="font-bold text-gray-900 text-lg">
@@ -431,10 +330,8 @@ const BookingHistoryTab = () => {
                             {vehiclePlate}
                           </p>
                         </div>
-
                         <StatusBadge status={booking.status} />
                       </div>
-
                       <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                         <div className="flex items-center text-gray-600">
                           <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -461,14 +358,6 @@ const BookingHistoryTab = () => {
                           </span>
                         </div>
                       </div>
-                      {booking.status === "active" && (
-                        <button
-                          onClick={(e) => handleOpenReport(e, booking)}
-                          className="flex items-center gap-1 px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white text-base font-semibold rounded-lg transition-colors"
-                        >
-                          <span>Report</span>
-                        </button>
-                      )}
 
                       {/* Payment Button for Pending */}
                       {isPending && (
@@ -481,25 +370,31 @@ const BookingHistoryTab = () => {
                           <ArrowRight className="w-4 h-4" />
                         </button>
                       )}
+
+                      {/* Report button (example: chỉ hiện khi active, cần bổ sung logic đã report nếu muốn) */}
+                      {booking.status === "active" && (
+                        <button
+                          onClick={(e) => handleOpenReport(e, booking)}
+                          className="flex items-center gap-1 mt-2 px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white text-base font-semibold rounded-lg transition-colors"
+                        >
+                          <span>Report</span>
+                        </button>
+                      )}
                     </div>
                   </div>
-
-                  {/* Pending Warning */}
-                  {isPending && (
-                    <div className="mt-3 pt-3 border-t border-yellow-200 bg-yellow-50 -mx-5 -mb-5 px-5 py-3 rounded-b-xl">
-                      <div className="flex items-start gap-2 text-xs text-yellow-800">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                        <p>
-                          <span className="font-semibold">
-                            Payment Required:
-                          </span>{" "}
-                          This booking is waiting for payment completion.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
-
+                {/* Pending Warning */}
+                {isPending && (
+                  <div className="mt-3 pt-3 border-t border-yellow-200 bg-yellow-50 -mx-5 -mb-5 px-5 py-3 rounded-b-xl">
+                    <div className="flex items-start gap-2 text-xs text-yellow-800">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <p>
+                        <span className="font-semibold">Payment Required:</span>{" "}
+                        This booking is waiting for payment completion.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {/* Rating Section Below Card (Completed Only) */}
                 {isCompleted && (
                   <>
@@ -558,8 +453,6 @@ const BookingHistoryTab = () => {
             );
           })}
         </div>
-
-        {/* Load More Button */}
         {canLoadMore && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -575,14 +468,12 @@ const BookingHistoryTab = () => {
             </button>
           </motion.div>
         )}
-
         {!canLoadMore && bookings.length > 0 && (
           <div className="text-center py-8 text-gray-400 text-sm">
             You've reached the end of your bookings
           </div>
         )}
       </div>
-
       {/* Modals */}
       {selectedBookingId && (
         <BookingDetailModal
@@ -594,7 +485,6 @@ const BookingHistoryTab = () => {
           bookingId={selectedBookingId}
         />
       )}
-
       {selectedBookingForAction && (
         <>
           <RatingModal
@@ -607,7 +497,6 @@ const BookingHistoryTab = () => {
             vehicleName={getVehicleName(selectedBookingForAction)}
             onSuccess={handleActionSuccess}
           />
-
           <ReportModal
             isOpen={reportModalOpen}
             onClose={() => {
