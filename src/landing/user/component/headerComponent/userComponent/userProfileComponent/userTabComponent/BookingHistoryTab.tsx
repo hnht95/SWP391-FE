@@ -209,11 +209,11 @@ const BookingHistoryTab = () => {
     setRatingModalOpen(true);
   };
 
-  // const handleOpenReport = (e: React.MouseEvent, booking: Booking) => {
-  //   e.stopPropagation();
-  //   setSelectedBookingForAction(booking);
-  //   setReportModalOpen(true);
-  // };
+  const handleOpenReport = (e: React.MouseEvent, booking: Booking) => {
+    e.stopPropagation();
+    setSelectedBookingForAction(booking);
+    setReportModalOpen(true);
+  };
 
   // ✅ Refetch bookings after successful action
   const handleActionSuccess = useCallback(() => {
@@ -461,6 +461,14 @@ const BookingHistoryTab = () => {
                           </span>
                         </div>
                       </div>
+                      {booking.status === "active" && (
+                        <button
+                          onClick={(e) => handleOpenReport(e, booking)}
+                          className="flex items-center gap-1 px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white text-base font-semibold rounded-lg transition-colors"
+                        >
+                          <span>Report</span>
+                        </button>
+                      )}
 
                       {/* Payment Button for Pending */}
                       {isPending && (
