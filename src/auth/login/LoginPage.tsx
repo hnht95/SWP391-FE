@@ -53,13 +53,13 @@ const LoginPage = () => {
           const { role } = user;
 
           if (role === "admin") {
-            window.location.href = "/admin";
+            navigate("/admin", { replace: true });
           } else if (role === "staff") {
-            window.location.href = "/staff";
+            navigate("/staff", { replace: true });
           } else if (role === "renter") {
-            window.location.href = "/home";
+            navigate("/home", { replace: true });
           } else {
-            navigate("/home");
+            navigate("/home", { replace: true });
           }
         } else {
           setErrors({
