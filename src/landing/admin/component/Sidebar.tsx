@@ -37,7 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState(false);
-  const { logout, showGlobalLoading, hideGlobalLoading } = useAuth();
+  const { logout, showGlobalLoading, hideGlobalLoading, user } = useAuth();
 
   const menuItems: MenuItem[] = [
     {
@@ -72,7 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
     },
     {
       id: "manual-refunds",
-      label: "Manual Refunds Management",
+      label: "Manual Refunds",
       icon: <MdAttachMoney className="w-5 h-5" />,
       path: "/admin/manual-refunds",
     },
@@ -226,6 +226,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
               </button>
               {showProfileMenu && (
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white border-2 border-black rounded-lg shadow-lg py-2 min-w-[180px]">
+                  {/* User Info Section */}
+                  {user && (
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-500">{user.role === "admin" ? "Admin" : user.role?.charAt(0).toUpperCase() + user.role?.slice(1) || "User"}</p>
+                    </div>
+                  )}
+                  
+                  {/* View Profile */}
+                  <button 
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      navigate("/");
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center border-b border-gray-200"
+                  >
+                    <MdPerson className="w-4 h-4 mr-2" />
+                    View Profile
+                  </button>
+                  
+                  {/* Back to Homepage */}
                   <button 
                     onClick={() => {
                       navigate("/");
@@ -236,6 +257,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
                     <MdHome className="w-4 h-4 mr-2" />
                     Back to Homepage
                   </button>
+                  
+                  {/* Logout */}
                   <button 
                     onClick={async () => {
                       setShowProfileMenu(false);
@@ -265,8 +288,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
                   <MdPerson className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-gray-900">Admin</p>
-                  <p className="text-xs text-gray-500">Administrator</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.name || "Admin"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {user?.role === "admin" ? "Administrator" : user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || "User"}
+                  </p>
                 </div>
                 <MdKeyboardArrowDown
                   className={`w-4 h-4 transition-transform duration-200 ${
@@ -277,15 +304,43 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
 
               {showProfileMenu && (
                 <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border-2 border-black rounded-lg shadow-lg py-2">
+                  {/* User Info Section */}
+                  {user && (
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-500">{user.role === "admin" ? "Admin" : user.role?.charAt(0).toUpperCase() + user.role?.slice(1) || "User"}</p>
+                    </div>
+                  )}
+                  
+                  {/* View Profile */}
                   <button 
-                    onClick={() => navigate("/")}
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      // Navigate to profile page if exists, or homepage
+                      navigate("/");
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center border-b border-gray-200"
+                  >
+                    <MdPerson className="w-4 h-4 mr-2" />
+                    View Profile
+                  </button>
+                  
+                  {/* Back to Homepage */}
+                  <button 
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      navigate("/");
+                    }}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center border-b border-gray-200"
                   >
                     <MdHome className="w-4 h-4 mr-2" />
                     Back to Homepage
                   </button>
+                  
+                  {/* Logout */}
                   <button 
                     onClick={async () => {
+                      setShowProfileMenu(false);
                       showGlobalLoading();
                       try {
                         await logout();

@@ -16,6 +16,7 @@ import {
   createStation,
 } from "../../../../service/apiAdmin/apiStation/API";
 import { getProvinceNames } from "../../../../data/provinceData";
+import DropdownSelect from "./DropdownSelect";
 
 interface FormData {
   name: string;
@@ -393,30 +394,26 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Province / City <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
-                    <MdLocationCity className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-                    <select
-                      value={formData.province}
-                      onChange={(e) => {
-                        setFormData({ ...formData, province: e.target.value });
-                        if (errors.province)
-                          setErrors({ ...errors, province: "" });
-                      }}
-                      className={`w-full pl-10 pr-3 py-2 text-sm border ${
-                        errors.province
-                          ? "border-red-300 bg-red-50/30"
-                          : "border-gray-200 bg-gray-50/50"
-                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 appearance-none cursor-pointer`}
-                      disabled={loading}
-                    >
-                      <option value="">Select province...</option>
-                      {provinceList.map((province) => (
-                        <option key={province} value={province}>
-                          {province}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <DropdownSelect
+                    value={formData.province || ""}
+                    options={[
+                      { label: "– Select province –", value: "" },
+                      ...provinceList.map((province) => ({
+                        label: province,
+                        value: province,
+                      })),
+                    ]}
+                    onChange={(value) => {
+                      setFormData({ ...formData, province: value });
+                      if (errors.province) setErrors({ ...errors, province: "" });
+                    }}
+                    placeholder="Select province..."
+                    leadingIcon={
+                      <MdLocationCity className="w-4 h-4 text-gray-400" />
+                    }
+                    error={Boolean(errors.province)}
+                    disabled={loading}
+                  />
                   {errors.province && (
                     <p className="mt-1 text-xs text-red-500">
                       {errors.province}

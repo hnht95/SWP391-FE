@@ -6,7 +6,7 @@ import PageTitle from "../../component/PageTitle";
 import { getAdminTransactions } from "../../../../service/apiAdmin/apiBooking/API";
 import type { AdminTransactionItem } from "../../../../service/apiAdmin/apiBooking/API";
 import Bookedmanagement from "../BookingManagementComponent/Bookedmanagement";
-import { getAllVehicles } from "../../../../service/apiAdmin/apiVehicles/API";
+import { getVehiclesPaginated } from "../../../../service/apiAdmin/apiVehicles/API";
 import { getAllStations } from "../../../../service/apiAdmin/apiStation/API";
 import { getAllUsers } from "../../../../service/apiAdmin/apiListUser/API";
 import type { Station as StationType } from "../../../../service/apiAdmin/apiStation/API";
@@ -20,12 +20,14 @@ import FleetBatteryMonitor from "./FleetBatteryMonitor";
 import RecentActivity from "./RecentActivity";
 import type { BookingRangeKey } from "./types";
 import { useNotifications } from "./hooks/useNotifications";
+import AiModel from "../AiModel";
 
 const DashboardAdmin: React.FC = () => {
   // State for API data
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [stations, setStations] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [totalVehiclesCount, setTotalVehiclesCount] = useState<number>(0);
   
   // Loading and error states
   const [loading, setLoading] = useState<boolean>(true);
@@ -361,13 +363,17 @@ const DashboardAdmin: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const [vehiclesData, stationsData, usersData] = await Promise.all([
-          getAllVehicles(),
+        // Fetch vehicles with pagination to get total count
+        const vehiclesResponse = await getVehiclesPaginated(1, 1000); // Fetch first 1000 to get all vehicles and total count
+        
+        // Fetch stations and users
+        const [stationsData, usersData] = await Promise.all([
           getAllStations(),
           getAllUsers(),
         ]);
 
-        setVehicles(vehiclesData);
+        setVehicles(vehiclesResponse.items);
+        setTotalVehiclesCount(vehiclesResponse.pagination.total); // Use total from pagination
         setStations(stationsData);
         setUsers(usersData.items);
       } catch (err: any) {
@@ -420,8 +426,8 @@ const DashboardAdmin: React.FC = () => {
     };
   }, [showStationModal]);
 
-  // Calculate statistics
-  const totalVehicles = vehicles.length;
+  // Calculate statistics - use totalVehiclesCount from pagination for accurate count
+  const totalVehicles = totalVehiclesCount || vehicles.length; // Use pagination total if available, fallback to vehicles.length
   const activeCustomers = users.filter(user => user.role === 'renter' || user.role === 'regular' || user.role === 'vip').length;
   const totalStations = stations.filter(s => s.isActive).length;
 
@@ -557,29 +563,26 @@ const DashboardAdmin: React.FC = () => {
   const activeStationsCount = stations.filter((s) => s.isActive).length;
   const inactiveStationsCount = totalStationsCount - activeStationsCount;
 
-  // Stats cards data
+  // Stats cards data - using real data, percentage change can be calculated later if historical data is available
   const statsCardsData = [
     {
       title: "Total Vehicles",
       value: totalVehicles.toString(),
-      change: "+12%",
-      changeType: "increase" as const,
+      // change and changeType can be added when historical data is available
       icon: <MdDirectionsCar className="w-6 h-6" />,
       color: "blue",
     },
     {
       title: "Active Customers",
       value: activeCustomers.toString(),
-      change: "+8%",
-      changeType: "increase" as const,
+      // change and changeType can be added when historical data is available
       icon: <MdPeople className="w-6 h-6" />,
       color: "emerald",
     },
     {
       title: "Active Stations",
       value: totalStations.toString(),
-      change: "+5%",
-      changeType: "increase" as const,
+      // change and changeType can be added when historical data is available
       icon: <MdLocationOn className="w-6 h-6" />,
       color: "purple",
     },
@@ -734,6 +737,9 @@ const DashboardAdmin: React.FC = () => {
         activeStationsCount={activeStationsCount}
         inactiveStationsCount={inactiveStationsCount}
       />
+
+      {/* AI Model Assistant */}
+      <AiModel />
     </div>
   );
 };

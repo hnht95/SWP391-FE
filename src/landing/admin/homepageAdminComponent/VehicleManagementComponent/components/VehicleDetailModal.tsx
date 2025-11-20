@@ -9,11 +9,13 @@ import {
   MdImage,
   MdMoreHoriz,
   MdDeleteForever,
+  MdStar,
+  MdStarBorder,
 } from "react-icons/md";
 import { GrHostMaintenance } from "react-icons/gr";
-import type { Vehicle } from "../../../../../service/apiAdmin/apiVehicles/API";
+import type { Vehicle, VehicleRating } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { Station } from "../../../../../service/apiAdmin/apiStation/API";
-import { getPhotoUrls } from "../../../../../service/apiAdmin/apiVehicles/API";
+import { getPhotoUrls, getVehicleRatings } from "../../../../../service/apiAdmin/apiVehicles/API";
 import type { IconType } from "react-icons";
 
 interface VehicleDetailModalProps {
@@ -39,12 +41,40 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
   getStationName,
 }) => {
   const [showActions, setShowActions] = useState(false);
+  const [ratings, setRatings] = useState<VehicleRating[]>([]);
+  const [ratingsLoading, setRatingsLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setShowActions(false);
+      setRatings([]);
     }
   }, [isOpen]);
+
+  // Fetch ratings when modal opens and vehicle is available
+  useEffect(() => {
+    if (isOpen && vehicle?._id) {
+      const fetchRatings = async () => {
+        setRatingsLoading(true);
+        try {
+          console.log("🔄 Fetching ratings for vehicle:", vehicle._id);
+          const vehicleRatings = await getVehicleRatings(vehicle._id);
+          console.log("✅ Received ratings:", vehicleRatings);
+          setRatings(vehicleRatings || []);
+        } catch (error) {
+          console.error("❌ Error fetching vehicle ratings:", error);
+          setRatings([]);
+        } finally {
+          setRatingsLoading(false);
+        }
+      };
+      fetchRatings();
+    } else {
+      // Reset ratings when modal closes or vehicle changes
+      setRatings([]);
+      setRatingsLoading(false);
+    }
+  }, [isOpen, vehicle?._id]);
 
   const handleClose = () => {
     setShowActions(false);
@@ -608,6 +638,146 @@ const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                       </div>
                     </details>
                   )}
+
+                  {/* Ratings Section */}
+                  <details className="space-y-3 group" open>
+                    <summary className="cursor-pointer list-none flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                      <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                        <MdStar className="w-5 h-5 text-yellow-500" />
+                        Ratings & Reviews
+                        {(vehicle.ratingCount && vehicle.ratingCount > 0) && (
+                          <span className="text-xs font-normal text-gray-500">
+                            ({vehicle.ratingCount} {vehicle.ratingCount === 1 ? "review" : "reviews"})
+                          </span>
+                        )}
+                      </h3>
+                      <span className="text-xs text-gray-500">
+                        Click to collapse
+                      </span>
+                    </summary>
+                    <div className="space-y-3">
+                      {ratingsLoading ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                          <p className="text-sm text-gray-500">Loading ratings...</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* Average Rating Summary - Always show if vehicle has rating data */}
+                          {(vehicle.ratingAvg !== undefined && vehicle.ratingAvg > 0) || (vehicle.ratingCount && vehicle.ratingCount > 0) ? (
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700 mb-1">
+                                    Average Rating
+                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-2xl font-bold text-gray-900">
+                                      {vehicle.ratingAvg?.toFixed(1) || "0.0"}
+                                    </span>
+                                    <div className="flex items-center">
+                                      {[1, 2, 3, 4, 5].map((star) => (
+                                        <MdStar
+                                          key={star}
+                                          className={`w-5 h-5 ${
+                                            star <= Math.round(vehicle.ratingAvg || 0)
+                                              ? "text-yellow-400 fill-yellow-400"
+                                              : "text-gray-300"
+                                          }`}
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-medium text-gray-700">
+                                    {vehicle.ratingCount || 0}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {vehicle.ratingCount === 1 ? "review" : "reviews"}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {/* Individual Ratings */}
+                          {ratings.length === 0 ? (
+                            <div className="text-center py-8 bg-gray-50 rounded-lg">
+                              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <MdStarBorder className="w-8 h-8 text-gray-400" />
+                              </div>
+                              <p className="text-sm text-gray-500">
+                                No reviews yet
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                This vehicle hasn't received any reviews
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3 max-h-96 overflow-y-auto">
+                              {ratings.map((rating) => (
+                                <motion.div
+                                  key={rating._id}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                                >
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <div className="flex items-center">
+                                          {[1, 2, 3, 4, 5].map((star) => (
+                                            <MdStar
+                                              key={star}
+                                              className={`w-4 h-4 ${
+                                                star <= rating.score
+                                                  ? "text-yellow-400 fill-yellow-400"
+                                                  : "text-gray-300"
+                                              }`}
+                                            />
+                                          ))}
+                                        </div>
+                                        <span className="text-sm font-medium text-gray-900">
+                                          {rating.score}.0
+                                        </span>
+                                      </div>
+                                      {rating.renter && (
+                                        <p className="text-xs text-gray-600 mb-1">
+                                          by {typeof rating.renter === "object" && rating.renter.name 
+                                            ? rating.renter.name 
+                                            : typeof rating.renter === "string"
+                                            ? "User"
+                                            : "Anonymous"}
+                                        </p>
+                                      )}
+                                      {!rating.renter && rating.renterId && (
+                                        <p className="text-xs text-gray-600 mb-1">
+                                          by User
+                                        </p>
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-gray-500">
+                                      {rating.submittedAt
+                                        ? formatDate(rating.submittedAt)
+                                        : rating.createdAt
+                                        ? formatDate(rating.createdAt)
+                                        : "N/A"}
+                                    </span>
+                                  </div>
+                                  {rating.comment && (
+                                    <p className="text-sm text-gray-700 mt-2 leading-relaxed">
+                                      {rating.comment}
+                                    </p>
+                                  )}
+                                </motion.div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </details>
                 </div>
               </div>
 

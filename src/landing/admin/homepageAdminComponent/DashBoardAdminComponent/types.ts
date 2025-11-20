@@ -1,11 +1,12 @@
 export interface Notification {
   id: string;
-  type: "maintenance" | "kyc";
+  type: "maintenance" | "kyc" | "damage";
   title: string;
   message: string;
   timestamp: Date;
   vehicleId?: string;
   userId?: string;
+  damageReportId?: string;
   priority: "high" | "medium" | "low";
   read?: boolean;
 }

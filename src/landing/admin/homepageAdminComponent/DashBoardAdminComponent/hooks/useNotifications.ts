@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { getMaintenanceRequestsPaginated } from "../../../../../service/apiAdmin/apiVehicles/API";
 import { getRenters } from "../../../../../service/apiAdmin/apiListUser/API";
+import { getAllDamageReports } from "../../../../../service/apiAdmin/apiBooking/API";
 import type { RawApiUser } from "../../../../../types/userTypes";
 import type { Notification } from "../types";
 
@@ -135,6 +136,39 @@ export const useNotifications = ({ vehicles }: UseNotificationsProps) => {
         }
       }
 
+      // Fetch damage reports with "reported" status (pending review)
+      try {
+        const damageReportsData = await getAllDamageReports({
+          page: 1,
+          limit: 50,
+          status: "reported",
+        });
+
+        const pendingDamageReports = damageReportsData.data?.items || [];
+
+        pendingDamageReports.forEach((report: any) => {
+          const vehicleName = report.vehicle
+            ? `${report.vehicle.brand || ""} ${report.vehicle.model || ""} (${report.vehicle.plateNumber || ""})`.trim()
+            : "Unknown Vehicle";
+          const reporterName = report.reportedBy?.name || "Staff";
+
+          newNotifications.push({
+            id: `damage-${report._id}`,
+            type: "damage",
+            title: "Damage Report Submitted",
+            message: `${reporterName} reported damage for ${vehicleName}`,
+            timestamp: new Date(report.createdAt || Date.now()),
+            vehicleId: report.vehicle?._id,
+            damageReportId: report._id,
+            priority: "high",
+          });
+        });
+      } catch (err: any) {
+        if (err?.response?.status !== 401 && err?.message?.includes("401") === false) {
+          console.error("Error fetching damage reports:", err);
+        }
+      }
+
       // Filter out deleted notifications
       const filteredNotifications = newNotifications.filter(
         (notif) => !deletedNotifications.has(notif.id)
@@ -207,6 +241,12 @@ export const useNotifications = ({ vehicles }: UseNotificationsProps) => {
           window.location.href = `/admin/users/verification?userId=${notif.userId}`;
         } else {
           window.location.href = "/admin/users/verification";
+        }
+      } else if (notif.type === "damage") {
+        if (notif.damageReportId) {
+          window.location.href = `/admin/damage-reports?reportId=${notif.damageReportId}`;
+        } else {
+          window.location.href = "/admin/damage-reports";
         }
       }
     }, 100);

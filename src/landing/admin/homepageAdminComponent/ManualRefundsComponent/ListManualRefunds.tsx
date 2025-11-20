@@ -17,6 +17,7 @@ import {
   getRefundStatusColor,
   getRefundStatusLabel,
 } from "../../../../service/apiAdmin/apiManualRefunds/API";
+import DropdownSelect from "../StationManagementAdmin/DropdownSelect";
 import type {
   ManualRefund,
   ManualRefundStatus,
@@ -24,11 +25,13 @@ import type {
 } from "../../../../service/apiAdmin/apiManualRefunds/API";
 
 interface ListManualRefundsProps {
-  onSelectRefund: (refund: ManualRefund) => void;
+  onSelectRefund?: (refund: ManualRefund) => void;
+  onDataLoaded?: (refunds: ManualRefund[]) => void;
 }
 
 const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
   onSelectRefund,
+  onDataLoaded,
 }) => {
   const [allRefunds, setAllRefunds] = useState<ManualRefund[]>([]);
   const [filteredRefunds, setFilteredRefunds] = useState<ManualRefund[]>([]);
@@ -41,8 +44,6 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<ManualRefundStatus | "all">("all");
-  const [methodFilter, setMethodFilter] = useState<string>("all");
-  const [bookingStatusFilter, setBookingStatusFilter] = useState<string>("all");
   const [staffFilter, setStaffFilter] = useState<string>("all");
   const [renterFilter, setRenterFilter] = useState<string>("all");
 
@@ -61,17 +62,20 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
       if (response.success) {
         const items = response.items || response.data?.items || [];
         setAllRefunds(items);
+        onDataLoaded?.(items);
       } else {
         setAllRefunds([]);
+        onDataLoaded?.([]);
       }
     } catch (err: any) {
       console.error("Error fetching manual refunds:", err);
       setError(err?.message || "Failed to load manual refunds");
       setAllRefunds([]);
+      onDataLoaded?.([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onDataLoaded]);
 
   useEffect(() => {
     fetchAllRefunds();
@@ -80,60 +84,39 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, methodFilter, bookingStatusFilter, staffFilter, renterFilter]);
+  }, [statusFilter, staffFilter, renterFilter]);
 
   // Filter refunds based on selected filters
   useEffect(() => {
     let filtered = [...allRefunds];
 
-    // Status filter
     if (statusFilter !== "all") {
-      filtered = filtered.filter((refund) => {
-        const refundStatus = refund.status?.toLowerCase();
-        const filterStatus = statusFilter.toLowerCase();
-        return refundStatus === filterStatus;
-      });
+      filtered = filtered.filter(
+        (refund) => refund.status?.toLowerCase() === statusFilter.toLowerCase()
+      );
     }
 
-    // Method filter
-    if (methodFilter !== "all") {
-      filtered = filtered.filter((refund) => refund.method === methodFilter);
-    }
-
-    // Booking status filter
-    if (bookingStatusFilter !== "all") {
-      filtered = filtered.filter((refund) => {
-        const bookingStatus = refund.booking?.status?.toLowerCase();
-        const filterStatus = bookingStatusFilter.toLowerCase();
-        return bookingStatus === filterStatus;
-      });
-    }
-
-    // Staff filter
     if (staffFilter !== "all") {
       filtered = filtered.filter((refund) => refund.staff?._id === staffFilter);
     }
 
-    // Renter filter
     if (renterFilter !== "all") {
-      filtered = filtered.filter((refund) => refund.renter?._id === renterFilter);
+      filtered = filtered.filter(
+        (refund) => refund.renter?._id === renterFilter
+      );
     }
 
-    // Update pagination
     const totalFiltered = filtered.length;
     const totalPagesFiltered = Math.ceil(totalFiltered / limit);
     setTotal(totalFiltered);
     setTotalPages(totalPagesFiltered);
 
-    // Apply pagination
     const startIndex = (currentPage - 1) * limit;
     const endIndex = startIndex + limit;
     setFilteredRefunds(filtered.slice(startIndex, endIndex));
-  }, [allRefunds, statusFilter, methodFilter, bookingStatusFilter, staffFilter, renterFilter, currentPage, limit]);
+  }, [allRefunds, statusFilter, staffFilter, renterFilter, currentPage, limit]);
 
   // Get unique values for filters
-  const uniqueMethods = Array.from(new Set(allRefunds.map((r) => r.method).filter(Boolean)));
-  const uniqueBookingStatuses = Array.from(new Set(allRefunds.map((r) => r.booking?.status).filter(Boolean)));
   const uniqueStaffs = Array.from(
     new Map(allRefunds.map((r) => [r.staff?._id, r.staff])).values()
   ).filter(Boolean);
@@ -182,85 +165,60 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
     <div className="h-full flex flex-col min-h-0">
       {/* Header with Filters */}
       <div className="mb-4 flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
           <h3 className="text-sm lg:text-base font-semibold text-gray-900">
             Manual Refunds List ({total} items)
           </h3>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-          {/* Status Filter */}
-          <select
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <DropdownSelect
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as ManualRefundStatus | "all");
-            }}
-            className="text-xs lg:text-sm px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="done">Done</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+              onChange={(value) =>
+                setStatusFilter(value as ManualRefundStatus | "all")
+              }
+              options={[
+                { label: "All Status", value: "all" },
+                { label: "Pending", value: "pending" },
+                { label: "Approved", value: "approved" },
+                { label: "Rejected", value: "rejected" },
+                { label: "Processing", value: "processing" },
+                { label: "Completed", value: "completed" },
+                { label: "Done", value: "done" },
+                { label: "Cancelled", value: "cancelled" },
+              ]}
+              placeholder="All Status"
+              className="w-full"
+            />
 
-          {/* Method Filter */}
-          <select
-            value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value)}
-            className="text-xs lg:text-sm px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Methods</option>
-            {uniqueMethods.map((method) => (
-              <option key={method} value={method}>
-                {method}
-              </option>
-            ))}
-          </select>
-
-          {/* Booking Status Filter */}
-          <select
-            value={bookingStatusFilter}
-            onChange={(e) => setBookingStatusFilter(e.target.value)}
-            className="text-xs lg:text-sm px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Booking Status</option>
-            {uniqueBookingStatuses.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-
-          {/* Staff Filter */}
-          <select
+            <DropdownSelect
             value={staffFilter}
-            onChange={(e) => setStaffFilter(e.target.value)}
-            className="text-xs lg:text-sm px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Staff</option>
-            {uniqueStaffs.map((staff) => (
-              <option key={staff._id} value={staff._id}>
-                {staff.name}
-              </option>
-            ))}
-          </select>
+              onChange={(value) => setStaffFilter(value)}
+              options={[
+                { label: "All Staff", value: "all" },
+                ...uniqueStaffs.map((staff) => ({
+                  label: staff?.name || "Unnamed",
+                  value: staff?._id || "",
+                })),
+              ]}
+              placeholder="All Staff"
+              className="w-full"
+            />
 
-          {/* Renter Filter */}
-          <select
+            <DropdownSelect
             value={renterFilter}
-            onChange={(e) => setRenterFilter(e.target.value)}
-            className="text-xs lg:text-sm px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Renters</option>
-            {uniqueRenters.map((renter) => (
-              <option key={renter._id} value={renter._id}>
-                {renter.name}
-              </option>
-            ))}
-          </select>
+              onChange={(value) => setRenterFilter(value)}
+              options={[
+                { label: "All Renters", value: "all" },
+                ...uniqueRenters.map((renter) => ({
+                  label: renter?.name || "Unnamed",
+                  value: renter?._id || "",
+                })),
+              ]}
+              placeholder="All Renters"
+              className="w-full"
+            />
+          </div>
         </div>
       </div>
 
@@ -284,8 +242,10 @@ const ListManualRefunds: React.FC<ListManualRefundsProps> = ({
                 key={refund._id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                onClick={() => onSelectRefund(refund)}
-                className="bg-gray-50 rounded-lg lg:rounded-xl border border-gray-200 p-3 lg:p-4 hover:shadow-md transition-all cursor-pointer"
+                onClick={() => onSelectRefund?.(refund)}
+                className={`bg-gray-50 rounded-lg lg:rounded-xl border border-gray-200 p-3 lg:p-4 hover:shadow-md transition-all ${
+                  onSelectRefund ? "cursor-pointer" : ""
+                }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   {/* Left Section */}
