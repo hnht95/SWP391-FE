@@ -1,57 +1,68 @@
 import { AxiosError } from "axios";
 import api from "../../Utils";
 
-// ✅ Station Interface
+// ============================================
+// ✅ TYPE DEFINITIONS
+// ============================================
+
+/**
+ * Station Interface - Backend Response Structure
+ */
 export interface Station {
   _id: string;
   name: string;
   code?: string;
+  province?: string;
   location: {
     address: string;
     lat: number;
     lng: number;
   };
-  imgStation?: string;
+  imgStation?: {
+    _id: string;
+    url: string;
+    publicId: string;
+    type: string;
+    provider: string;
+    tags: string[];
+    uploadedBy: string;
+    createdAt: string;
+    updatedAt: string;
+  };
   note?: string;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
+  __v?: number;
 }
 
-// ✅ API Response Wrapper (for list endpoints)
-interface StationListResponse {
-  success: boolean;
-  data: Station[];
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+/**
+ * Delete Station Response
+ */
+export interface DeleteStationResponse {
+  success?: boolean;
+  deletedStationId?: string;
+  movedVehiclesCount?: number;
+  message?: string;
 }
 
-// ✅ API Response Wrapper (for single station)
-interface StationResponse {
-  success: boolean;
-  data: Station;
+/**
+ * API Response wrapper type
+ */
+interface ApiResponse<T> {
+  success?: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
 }
 
-// ✅ Create Station Data - Flat structure
-export interface CreateStationData {
-  name: string;
-  code?: string;
-  address: string;
-  lat: number;
-  lng: number;
-  note?: string;
-}
+// ============================================
+// ✅ ERROR HANDLER
+// ============================================
 
-// ✅ Update Station Data
-export interface UpdateStationData extends Partial<CreateStationData> {}
+const handleError = (error: unknown): never => {
+  const err = error as AxiosError<ApiResponse<unknown>>;
 
-// ✅ Error Handler
-const handleError = (error: unknown) => {
-  const err = error as AxiosError;
   console.error("Station API Error:", {
     status: err?.response?.status,
     data: err?.response?.data,
@@ -59,8 +70,9 @@ const handleError = (error: unknown) => {
   });
 
   let errorMessage = err?.message || "Unknown error";
+
   if (err?.response?.data) {
-    const responseData: any = err.response.data;
+    const responseData = err.response.data;
     if (responseData.error) {
       errorMessage = responseData.error;
     } else if (responseData.message) {
@@ -71,162 +83,252 @@ const handleError = (error: unknown) => {
   throw new Error(errorMessage);
 };
 
+// ============================================
+// ✅ API FUNCTIONS
+// ============================================
+
+/**
+ * GET /api/stations
+ * Fetch all stations with optional pagination
+ */
 export const getAllStations = async (
   page: number = 1,
   limit: number = 20
 ): Promise<Station[]> => {
   try {
-    const response = await api.get<StationListResponse>("/stations", {
-      params: { page, limit },
-    });
+    const response = await api.get<Station[] | ApiResponse<Station[]>>(
+      "/stations",
+      {
+        params: { page, limit },
+      }
+    );
 
-    // ✅ Check for wrapped response
-    if (response.data.success && Array.isArray(response.data.data)) {
-      return response.data.data;
+    if (Array.isArray(response.data)) {
+      return response.data;
     }
 
-    // ✅ Fallback: if backend returns array directly (no wrapper)
-    if (Array.isArray(response.data)) {
-      return response.data as unknown as Station[];
+    // Handle wrapped response
+    if (
+      typeof response.data === "object" &&
+      response.data !== null &&
+      "success" in response.data &&
+      "data" in response.data &&
+      Array.isArray(response.data.data)
+    ) {
+      return response.data.data;
     }
 
     throw new Error("Invalid API response format");
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
 /**
  * GET /api/stations/:id
- * Backend returns: { success: true, data: Station }
+ * Fetch a single station by ID
  */
 export const getStationById = async (id: string): Promise<Station> => {
   try {
-    const response = await api.get<StationResponse>(`/stations/${id}`);
+    const response = await api.get<Station | ApiResponse<Station>>(
+      `/stations/${id}`
+    );
 
-    console.log("Get station response:", response.data);
+    console.log("Get station by ID response:", response.data);
 
-    // ✅ Check for wrapped response
-    if (response.data.success && response.data.data) {
-      return response.data.data;
+    // Handle direct station response
+    if (response.data && "_id" in response.data) {
+      return response.data as Station;
     }
 
-    // ✅ Fallback: if backend returns station directly
-    if (response.data.data._id) {
-      return response.data as unknown as Station;
+    // Handle wrapped response
+    if (
+      typeof response.data === "object" &&
+      response.data !== null &&
+      "data" in response.data &&
+      response.data.data &&
+      typeof response.data.data === "object" &&
+      "_id" in response.data.data
+    ) {
+      return response.data.data as Station;
     }
 
     throw new Error("Station not found");
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
 /**
  * POST /api/stations
- * Backend expects: { name, code?, address, lat, lng, note? }
- * Backend returns: Station (created station directly)
+ * Create a new station with optional file upload
+ *
+ * Backend expects FormData with fields:
+ * - name: string (required)
+ * - province: string (optional)
+ * - address: string (required)
+ * - lat: number (required)
+ * - lng: number (required)
+ * - note: string (optional)
+ * - coverFile: File (optional - multipart/form-data)
+ *
+ * Note: code is auto-generated by backend (ST01, ST02, etc.)
  */
 export const createStation = async (
-  stationData: CreateStationData
+  stationData: FormData
 ): Promise<Station> => {
   try {
-    console.log("Creating station with data:", stationData);
+    console.log("📤 API: Creating station...");
 
-    const response = await api.post<Station>("/stations", stationData);
-
-    console.log("Create station response:", response.data);
-
-    // ✅ Backend returns station directly (no wrapper for POST)
-    if (response.data && response.data._id) {
-      return response.data;
+    // Debug: Log FormData contents
+    console.log("📦 FormData entries:");
+    for (const [key, value] of stationData.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}:`, {
+          name: value.name,
+          type: value.type,
+          size: value.size,
+        });
+      } else {
+        console.log(`  ${key}:`, value);
+      }
     }
 
-    throw new Error("Failed to create station");
+    const response = await api.post<Station | ApiResponse<Station>>(
+      "/stations",
+      stationData
+    );
+
+    console.log("✅ API: Create station response:", response.data);
+
+    // Handle direct station response
+    if (response.data && "_id" in response.data) {
+      return response.data as Station;
+    }
+
+    // Handle wrapped response
+    if (
+      typeof response.data === "object" &&
+      response.data !== null &&
+      "data" in response.data &&
+      response.data.data
+    ) {
+      return response.data.data as Station;
+    }
+
+    return response.data as Station;
   } catch (error) {
-    handleError(error);
-    throw error;
+    console.error("❌ API: Error creating station:", error);
+    return handleError(error);
   }
 };
 
 /**
  * PUT /api/stations/:id
- * Backend expects: { name?, code?, address?, lat?, lng?, note? }
- * Backend returns: { success: true, data: Station }
+ * Update an existing station
+ *
+ * Backend expects FormData with fields:
+ * - name: string (required)
+ * - code: string (optional)
+ * - province: string (optional)
+ * - address: string (required)
+ * - lat: number (required)
+ * - lng: number (required)
+ * - note: string (optional)
+ * - isActive: boolean/string (required)
+ * - imgStation: string (optional - "" or "null" to remove image)
+ * - coverFile: File (optional - new file upload)
  */
 export const updateStation = async (
   id: string,
-  stationData: UpdateStationData
+  stationData: FormData
 ): Promise<Station> => {
   try {
-    console.log("Updating station:", id, stationData);
+    console.log("📤 Updating station:", id);
 
-    const response = await api.put<StationResponse>(
+    // Debug: Log FormData contents
+    console.log("📦 FormData entries:");
+    for (const [key, value] of stationData.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}:`, {
+          name: value.name,
+          type: value.type,
+          size: value.size,
+        });
+      } else {
+        console.log(`  ${key}:`, value);
+      }
+    }
+
+    const response = await api.put<Station | ApiResponse<Station>>(
       `/stations/${id}`,
       stationData
     );
 
-    console.log("Update station response:", response.data);
+    console.log("✅ Update station response:", response.data);
 
-    // ✅ Check for wrapped response
-    if (response.data.success && response.data.data) {
-      return response.data.data;
+    // Handle direct station response
+    if (response.data && "_id" in response.data) {
+      return response.data as Station;
     }
 
-    // ✅ Fallback: if backend returns station directly
-    if (response.data.data._id) {
-      return response.data.data;
+    // Handle wrapped response
+    if (
+      typeof response.data === "object" &&
+      response.data !== null &&
+      "data" in response.data &&
+      response.data.data
+    ) {
+      return response.data.data as Station;
     }
 
     throw new Error("Failed to update station");
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
 /**
  * DELETE /api/stations/:id
- * Backend expects: { transferToStationId?, reason? } in body
- * Backend returns: { message: "Station deleted successfully" }
+ * Delete a station
+ *
+ * If station has vehicles, transferToStationId is required to transfer them
+ * before deletion
+ *
+ * @param id - Station ID to delete
+ * @param transferToStationId - Optional: ID of station to transfer vehicles to
+ * @param reason - Optional: Reason for deletion
  */
-export interface DeleteStationResponse {
-  success?: boolean;
-  deletedStationId?: string;
-  movedVehiclesCount?: number;
-  message?: string;
-}
-
 export const deleteStation = async (
   id: string,
   transferToStationId?: string,
   reason?: string
 ): Promise<DeleteStationResponse> => {
   try {
-    const payload: any = {};
+    const payload: Record<string, string> = {};
     if (transferToStationId) payload.transferToStationId = transferToStationId;
     if (reason) payload.reason = reason;
 
-    const response = await api.delete(`/stations/${id}`, {
+    const response = await api.delete<
+      DeleteStationResponse | ApiResponse<DeleteStationResponse>
+    >(`/stations/${id}`, {
       data: payload,
     });
 
-    const data = response.data as DeleteStationResponse | { message: string };
-    console.log("Delete response:", data);
+    console.log("Delete station response:", response.data);
 
-    // Chuẩn hóa response: hỗ trợ cả 2 format backend cung cấp
-    if ("success" in (data as any) || "deletedStationId" in (data as any)) {
-      return data as DeleteStationResponse;
+    // Handle response
+    if (response.data && typeof response.data === "object") {
+      // If it has 'data' property, unwrap it
+      if ("data" in response.data && response.data.data) {
+        return response.data.data as DeleteStationResponse;
+      }
+      return response.data as DeleteStationResponse;
     }
-    if ((data as any).message) {
-      return { message: (data as any).message };
-    }
-    return {};
+
+    return { success: true };
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
@@ -235,42 +337,56 @@ export const deleteStation = async (
 // ============================================
 
 /**
- * Get active stations only
+ * Get only active stations
  */
 export const getActiveStations = async (): Promise<Station[]> => {
   try {
     const allStations = await getAllStations();
     return allStations.filter((station) => station.isActive === true);
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
 };
 
 /**
- * Search stations by name or address
+ * Search stations by name, code, province, or address
  */
 export const searchStations = async (
   searchTerm: string
 ): Promise<Station[]> => {
   try {
-    const allStations = await getAllStations();
-    const lowerSearchTerm = searchTerm.toLowerCase();
+    if (!searchTerm || typeof searchTerm !== "string") {
+      return [];
+    }
 
-    return allStations.filter(
-      (station) =>
-        station.name.toLowerCase().includes(lowerSearchTerm) ||
-        station.location.address.toLowerCase().includes(lowerSearchTerm) ||
-        station.code?.toLowerCase().includes(lowerSearchTerm)
-    );
+    const allStations = await getAllStations();
+    const lowerSearchTerm = searchTerm.toLowerCase().trim();
+
+    if (!lowerSearchTerm) {
+      return allStations;
+    }
+
+    return allStations.filter((station) => {
+      // Safe checks for each field
+      const nameMatch = station.name?.toLowerCase().includes(lowerSearchTerm);
+      const addressMatch = station.location?.address
+        ?.toLowerCase()
+        .includes(lowerSearchTerm);
+      const codeMatch = station.code?.toLowerCase().includes(lowerSearchTerm);
+      const provinceMatch = station.province
+        ?.toLowerCase()
+        .includes(lowerSearchTerm);
+
+      return nameMatch || addressMatch || codeMatch || provinceMatch;
+    });
   } catch (error) {
-    handleError(error);
-    throw error;
+    console.error("Search stations error:", error);
+    return []; // Return empty array instead of throwing
   }
 };
 
 /**
- * Get station by code
+ * Get station by unique code
  */
 export const getStationByCode = async (
   code: string
@@ -279,7 +395,123 @@ export const getStationByCode = async (
     const allStations = await getAllStations();
     return allStations.find((station) => station.code === code) || null;
   } catch (error) {
-    handleError(error);
-    throw error;
+    return handleError(error);
   }
+};
+
+// ============================================
+// ✅ FORMDATA BUILDERS
+// ============================================
+
+/**
+ * Helper: Build FormData for CREATE operation
+ *
+ * @param data - Station data
+ * @param coverFile - Optional cover file for upload
+ * @returns FormData ready for API submission
+ */
+export function buildCreateStationFormData(
+  data: {
+    name: string;
+    code?: string;
+    province?: string;
+    address: string;
+    lat: number;
+    lng: number;
+    note?: string;
+  },
+  coverFile?: File
+): FormData {
+  const formData = new FormData();
+
+  formData.append("name", data.name.trim());
+
+  // Only append code if provided and not empty (backend auto-generates if omitted)
+  if (data.code && data.code.trim()) {
+    formData.append("code", data.code.trim());
+  }
+
+  // Add province field
+  if (data.province && data.province.trim()) {
+    formData.append("province", data.province.trim());
+  }
+
+  // Backend expects FLAT fields, not JSON string
+  formData.append("address", data.address.trim());
+  formData.append("lat", data.lat.toString());
+  formData.append("lng", data.lng.toString());
+
+  if (data.note && data.note.trim()) {
+    formData.append("note", data.note.trim());
+  }
+
+  if (coverFile) {
+    formData.append("coverFile", coverFile);
+    console.log("✅ coverFile added to FormData:", coverFile.name);
+  }
+
+  return formData;
+}
+
+/**
+ * Helper: Build FormData for UPDATE operation
+ *
+ * @param data - Station data to update
+ * @param coverFile - Optional new cover file
+ * @param removeImage - Set to true to remove existing image
+ * @returns FormData ready for API submission
+ */
+export const buildUpdateStationFormData = (
+  data: {
+    name: string;
+    code?: string;
+    province?: string;
+    address: string;
+    lat: number;
+    lng: number;
+    note?: string;
+    isActive: boolean;
+  },
+  coverFile?: File,
+  removeImage?: boolean
+): FormData => {
+  const formData = new FormData();
+
+  // Backend expects flat fields
+  formData.append("name", data.name.trim());
+
+  if (data.code && data.code.trim()) {
+    formData.append("code", data.code.trim());
+  }
+
+  // Add province field
+  if (data.province && data.province.trim()) {
+    formData.append("province", data.province.trim());
+  }
+
+  // Backend expects FLAT fields for update too
+  formData.append("address", data.address.trim());
+  formData.append("lat", data.lat.toString());
+  formData.append("lng", data.lng.toString());
+
+  if (data.note && data.note.trim()) {
+    formData.append("note", data.note.trim());
+  }
+
+  // isActive as string (backend parses it)
+  formData.append("isActive", data.isActive ? "true" : "false");
+
+  // Handle image removal (send "" or "null")
+  if (removeImage) {
+    formData.append("imgStation", "");
+    console.log("🗑️ Marked image for removal");
+  }
+
+  // Add new cover file if provided
+  if (coverFile) {
+    formData.append("coverFile", coverFile);
+    console.log("✅ coverFile added to FormData:", coverFile.name);
+  }
+
+  return formData;
 };

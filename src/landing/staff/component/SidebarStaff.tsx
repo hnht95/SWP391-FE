@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 
 import {
-  MdDashboard,
   MdSwapHoriz,
   MdSupport,
   MdChevronLeft,
@@ -52,12 +51,6 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
 
   const menuItems = [
     {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: <MdDashboard className="w-5 h-5" />,
-      path: "/staff/dashboard",
-    },
-    {
       id: "users",
       label: "Users",
       icon: <FaUser className="w-5 h-5" />,
@@ -76,14 +69,14 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
       path: "/staff/vehicles",
     },
     {
-      id: "contracts",
-      label: "Contracts",
+      id: "manual-refunds",
+      label: "Manual Refunds",
       icon: <TbContract className="w-5 h-5" />,
-      path: "/staff/contracts",
+      path: "/staff/manual-refunds",
     },
     {
       id: "reports",
-      label: "Customer Support",
+      label: "Station Requests",
       icon: <MdSupport className="w-5 h-5" />,
       path: "/staff/reports",
     },

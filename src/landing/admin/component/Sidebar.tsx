@@ -5,16 +5,20 @@ import {
   MdDirectionsCar,
   MdLocationOn,
   MdPeople,
-  MdWork,
   MdAssessment,
   MdChevronLeft,
   MdChevronRight,
   MdPerson,
   MdLogout,
   MdKeyboardArrowDown,
+  MdWarning,
+  MdAttachMoney,
+  MdHome,
 } from "react-icons/md";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
 import { useAuth } from "../../../hooks/useAuth";
+import { PiUserListLight } from "react-icons/pi";
+import { FaUserCheck } from "react-icons/fa6";
 
 export interface MenuItem {
   id: string;
@@ -32,7 +36,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const { logout, showGlobalLoading, hideGlobalLoading } = useAuth();
+  const [openUserMenu, setOpenUserMenu] = useState(false);
+  const { logout, showGlobalLoading, hideGlobalLoading, user } = useAuth();
 
   const menuItems: MenuItem[] = [
     {
@@ -54,26 +59,28 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
       path: "/admin/stations",
     },
     {
-      id: "customer-management",
-      label: "Customer Management",
-      icon: <MdPeople className="w-5 h-5" />,
-      path: "/admin/customers",
-    },
-    {
-      id: "staff-management",
-      label: "Staff Management",
-      icon: <MdWork className="w-5 h-5" />,
-      path: "/admin/staff",
-    },
-    {
-      id: "reports-ai",
-      label: "Reports & AI",
+      id: "transaction-history",
+      label: "Transaction History",
       icon: <MdAssessment className="w-5 h-5" />,
-      path: "/admin/reports",
+      path: "/admin/transactions",
     },
+    {
+      id: "damage-reports",
+      label: "Damage Reports",
+      icon: <MdWarning className="w-5 h-5" />,
+      path: "/admin/damage-reports",
+    },
+    {
+      id: "manual-refunds",
+      label: "Manual Refunds",
+      icon: <MdAttachMoney className="w-5 h-5" />,
+      path: "/admin/manual-refunds",
+    },
+    // User Management is rendered as a dropdown below
   ];
 
   const handleMenuClick = (item: MenuItem) => {
+    setShowProfileMenu(false); // Close profile dropdown when clicking menu items
     navigate(item.path);
   };
 
@@ -137,6 +144,72 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
               )}
             </button>
           ))}
+
+          {/* User Management dropdown */}
+          <div>
+            <button
+              onClick={() => {
+                setShowProfileMenu(false); // Close profile dropdown when clicking User Management
+                if (isCollapsed) {
+                  navigate("/admin/users");
+                } else {
+                  setOpenUserMenu((v) => !v);
+                }
+              }}
+              className={`flex w-full items-center px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                location.pathname.startsWith("/admin/users")
+                  ? "bg-gray-900 text-white shadow-md"
+                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <span className={`${isCollapsed ? "mx-auto" : "mr-3"}`}>
+                <MdPeople className={`w-5 h-5 ${
+                  location.pathname.startsWith("/admin/users") ? "text-white" : ""
+                }`} />
+              </span>
+              {!isCollapsed && <span className="truncate">User Management</span>}
+              {!isCollapsed && (
+                <MdKeyboardArrowDown
+                  className={`ml-auto w-4 h-4 transition-transform ${openUserMenu ? "rotate-180" : ""}`}
+                />
+              )}
+            </button>
+
+            {!isCollapsed && openUserMenu && (
+              <div className="mt-1 ml-10 space-y-1">
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false); // Close profile dropdown
+                    navigate("/admin/users");
+                  }}
+                  className={`flex w-full items-center px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100 ${
+                    location.pathname === "/admin/users" ? "text-gray-900" : ""
+                  }`}
+                >
+                  <span className="mr-2 inline-flex items-center justify-center"><PiUserListLight className="w-4 h-4" /></span>
+                  <span className="truncate">User List</span>
+                  {location.pathname === "/admin/users" && (
+                    <span className="ml-auto w-2 h-2 bg-black rounded-full" />
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false); // Close profile dropdown
+                    navigate("/admin/users/verification");
+                  }}
+                  className={`flex w-full items-center px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100 ${
+                    location.pathname === "/admin/users/verification" ? "text-gray-900" : ""
+                  }`}
+                >
+                  <span className="mr-2 inline-flex items-center justify-center"><FaUserCheck className="w-4 h-4" /></span>
+                  <span className="truncate">User Verification</span>
+                  {location.pathname === "/admin/users/verification" && (
+                    <span className="ml-auto w-2 h-2 bg-black rounded-full" />
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </nav>
 
@@ -144,13 +217,66 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
       <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white">
         <div className="p-3">
           {isCollapsed ? (
-            <div className="flex justify-center">
+            <div className="relative">
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
+                className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors mx-auto"
               >
                 <MdPerson className="w-4 h-4 text-white" />
               </button>
+              {showProfileMenu && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white border-2 border-black rounded-lg shadow-lg py-2 min-w-[180px]">
+                  {/* User Info Section */}
+                  {user && (
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-500">{user.role === "admin" ? "Admin" : user.role?.charAt(0).toUpperCase() + user.role?.slice(1) || "User"}</p>
+                    </div>
+                  )}
+                  
+                  {/* View Profile */}
+                  <button 
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      navigate("/");
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center border-b border-gray-200"
+                  >
+                    <MdPerson className="w-4 h-4 mr-2" />
+                    View Profile
+                  </button>
+                  
+                  {/* Back to Homepage */}
+                  <button 
+                    onClick={() => {
+                      navigate("/");
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center border-b border-gray-200"
+                  >
+                    <MdHome className="w-4 h-4 mr-2" />
+                    Back to Homepage
+                  </button>
+                  
+                  {/* Logout */}
+                  <button 
+                    onClick={async () => {
+                      setShowProfileMenu(false);
+                      showGlobalLoading();
+                      try {
+                        await logout();
+                        navigate("/");
+                      } finally {
+                        setTimeout(() => hideGlobalLoading(), 350);
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center"
+                  >
+                    <MdLogout className="w-4 h-4 mr-2" />
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="relative">
@@ -162,8 +288,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
                   <MdPerson className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-gray-900">Admin</p>
-                  <p className="text-xs text-gray-500">Administrator</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.name || "Admin"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {user?.role === "admin" ? "Administrator" : (user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "User")}
+                  </p>
                 </div>
                 <MdKeyboardArrowDown
                   className={`w-4 h-4 transition-transform duration-200 ${
@@ -174,8 +304,43 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
 
               {showProfileMenu && (
                 <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border-2 border-black rounded-lg shadow-lg py-2">
+                  {/* User Info Section */}
+                  {user && (
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-500">{user.role === "admin" ? "Admin" : user.role?.charAt(0).toUpperCase() + user.role?.slice(1) || "User"}</p>
+                    </div>
+                  )}
+                  
+                  {/* View Profile */}
+                  <button 
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      // Navigate to profile page if exists, or homepage
+                      navigate("/");
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center border-b border-gray-200"
+                  >
+                    <MdPerson className="w-4 h-4 mr-2" />
+                    View Profile
+                  </button>
+                  
+                  {/* Back to Homepage */}
+                  <button 
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      navigate("/");
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center border-b border-gray-200"
+                  >
+                    <MdHome className="w-4 h-4 mr-2" />
+                    Back to Homepage
+                  </button>
+                  
+                  {/* Logout */}
                   <button 
                     onClick={async () => {
+                      setShowProfileMenu(false);
                       showGlobalLoading();
                       try {
                         await logout();

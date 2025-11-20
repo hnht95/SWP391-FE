@@ -8,6 +8,9 @@ import type {
   AdminBookingTransactionsResponse,
   CreateBookingRequest,
   CreateBookingResponse,
+  BookingActionResponse,
+  RefundSummaryResponse,
+  DamageReportResponse,
 } from "../../types/bookings";
 
 const handleError = (error: unknown) => {
@@ -49,8 +52,72 @@ const handleError = (error: unknown) => {
 // RawApiVehicle moved to shared types
 
 interface ApiVehiclesResponse {
-  success: boolean;
+  ok?: boolean;
+  success?: boolean;
+  status?: string;
   items: RawApiVehicle[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+// Station request types (maintenance/deletion)
+export interface EvidencePhoto {
+  _id: string;
+  url: string;
+  type?: string;
+}
+
+export interface StationRequestItem {
+  _id: string;
+  vehicle: {
+    _id: string;
+    plateNumber: string;
+    brand: string;
+    model: string;
+    status: string;
+    station?: string | Record<string, unknown>;
+  } | null;
+  station?:
+    | string
+    | {
+        _id: string;
+        name: string;
+        location: {
+          address: string;
+          lat: number;
+          lng: number;
+        };
+      };
+  reportedBy?:
+    | string
+    | {
+        _id: string;
+        role?: string;
+        name?: string;
+        email?: string;
+      };
+  reportText?: string;
+  evidencePhotos?: EvidencePhoto[];
+  status: string; // pending | approved | rejected
+  previousVehicleStatus?: string;
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
+export interface PaginatedRequestsResponse {
+  success?: boolean;
+  ok?: boolean;
+  items: StationRequestItem[];
   pagination: {
     page: number;
     limit: number;
@@ -65,6 +132,81 @@ interface GetVehiclesParams {
   brand?: string;
   page?: number;
   limit?: number;
+}
+
+// Manual refund detail type (full response)
+export interface RefundDetail {
+  _id: string;
+  booking?: {
+    _id: string;
+    status?: string;
+    deposit?: {
+      amount?: number;
+      currency?: string;
+      provider?: string;
+      providerRef?: string;
+      status?: string;
+      payos?: {
+        orderCode?: number;
+        paymentLinkId?: string;
+        checkoutUrl?: string;
+        qrCode?: string;
+        amountCaptured?: number;
+        paidAt?: string;
+        refund?: Record<string, unknown>;
+        needsRefundReview?: boolean;
+        refundHistory?: unknown[];
+        lastWebhook?: {
+          code?: string;
+          desc?: string;
+          success?: boolean;
+          data?: Record<string, unknown>;
+          signature?: string;
+        };
+      };
+    };
+    amounts?: Record<string, number> & {
+      rentalEstimated?: number;
+      overKmFee?: number;
+      lateFee?: number;
+      batteryFee?: number;
+      damageCharge?: number;
+      discounts?: number;
+      subtotal?: number;
+      tax?: number;
+      grandTotal?: number;
+      totalPaid?: number;
+      earlyReturnRefund?: number;
+    };
+  };
+  renter?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    bankInfo?: Record<string, unknown>;
+  };
+  amount?: number;
+  currency?: string;
+  method?: string;
+  transferredAt?: string;
+  beneficiary?: {
+    bankCode?: string;
+    bankName?: string;
+    accountNumber?: string;
+    accountName?: string;
+  };
+  reference?: string;
+  staff?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+  };
+  status?: string;
+  note?: string | null;
+  attachments?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // API Functions
@@ -90,11 +232,448 @@ export const staffAPI = {
     }
   },
 
+  // Get available vehicles
+  getAvailableVehicles: async (params?: {
+    station?: string;
+    company?: string;
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<ApiVehiclesResponse> => {
+    try {
+      const queryParams = new URLSearchParams();
+
+      if (params?.station) queryParams.append("station", params.station);
+      if (params?.company) queryParams.append("company", params.company);
+      if (params?.page) queryParams.append("page", params.page.toString());
+      if (params?.limit) queryParams.append("limit", params.limit.toString());
+      if (params?.sort) queryParams.append("sort", params.sort);
+
+      const response = await api.get(
+        `/vehicles/available?${queryParams.toString()}`
+      );
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get reserved vehicles (booked)
+  getReservedVehicles: async (params?: {
+    station?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ApiVehiclesResponse> => {
+    try {
+      const queryParams = new URLSearchParams();
+
+      if (params?.station) queryParams.append("station", params.station);
+      if (params?.page) queryParams.append("page", params.page.toString());
+      if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+      const response = await api.get(
+        `/vehicles/reserved?${queryParams.toString()}`
+      );
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get rented vehicles
+  getRentedVehicles: async (params?: {
+    station?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ApiVehiclesResponse> => {
+    try {
+      const queryParams = new URLSearchParams();
+
+      if (params?.station) queryParams.append("station", params.station);
+      if (params?.page) queryParams.append("page", params.page.toString());
+      if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+      const response = await api.get(
+        `/vehicles/rented?${queryParams.toString()}`
+      );
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get maintenance requests (for staff: auto-scoped to their station)
+  getMaintenanceRequests: async (params?: {
+    status?: "approved" | "pending" | "rejected" | string;
+    q?: string;
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<PaginatedRequestsResponse> => {
+    try {
+      const response = await api.get("/vehicles/maintenance-requests", {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get MY maintenance requests (created by current staff user)
+  getMyMaintenanceRequests: async (params?: {
+    status?: "approved" | "pending" | "rejected" | string;
+    q?: string;
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<PaginatedRequestsResponse> => {
+    try {
+      const response = await api.get("/vehicles/maintenance-mine", {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get deletion requests (for staff: auto-scoped to their station)
+  getDeletionRequests: async (params?: {
+    status?: "approved" | "pending" | "rejected" | string;
+    q?: string;
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<PaginatedRequestsResponse> => {
+    try {
+      const response = await api.get("/vehicles/deletion-requests", {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get MY deletion requests (created by current staff user)
+  getMyDeletionRequests: async (params?: {
+    status?: "approved" | "pending" | "rejected" | string;
+    q?: string;
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<PaginatedRequestsResponse> => {
+    try {
+      const response = await api.get("/vehicles/deletion-mine", {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Update a maintenance request (only creator and when pending)
+  updateMaintenanceRequest: async (
+    requestId: string,
+    payload: {
+      description?: string;
+      urgency?: "low" | "medium" | "high" | string;
+      evidencePhotos?: File[];
+    }
+  ): Promise<StationRequestItem> => {
+    try {
+      const form = new FormData();
+      if (payload.description) form.append("description", payload.description);
+      if (payload.urgency) form.append("urgency", payload.urgency);
+      if (payload.evidencePhotos && payload.evidencePhotos.length) {
+        payload.evidencePhotos.forEach((f) => form.append("evidencePhotos", f));
+      }
+      const response = await api.put(
+        `/vehicles/maintenance-requests/${requestId}`,
+        form,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      return response.data?.item || response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Delete a maintenance request (only creator and when pending)
+  deleteMaintenanceRequest: async (
+    requestId: string
+  ): Promise<{ success: boolean; message?: string; requestId?: string }> => {
+    try {
+      const response = await api.delete(
+        `/vehicles/maintenance-requests/${requestId}`
+      );
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Update a deletion request (only creator and when pending)
+  updateDeletionRequest: async (
+    requestId: string,
+    payload: {
+      description?: string;
+      evidencePhotos?: File[];
+    }
+  ): Promise<StationRequestItem> => {
+    try {
+      const form = new FormData();
+      if (payload.description) form.append("description", payload.description);
+      if (payload.evidencePhotos && payload.evidencePhotos.length) {
+        payload.evidencePhotos.forEach((f) => form.append("evidencePhotos", f));
+      }
+      const response = await api.put(
+        `/vehicles/deletion-requests/${requestId}`,
+        form,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      return response.data?.item || response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Delete a deletion request (only creator and when pending)
+  deleteDeletionRequest: async (
+    requestId: string
+  ): Promise<{ success: boolean; message?: string; requestId?: string }> => {
+    try {
+      const response = await api.delete(
+        `/vehicles/deletion-requests/${requestId}`
+      );
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Upload contract (Step 3: reserved → reserved)
+  uploadContract: async (
+    bookingId: string,
+    contractFile: File
+  ): Promise<BookingActionResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append("contractFile", contractFile);
+      const res = await api.post(`/bookings/${bookingId}/contract`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return res.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Delete contract
+  deleteContract: async (bookingId: string): Promise<BookingActionResponse> => {
+    try {
+      const res = await api.delete(`/bookings/${bookingId}/contract`);
+      return res.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Upload pre-rental condition (Step 4: reserved → reserved)
+  uploadPreRentalCondition: async (
+    bookingId: string,
+    payload: {
+      batteryLevel: number;
+      mileage: number;
+      damagePhotos?: File[];
+    }
+  ): Promise<BookingActionResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append("batteryLevel", String(payload.batteryLevel));
+      formData.append("mileage", String(payload.mileage));
+      if (payload.damagePhotos?.length) {
+        payload.damagePhotos.forEach((file) => {
+          formData.append("damagePhotos", file);
+        });
+      }
+      const res = await api.post(
+        `/bookings/${bookingId}/pre-rental-condition`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      return res.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Start booking (Step 5: reserved → active)
+  startBooking: async (bookingId: string): Promise<BookingActionResponse> => {
+    try {
+      const res = await api.post(`/bookings/${bookingId}/start`);
+      return res.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Mark returned (Step 5: active → returning) - Now requires battery, mileage, damage photos
+  markReturned: async (
+    bookingId: string,
+    payload: {
+      batteryLevel: number;
+      mileage: number;
+      dashboardPhotos?: File[];
+    }
+  ): Promise<BookingActionResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append("batteryLevel", String(payload.batteryLevel));
+      formData.append("mileage", String(payload.mileage));
+      if (payload.dashboardPhotos?.length) {
+        payload.dashboardPhotos.forEach((file) => {
+          formData.append("dashboardPhotos", file);
+        });
+      }
+      const res = await api.put(
+        `/bookings/${bookingId}/mark-returned`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      return res.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get refund summary
+  getRefundSummary: async (
+    bookingId: string
+  ): Promise<RefundSummaryResponse> => {
+    try {
+      const res = await api.get(`/bookings/${bookingId}/refund-summary`);
+      return res.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Refund deposit (Step 9: returning → completed if refundAmount > 0)
+  refundDeposit: async (
+    bookingId: string,
+    payload: {
+      proofImage?: File;
+      notes?: string;
+    }
+  ): Promise<BookingActionResponse> => {
+    try {
+      const formData = new FormData();
+      if (payload.proofImage) {
+        formData.append("proofImage", payload.proofImage);
+      }
+      if (payload.notes) {
+        formData.append("notes", payload.notes);
+      }
+      const res = await api.post(
+        `/bookings/${bookingId}/refund-deposit`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      return res.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Pay additional (Step 9: returning → completed if refundAmount < 0)
+  payAdditional: async (
+    bookingId: string,
+    payload: {
+      amount: number;
+      proofImage: File;
+    }
+  ): Promise<BookingActionResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append("amount", String(payload.amount));
+      formData.append("proofImage", payload.proofImage);
+      const res = await api.post(
+        `/bookings/${bookingId}/pay-additional`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      return res.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Damage report (Step 7: returning → returning)
+  damageReport: async (
+    bookingId: string,
+    payload: {
+      description: string;
+      estimatedCost?: number;
+      photos?: File[];
+    }
+  ): Promise<DamageReportResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append("description", payload.description);
+      if (payload.estimatedCost) {
+        formData.append("estimatedCost", String(payload.estimatedCost));
+      }
+      if (payload.photos?.length) {
+        payload.photos.forEach((file) => {
+          // Backend expects files under "damagePhotos"
+          formData.append("damagePhotos", file);
+        });
+      }
+      const res = await api.post(
+        `/bookings/${bookingId}/damage-report`,
+        formData
+      );
+      return res.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
   // Get vehicle by ID
   getVehicleById: async (id: string): Promise<RawApiVehicle> => {
     try {
       const response = await api.get(`/vehicles/${id}`);
-      // If response has a 'data' wrapper, unwrap it
       return response.data.data || response.data;
     } catch (error) {
       handleError(error);
@@ -153,16 +732,275 @@ export const staffAPI = {
     }
   },
 
-  // Get booking transactions (admin)
+  // Get booking transactions (admin) - payment oriented
   getAdminBookingTransactions: async (params?: {
     page?: number;
     limit?: number;
+    provider?: string;
+    status?: string;
+    dateField?: string; // createdAt | updatedAt
+    from?: string;
+    to?: string;
+    sort?: string;
   }): Promise<AdminBookingTransactionsResponse> => {
     try {
       const response = await api.get("/bookings/admin/transactions", {
         params,
       });
       return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+  // Search bookings (admin/staff)
+  searchBookings: async (params?: {
+    q?: string;
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/bookings/search", { params });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get bookings by status endpoints
+  getPendingBookings: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/bookings/pending", { params });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  getReservedBookings: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/bookings/reserved", { params });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  getActiveBookings: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/bookings/active", { params });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  getCancelledBookings: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/bookings/cancelled", { params });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  getRejectedBookings: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/bookings/rejected", { params });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  getCompletedBookings: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/bookings/completed", { params });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  getExpiredBookings: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/bookings/expired", { params });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Manual refund candidates (staff/admin)
+  getManualRefundCandidates: async (params?: {
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/manual-refunds/candidates", {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Manual refunds list (processed)
+  getManualRefunds: async (params?: {
+    page?: number;
+    limit?: number;
+    sort?: string;
+  }): Promise<AdminBookingTransactionsResponse> => {
+    try {
+      const response = await api.get("/manual-refunds", { params });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Create manual refund request (staff/admin)
+  createManualRefund: async (payload: {
+    bookingId: string;
+    amount: number;
+    reason?: string; // legacy field
+    reference?: string; // new descriptive reference
+    beneficiary?: {
+      bankCode?: string;
+      bankName?: string;
+      accountNumber?: string;
+      accountName?: string;
+    };
+    attachments?: File[];
+  }): Promise<BookingActionResponse> => {
+    try {
+      const form = new FormData();
+      form.append("bookingId", payload.bookingId);
+      form.append("amount", String(payload.amount));
+      if (payload.reason) form.append("reason", payload.reason);
+      if (payload.reference) form.append("reference", payload.reference);
+      if (payload.beneficiary) {
+        if (payload.beneficiary.bankCode)
+          form.append("beneficiary.bankCode", payload.beneficiary.bankCode);
+        if (payload.beneficiary.bankName)
+          form.append("beneficiary.bankName", payload.beneficiary.bankName);
+        if (payload.beneficiary.accountNumber)
+          form.append(
+            "beneficiary.accountNumber",
+            payload.beneficiary.accountNumber
+          );
+        if (payload.beneficiary.accountName)
+          form.append(
+            "beneficiary.accountName",
+            payload.beneficiary.accountName
+          );
+      }
+      if (payload.attachments?.length) {
+        payload.attachments.forEach((f) => form.append("attachments", f));
+      }
+      const response = await api.post("/manual-refunds", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Attempt to fetch beneficiary/payment method details for a booking (if renter saved them)
+  // This endpoint is speculative; adjust path/fields to match backend when available.
+  getManualRefundBeneficiary: async (
+    bookingId: string
+  ): Promise<{
+    success?: boolean;
+    beneficiary?: {
+      bankCode?: string;
+      bankName?: string;
+      accountNumber?: string;
+      accountName?: string;
+    };
+    reference?: string;
+  }> => {
+    try {
+      const response = await api.get(
+        `/manual-refunds/beneficiary-info?bookingId=${encodeURIComponent(
+          bookingId
+        )}`
+      );
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      return {};
+    }
+  },
+
+  // Update manual refund request (status/note/add files)
+  updateManualRefund: async (
+    id: string,
+    payload: {
+      status?: string;
+      note?: string;
+      addFiles?: File[];
+    }
+  ): Promise<BookingActionResponse> => {
+    try {
+      const form = new FormData();
+      if (payload.status) form.append("status", payload.status);
+      if (payload.note) form.append("note", payload.note);
+      if (payload.addFiles?.length) {
+        payload.addFiles.forEach((f) => form.append("addFiles", f));
+      }
+      const response = await api.patch(`/manual-refunds/${id}`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get manual refund detail by refund ID
+  getManualRefundDetail: async (id: string): Promise<RefundDetail> => {
+    try {
+      const response = await api.get(`/manual-refunds/${id}`);
+      // Some APIs wrap data, others return directly
+      return response.data?.data || response.data?.item || response.data;
     } catch (error) {
       handleError(error);
       throw error;
@@ -175,6 +1013,57 @@ export const staffAPI = {
   ): Promise<CreateBookingResponse> => {
     try {
       const response = await api.post("/bookings", payload);
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Get renters only (for staff) - using search endpoint
+  getRenters: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }) => {
+    try {
+      const queryParams = new URLSearchParams();
+
+      // Add search query if provided
+      if (params?.search && params.search.trim()) {
+        queryParams.append("q", params.search.trim());
+      }
+
+      // Always add pagination and sort
+      if (params?.page) queryParams.append("page", params.page.toString());
+      if (params?.limit) queryParams.append("limit", params.limit.toString());
+      queryParams.append("sort", "-createdAt");
+
+      const response = await api.get(
+        `/users/renters?${queryParams.toString()}`
+      );
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Verify user KYC (approve)
+  verifyKYC: async (userId: string) => {
+    try {
+      const response = await api.patch(`/users/${userId}/kyc/verify`);
+      return response.data;
+    } catch (error) {
+      handleError(error);
+      throw error;
+    }
+  },
+
+  // Unverify user KYC (reject)
+  unverifyKYC: async (userId: string) => {
+    try {
+      const response = await api.patch(`/api/users/${userId}/kyc/unverify`);
       return response.data;
     } catch (error) {
       handleError(error);

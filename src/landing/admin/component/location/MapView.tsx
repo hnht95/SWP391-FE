@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useSidebar } from "../../context/SidebarContext";
 
 // Import marker icons
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -29,7 +28,6 @@ interface StationData {
 const MapView: React.FC = () => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const { isSidebarCollapsed } = useSidebar();
 
   // Mock data - Các trạm trên toàn quốc
   const stations: StationData[] = [
@@ -256,18 +254,18 @@ const MapView: React.FC = () => {
       let closeTimeout: NodeJS.Timeout | null = null;
 
       // Hover event - Mở popup khi hover
-      marker.on("mouseover", function () {
+      marker.on("mouseover", () => {
         if (closeTimeout) {
           clearTimeout(closeTimeout);
           closeTimeout = null;
         }
-        this.openPopup();
+        marker.openPopup();
       });
 
       // Mouseout event - Đóng popup khi di chuột ra (với delay nhỏ)
-      marker.on("mouseout", function () {
+      marker.on("mouseout", () => {
         closeTimeout = setTimeout(() => {
-          this.closePopup();
+          marker.closePopup();
         }, 200); // Delay 200ms để user có thể di chuột vào popup nếu muốn
       });
 
@@ -298,17 +296,19 @@ const MapView: React.FC = () => {
     };
   }, []);
 
-  // Resize map khi sidebar thay đổi
+  // Resize map khi window resize
   useEffect(() => {
     if (mapRef.current) {
-      // Đợi animation sidebar hoàn tất rồi mới resize
-      const timer = setTimeout(() => {
-        mapRef.current?.invalidateSize();
-      }, 350); // 350ms = 300ms sidebar animation + 50ms buffer
+      const handleResize = () => {
+        setTimeout(() => {
+          mapRef.current?.invalidateSize();
+        }, 100);
+      };
 
-      return () => clearTimeout(timer);
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
     }
-  }, [isSidebarCollapsed]);
+  }, []);
 
   return (
     <div className="map-wrapper w-full ml-0 mr-0 -mx-8">

@@ -1,7 +1,9 @@
+// Header.tsx
 import { useState, useEffect } from "react";
-import { MdSearch } from "react-icons/md"; // ✅ Import search icon
+import { MdSearch } from "react-icons/md";
 import Search from "./headerComponent/Search";
 import logoWeb from "../../../assets/loginImage/logoZami.png";
+import SubNav from "./SubNav";
 import {
   HEADER_TIMING,
   HEADER_DIMENSIONS,
@@ -22,7 +24,25 @@ export default function Header({
   onSearchOpenChange,
 }: HeaderProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
+
+  // ✅ Force re-render key when user changes
+  const [userKey, setUserKey] = useState(0);
+
+  // ✅ Update key when user changes
+  useEffect(() => {
+    setUserKey((prev) => prev + 1);
+  }, [isAuthenticated, user?._id, user?.email]);
+
+  // Track scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Prevent scrolling when search is open
   useEffect(() => {
@@ -32,7 +52,6 @@ export default function Header({
       document.body.style.overflow = "unset";
     }
 
-    // Cleanup on unmount
     return () => {
       document.body.style.overflow = "unset";
     };
@@ -54,9 +73,22 @@ export default function Header({
     }
   }, [isSearchOpen, onHoverChange, onSearchOpenChange]);
 
+  // ✅ Enhanced logout handler
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Force User component to remount
+      setUserKey((prev) => prev + 1);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   // Helper functions for conditional classes
   const getHeaderClasses = () => {
-    const baseClasses = `fixed top-0 left-0 w-full bg-black shadow-xl px-6 z-[100] ${TRANSITION_CLASSES.BASE} select-none`;
+    const baseClasses = `fixed top-0 left-0 w-full ${
+      isSearchOpen || isScrolled ? "bg-black/70 backdrop-blur-md" : ""
+    } px-6 z-[9999] ${TRANSITION_CLASSES.BASE} select-none`;
     const paddingClass = HEADER_DIMENSIONS.PADDING_LARGE;
     return `${baseClasses} ${paddingClass}`;
   };
@@ -71,9 +103,9 @@ export default function Header({
   };
 
   const getSearchTriggerClasses = (isSearchOpen: boolean) => {
-    return `flex items-center ${
-      TRANSITION_CLASSES.BASE
-    } ${getElementVisibilityClass(isSearchOpen)} pr-10 md:pr-12`;
+    return `flex ${TRANSITION_CLASSES.BASE} ${getElementVisibilityClass(
+      isSearchOpen
+    )}  `;
   };
 
   const getCloseSearchClasses = (isSearchOpen: boolean) => {
@@ -84,14 +116,14 @@ export default function Header({
   };
 
   const getHeaderSpaceClasses = () => {
-    return `bg-transparent transition-all duration-${HEADER_TIMING.GENERAL_DURATION} ${HEADER_DIMENSIONS.HEADER_SPACE_LARGE}`;
+    return `bg-black/50 backdrop-blur-md transition-all duration-${HEADER_TIMING.GENERAL_DURATION} ${HEADER_DIMENSIONS.HEADER_SPACE_LARGE}`;
   };
 
   const getSearchAreaClasses = (isSearchOpen: boolean) => {
     const visibilityClass = isSearchOpen
       ? "h-full opacity-100"
       : "h-0 opacity-0";
-    return `bg-black/70 backdrop-blur-sm ${TRANSITION_CLASSES.BASE} ${visibilityClass}`;
+    return `bg-black/70 backdrop-blur-md ${TRANSITION_CLASSES.BASE} ${visibilityClass}`;
   };
 
   const getSearchContentClasses = (isSearchOpen: boolean) => {
@@ -115,12 +147,8 @@ export default function Header({
         }}
       >
         <div className="relative z-10">
-          <div className="flex items-center">
-            {/* Left: Empty space for balance */}
-            <div className="flex-1"></div>
-
-            {/* Center: Logo ZaMi - Bigger size */}
-            <div className="flex items-center justify-center">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center  min-w-[220px]">
               <img
                 src={logoWeb}
                 alt="ZaMi Logo"
@@ -129,9 +157,11 @@ export default function Header({
               />
             </div>
 
-            {/* Right: Search trigger stays, Login flush right */}
-            <div className="flex-1 flex items-center justify-end relative">
-              {/* Search trigger - keep position; reserve space for Login on the far right */}
+            <div className="flex-1 flex items-center justify-center">
+              <SubNav isSearchOpen={isSearchOpen} variant="inline" />
+            </div>
+
+            <div className="flex items-center justify-end relative min-w-[220px]">
               <div className={getSearchTriggerClasses(isSearchOpen)}>
                 <button
                   onClick={() => {
@@ -141,7 +171,6 @@ export default function Header({
                   }}
                   className="group flex items-center gap-2 text-white transition duration-200 px-3 py-1 hover:brightness-200 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)] cursor-pointer"
                 >
-                  {/* ✅ Replace SVG with MdSearch */}
                   <MdSearch className="w-6 h-6 text-white group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]" />
                   <span
                     className="text-[16px] font-medium group-hover:brightness-150 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.9)]"
@@ -152,20 +181,21 @@ export default function Header({
                 </button>
               </div>
 
-              {/* Login/User - stick to the far right */}
               <div
                 className={`absolute right-0 ${getSearchTriggerClasses(
                   isSearchOpen
                 )}`}
               >
+                {/* ✅ Use userKey to force remount */}
                 <User
+                  key={userKey}
                   isLoggedIn={isAuthenticated}
                   userName={user?.name}
-                  onLogout={logout}
+                  userAvatar={user?.avatarUrl as string | undefined}
+                  onLogout={handleLogout}
                 />
               </div>
 
-              {/* Close Search with fly-down animation */}
               <div className={getCloseSearchClasses(isSearchOpen)}>
                 <button
                   onClick={() => {
@@ -183,23 +213,19 @@ export default function Header({
         </div>
       </header>
 
-      {/* Search overlay - expands from top to bottom */}
       <div
-        className={`fixed top-0 left-0 w-full z-30 ${TRANSITION_CLASSES.BASE} ${
-          isSearchOpen ? "h-screen" : "h-0"
-        } overflow-hidden`}
+        className={`fixed top-0 left-0 w-full z-[9998] ${
+          TRANSITION_CLASSES.BASE
+        } ${isSearchOpen ? "h-screen" : "h-0"} overflow-hidden`}
       >
-        {/* Header space - bigger to match header size */}
         <div className={getHeaderSpaceClasses()}></div>
 
-        {/* Search area with expanding animation */}
         <div className={getSearchAreaClasses(isSearchOpen)}>
           <div className={getSearchContentClasses(isSearchOpen)}>
-            {/* Search component */}
             <div className="max-w-4xl mx-auto">
               <Search
                 className="w-full"
-                placeholder="Tìm kiếm xe điện, địa điểm, dịch vụ..."
+                placeholder="Finding vehicles, stations by name or location..."
                 onSearchComplete={() => setIsSearchOpen(false)}
                 isSearchOpen={isSearchOpen}
               />

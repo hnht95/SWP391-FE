@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { MdPerson, MdVisibility } from "react-icons/md";
 import type { User } from "../../../types/userTypes";
+import { formatDate } from "../../../utils/dateUtils";
 import {
   getStatusBadge,
   getTypeBadge,
@@ -92,7 +93,6 @@ const UserTable: React.FC<UserTableProps> = ({
                         <div className="text-sm font-medium text-gray-900">
                           {user.name}
                         </div>
-                        <div className="text-sm text-gray-500">{user.id}</div>
                       </div>
                     </div>
                   </td>
@@ -110,7 +110,7 @@ const UserTable: React.FC<UserTableProps> = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {user.createdAt ? user.createdAt.split("T")[0] : "-"}
+                    {user.createdAt ? formatDate(user.createdAt) : "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
