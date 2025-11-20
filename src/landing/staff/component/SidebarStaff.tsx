@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 
 import {
-  MdDashboard,
   MdSwapHoriz,
   MdSupport,
   MdChevronLeft,
@@ -51,12 +50,6 @@ const SidebarStaff = ({ isCollapsed, onToggleCollapse }: SidebarProps) => {
   const avatarUrl = getAvatarUrl();
 
   const menuItems = [
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: <MdDashboard className="w-5 h-5" />,
-      path: "/staff/dashboard",
-    },
     {
       id: "users",
       label: "Users",
