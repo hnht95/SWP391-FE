@@ -292,7 +292,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse }) => {
                     {user?.name || "Admin"}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {user?.role === "admin" ? "Administrator" : user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || "User"}
+                    {user?.role === "admin" ? "Administrator" : (user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "User")}
                   </p>
                 </div>
                 <MdKeyboardArrowDown

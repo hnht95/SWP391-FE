@@ -17,7 +17,6 @@ const Bookedmanagement: React.FC = () => {
   const [modalTotal, setModalTotal] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
-  const [total, setTotal] = useState<number>(0);
   const [selectedStatus, setSelectedStatus] = useState<"all" | BookingStatus>("all");
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState<boolean>(false);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
@@ -51,7 +50,6 @@ const Bookedmanagement: React.FC = () => {
         .map((entry) => entry.booking);
       setBookings(sortedBookings);
       setTotalPages(response.totalPages || 1);
-      setTotal(response.total || 0);
       setCurrentPage(response.page || page);
     } catch (err: any) {
       console.error("Error fetching bookings:", err);
