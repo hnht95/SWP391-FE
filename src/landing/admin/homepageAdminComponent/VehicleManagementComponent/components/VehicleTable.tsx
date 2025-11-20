@@ -11,7 +11,9 @@ interface VehicleTableProps {
   onReportMaintenance?: (vehicle: Vehicle) => void;
   onRequestDeletion?: (vehicle: Vehicle) => void;
   onViewDetails?: (vehicle: Vehicle) => void;
-  getStationName?: (stationId: string) => string;
+  getStationName?: (
+    stationIdOrObject: string | { _id: string; name: string }
+  ) => string;
 }
 
 const VehicleTable: React.FC<VehicleTableProps> = ({

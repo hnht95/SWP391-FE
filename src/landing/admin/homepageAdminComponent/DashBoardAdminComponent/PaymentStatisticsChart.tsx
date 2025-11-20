@@ -8,7 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
-import { formatCurrency } from "../../../../service/apiBooking/API";
+import { formatCurrency } from "../../../../service/apiAdmin/apiBooking/API";
 import { VscGraph } from "react-icons/vsc";
 
 interface PaymentStatisticsChartProps {

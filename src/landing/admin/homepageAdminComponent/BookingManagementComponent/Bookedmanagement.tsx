@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MdCalendarToday, MdPeople, MdArrowForward, MdClose, MdBookOnline } from "react-icons/md";
-import { getBookedVehicles, formatCurrency } from "../../../../service/apiBooking/API";
-import type { Booking, PaginatedBookingsResponse } from "../../../../service/apiBooking/API";
+import { getBookedVehicles, formatCurrency } from "../../../../service/apiAdmin/apiBooking/API";
+import type { Booking, PaginatedBookingsResponse } from "../../../../service/apiAdmin/apiBooking/API";
 
 const Bookedmanagement: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);

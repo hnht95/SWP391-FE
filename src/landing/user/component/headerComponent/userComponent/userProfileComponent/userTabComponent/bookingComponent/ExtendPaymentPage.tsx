@@ -10,7 +10,7 @@ import {
   AlertCircle,
   Clock,
 } from "lucide-react";
-import bookingApi from "../../../../../../../../service/apiBooking/API";
+import bookingApi from "../../../../../../../../service/apiUser/booking/API";
 
 type LocationState = {
   bookingId?: string;
