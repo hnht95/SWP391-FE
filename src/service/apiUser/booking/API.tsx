@@ -771,9 +771,9 @@ export const extendBooking = async (
   try {
     const response = await api.post<
       ApiResponseWrapper<{
-        success: boolean;
-        message: string;
-        booking?: unknown;
+        success?: boolean;
+        message?: string;
+        booking?: Record<string, unknown>;
         additionalCharge?: number;
         newEndTime?: string;
         payment?: {
@@ -786,86 +786,63 @@ export const extendBooking = async (
       }>
     >(`/bookings/${bookingId}/extend`, data);
 
-    const payload = response.data?.data || response.data;
-
-    const bookingRaw = payload?.booking;
-    if (!bookingRaw || typeof bookingRaw !== "object") {
-      return {
-        success: payload?.success !== false,
-        message:
-          typeof payload?.message === "string"
-            ? payload.message
-            : "Booking extended successfully",
-        booking: {
-          _id: bookingId,
-          renter: "",
-          vehicle: "",
-          station: "",
-          company: null,
-          startTime: "",
-          endTime: payload?.newEndTime || "",
-          status: "active",
-          deposit: {
-            amount: 0,
-            currency: "VND",
-            provider: "payos",
-            providerRef: null,
-            status: "none",
-          },
-          holdExpiresAt: null,
-          counterCheck: { licenseSnapshot: [], contractPhotos: [] },
-          handoverPhotos: {
-            exteriorBefore: [],
-            interiorBefore: [],
-            exteriorAfter: [],
-            interiorAfter: [],
-          },
-          cancellationPolicySnapshot: { windows: [], specialCases: [] },
-          amounts: {
-            overKmFee: 0,
-            lateFee: 0,
-            batteryFee: 0,
-            damageCharge: 0,
-            discounts: 0,
-            subtotal: 0,
-            tax: 0,
-            grandTotal: 0,
-            totalPaid: 0,
-          },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        } as Booking,
-        additionalCharge:
-          typeof payload?.additionalCharge === "number"
-            ? payload.additionalCharge
-            : 0,
-        newEndTime:
-          typeof payload?.newEndTime === "string" ? payload.newEndTime : "",
-        payment: payload?.payment,
+    // ✅ Extract and type narrow payload
+    let payload: {
+      success?: boolean;
+      message?: string;
+      booking?: Record<string, unknown>;
+      additionalCharge?: number;
+      newEndTime?: string;
+      payment?: {
+        provider: string;
+        type: "extension";
+        orderCode: number;
+        checkoutUrl: string;
+        qrCode: string;
       };
+    };
+
+    // Check if response.data has a 'data' property (wrapped response)
+    if (
+      response.data &&
+      typeof response.data === "object" &&
+      "data" in response.data &&
+      response.data.data &&
+      typeof response.data.data === "object"
+    ) {
+      payload = response.data.data;
+    } else if (response.data && typeof response.data === "object") {
+      // Direct response (not wrapped)
+      payload = response.data as typeof payload;
+    } else {
+      throw new Error("Invalid extend booking response");
     }
 
+    // Parse booking if present
+    let normalizedBooking: Booking | undefined;
+    if (payload.booking) {
+      try {
+        normalizedBooking = normalizeBooking(payload.booking);
+      } catch (normalizeError) {
+        console.warn("Could not normalize extended booking:", normalizeError);
+        // Don't throw - continue without booking object
+      }
+    }
+
+    // Return structured response
     return {
-      success: payload.success !== false,
-      message:
-        typeof payload.message === "string"
-          ? payload.message
-          : "Booking extended successfully",
-      booking: normalizeBooking(bookingRaw),
-      additionalCharge:
-        typeof payload.additionalCharge === "number"
-          ? payload.additionalCharge
-          : 0,
-      newEndTime:
-        typeof payload.newEndTime === "string" ? payload.newEndTime : "",
-      payment: payload?.payment,
+      success: payload.success ?? true,
+      message: payload.message ?? "Booking extended successfully",
+      booking: normalizedBooking,
+      additionalCharge: payload.additionalCharge ?? 0,
+      newEndTime: payload.newEndTime ?? "",
+      payment: payload.payment,
     };
   } catch (err) {
     handleError(err, "extendBooking");
     throw err;
   }
 };
-
 /**
  * GET /api/bookings/{id}/contract
  * Get booking contract

@@ -33,6 +33,23 @@ const BookingSuccessPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // ✅ Helper function to get vehicle image URL
+  const getVehicleImageUrl = (vehicle: Vehicle | null): string | null => {
+    if (!vehicle?.defaultPhotos?.exterior?.[0]) return null;
+
+    const firstPhoto = vehicle.defaultPhotos.exterior[0];
+
+    if (typeof firstPhoto === "string") {
+      return firstPhoto;
+    }
+
+    if (typeof firstPhoto === "object" && "url" in firstPhoto) {
+      return (firstPhoto as { url: string }).url;
+    }
+
+    return null;
+  };
+
   // ✅ Calculate duration with days + hours (same as BookingPage)
   const calculateDurationDetails = (startTime?: string, endTime?: string) => {
     if (!startTime || !endTime) return { totalHours: 0, days: 0, hours: 0 };
@@ -74,8 +91,9 @@ const BookingSuccessPage: React.FC = () => {
           const paymentData = await getPaymentStatus(bookingId);
           console.log("💳 Payment data:", paymentData);
 
+          // ✅ Fixed: Correct path to deposit status
           const status =
-            paymentData.current?.depositStatus ||
+            paymentData.current?.deposit?.status ||
             paymentData.deposit?.status ||
             bookingData.deposit?.status ||
             "pending";
@@ -86,6 +104,7 @@ const BookingSuccessPage: React.FC = () => {
             "Payment status fetch failed, using booking deposit status"
           );
           setPaymentStatus(bookingData.deposit?.status || "pending");
+          throw paymentErr;
         }
 
         if (bookingData.vehicle) {
@@ -101,13 +120,15 @@ const BookingSuccessPage: React.FC = () => {
           } catch (vehicleErr) {
             console.warn("Vehicle fetch failed:", vehicleErr);
             if (typeof bookingData.vehicle === "object") {
-              setVehicle(bookingData.vehicle as any);
+              setVehicle(bookingData.vehicle as Vehicle);
             }
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch booking details:", err);
-        setError(err.message || "Failed to load booking details");
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to load booking details";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -246,6 +267,9 @@ const BookingSuccessPage: React.FC = () => {
   // Total = Rental Cost + Deposit
   const totalAmount = rentalCost + depositAmount;
 
+  // ✅ Get vehicle image URL using helper function
+  const vehicleImageUrl = getVehicleImageUrl(vehicle);
+
   console.log("💰 Calculation breakdown:", {
     durationDetails,
     dailyRate,
@@ -256,6 +280,7 @@ const BookingSuccessPage: React.FC = () => {
     vehicleValue: vehicle?.valuation?.valueVND,
     depositAmount,
     totalAmount,
+    vehicleImageUrl,
   });
 
   return (
@@ -296,10 +321,11 @@ const BookingSuccessPage: React.FC = () => {
 
               {vehicle ? (
                 <div className="space-y-4">
+                  {/* ✅ Fixed: Using helper function to get image URL */}
                   <div className="w-full h-48 bg-gray-200 rounded-lg overflow-hidden">
-                    {vehicle.defaultPhotos?.exterior?.[0]?.url ? (
+                    {vehicleImageUrl ? (
                       <img
-                        src={vehicle.defaultPhotos.exterior[0].url}
+                        src={vehicleImageUrl}
                         alt={`${vehicle.brand} ${vehicle.model}`}
                         className="w-full h-full object-cover"
                       />
@@ -408,20 +434,24 @@ const BookingSuccessPage: React.FC = () => {
 
               <div className="space-y-3 text-sm">
                 {/* Daily Rate */}
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Daily Rate:</span>
-                  <span className="font-medium">
-                    {dailyRate.toLocaleString()}đ
-                  </span>
-                </div>
+                {dailyRate > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Daily Rate:</span>
+                    <span className="font-medium">
+                      {dailyRate.toLocaleString()}đ
+                    </span>
+                  </div>
+                )}
 
                 {/* Hourly Rate */}
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Hourly Rate:</span>
-                  <span className="font-medium">
-                    {hourlyRate.toLocaleString()}đ
-                  </span>
-                </div>
+                {hourlyRate > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Hourly Rate:</span>
+                    <span className="font-medium">
+                      {hourlyRate.toLocaleString()}đ
+                    </span>
+                  </div>
+                )}
 
                 <hr className="border-gray-200" />
 
