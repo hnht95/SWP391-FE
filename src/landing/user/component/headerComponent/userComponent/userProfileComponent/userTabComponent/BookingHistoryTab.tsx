@@ -1,3 +1,4 @@
+// pages/BookingHistoryTab.tsx
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -13,17 +14,16 @@ import {
   Filter,
   ChevronDown,
 } from "lucide-react";
+import { FaStar } from "react-icons/fa";
 import BookingDetailModal from "./bookingComponent/BookingDetailModal";
+import RatingModal from "./bookingComponent/RatingModal";
+import ReportModal from "./bookingComponent/ReportModal";
 import userBookingApi from "../../../../../../../service/apiUser/booking/API";
 import type {
   Booking,
   BookingQueryParams,
   BookingStatus,
 } from "../../../../../../../service/apiUser/booking/API";
-import { getVehicleById } from "../../../../../../../service/apiAdmin/apiVehicles/API";
-
-// Global cache to avoid duplicate fetches
-const vehicleImageCache = new Map<string, string | null>();
 
 // Status filter options
 const STATUS_OPTIONS = [
@@ -113,163 +113,113 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+// ✅ Helper to get vehicle image URL from booking
+const getVehicleImageUrl = (booking: Booking): string | null => {
+  if (!booking.vehicle || typeof booking.vehicle === "string") {
+    return null;
+  }
+
+  // Try photos array first (flat array)
+  if (booking.vehicle.photos && booking.vehicle.photos.length > 0) {
+    return booking.vehicle.photos[0];
+  }
+
+  // Try defaultPhotos.exterior
+  const firstPhoto = booking.vehicle.defaultPhotos?.exterior?.[0];
+  if (!firstPhoto) return null;
+
+  // Handle both string and object formats
+  if (typeof firstPhoto === "string") {
+    return firstPhoto;
+  }
+
+  if (typeof firstPhoto === "object" && "url" in firstPhoto) {
+    return firstPhoto.url;
+  }
+
+  return null;
+};
+
 const BookingHistoryTab = () => {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [vehicleImages, setVehicleImages] = useState<
-    Record<string, string | null>
-  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loadingImages, setLoadingImages] = useState(true);
+
+  // Rating & Report Modal States
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [selectedBookingForAction, setSelectedBookingForAction] =
+    useState<Booking | null>(null);
 
   // Pagination & Filter states
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [displayCount, setDisplayCount] = useState(8);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Fetch vehicle thumbnail with caching
-  const fetchVehicleThumbnail = useCallback(
-    async (vehicleId: string): Promise<string | null> => {
-      if (vehicleImageCache.has(vehicleId)) {
-        return vehicleImageCache.get(vehicleId)!;
+  // ✅ Fetch bookings function (memoized with useCallback)
+  const fetchBookings = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const params: BookingQueryParams = {
+        limit: 100,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      };
+
+      if (statusFilter !== "all") {
+        params.status = statusFilter as BookingStatus;
       }
 
-      try {
-        const vehicle = await getVehicleById(vehicleId);
+      const response = await userBookingApi.getUserBookings(params);
 
-        const firstPhoto = vehicle.defaultPhotos?.exterior?.[0];
-
-        const imageUrl =
-          typeof firstPhoto === "string"
-            ? firstPhoto
-            : firstPhoto &&
-              typeof firstPhoto === "object" &&
-              "url" in firstPhoto
-            ? (firstPhoto.url as string)
-            : null;
-
-        vehicleImageCache.set(vehicleId, imageUrl);
-        return imageUrl;
-      } catch (err) {
-        console.error(`Failed to fetch vehicle ${vehicleId}:`, err);
-        vehicleImageCache.set(vehicleId, null);
-        return null;
+      if (response.success && response.items) {
+        setBookings(response.items);
+        setTotalCount(response.items.length);
+      } else {
+        setError("Invalid response format from server");
       }
-    },
-    []
-  );
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load booking history";
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
 
-  // Fetch bookings
+  // Fetch bookings on mount and when filter changes
   useEffect(() => {
-    const fetchBookings = async (): Promise<void> => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const params: BookingQueryParams = {
-          limit: 100,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        };
-
-        // ✅ Add status filter if not "all"
-        if (statusFilter !== "all") {
-          params.status = statusFilter as BookingStatus;
-        }
-
-        const response = await userBookingApi.getUserBookings(params);
-
-        console.log("📦 Bookings response:", response);
-
-        if (response.success && response.items) {
-          response.items.forEach((booking, index) => {
-            console.log(`Booking ${index}:`, {
-              _id: booking._id,
-              vehicle:
-                typeof booking.vehicle === "string"
-                  ? booking.vehicle
-                  : booking.vehicle?._id,
-              station:
-                typeof booking.station === "string"
-                  ? booking.station
-                  : booking.station?._id,
-              hasVehicle: !!booking.vehicle,
-              hasStation: !!booking.station,
-            });
-          });
-
-          setBookings(response.items);
-          setTotalCount(response.items.length);
-
-          // Fetch vehicle images in parallel
-          setLoadingImages(true);
-
-          const uniqueVehicleIds = [
-            ...new Set(
-              response.items
-                .map((booking) => {
-                  if (!booking.vehicle) {
-                    console.warn("⚠️ Booking missing vehicle:", booking._id);
-                    return null;
-                  }
-                  if (typeof booking.vehicle === "string") {
-                    return booking.vehicle;
-                  }
-                  return booking.vehicle?._id;
-                })
-                .filter(Boolean)
-            ),
-          ] as string[];
-
-          console.log("🚗 Unique vehicle IDs:", uniqueVehicleIds);
-
-          if (uniqueVehicleIds.length > 0) {
-            const imagePromises = uniqueVehicleIds.map(async (vehicleId) => {
-              const imageUrl = await fetchVehicleThumbnail(vehicleId);
-              return { vehicleId, imageUrl };
-            });
-
-            const results = await Promise.all(imagePromises);
-
-            const imagesMap: Record<string, string | null> = {};
-            results.forEach(({ vehicleId, imageUrl }) => {
-              imagesMap[vehicleId] = imageUrl;
-            });
-
-            console.log("🖼️ Vehicle images map:", imagesMap);
-
-            setVehicleImages(imagesMap);
-          }
-
-          setLoadingImages(false);
-        } else {
-          console.error("❌ Invalid response format:", response);
-          setError("Invalid response format from server");
-        }
-      } catch (err) {
-        console.error("❌ Failed to fetch bookings:", err);
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to load booking history";
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchBookings();
-  }, [fetchVehicleThumbnail, statusFilter]);
+  }, [fetchBookings]);
 
-  // Reset display count when filter changes
   useEffect(() => {
     setDisplayCount(8);
   }, [statusFilter]);
 
-  // Handle payment page navigation
+  const handleOpenRating = (e: React.MouseEvent, booking: Booking) => {
+    e.stopPropagation();
+    setSelectedBookingForAction(booking);
+    setRatingModalOpen(true);
+  };
+
+  // const handleOpenReport = (e: React.MouseEvent, booking: Booking) => {
+  //   e.stopPropagation();
+  //   setSelectedBookingForAction(booking);
+  //   setReportModalOpen(true);
+  // };
+
+  // ✅ Refetch bookings after successful action
+  const handleActionSuccess = useCallback(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
   const handleReturnToPayment = (
     e: React.MouseEvent,
     bookingId: string
@@ -295,14 +245,19 @@ const BookingHistoryTab = () => {
     });
   };
 
-  // Get current filter label
   const currentFilterLabel =
     STATUS_OPTIONS.find((opt) => opt.value === statusFilter)?.label ||
     "All Bookings";
 
-  // Get bookings to display (limited by displayCount)
   const displayedBookings = bookings.slice(0, displayCount);
   const canLoadMore = displayCount < totalCount;
+
+  const getVehicleName = (booking: Booking): string => {
+    if (typeof booking.vehicle === "string") return "Unknown Vehicle";
+    return `${booking.vehicle?.brand || "Unknown"} ${
+      booking.vehicle?.model || "Vehicle"
+    }`;
+  };
 
   if (loading) {
     return (
@@ -326,7 +281,7 @@ const BookingHistoryTab = () => {
   return (
     <>
       <div className="space-y-6">
-        {/* Filter Section - Dropdown */}
+        {/* Filter Section */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -338,7 +293,6 @@ const BookingHistoryTab = () => {
               <h3 className="font-semibold text-gray-900">Filter by Status</h3>
             </div>
 
-            {/* Dropdown */}
             <div className="relative">
               <select
                 value={statusFilter}
@@ -376,19 +330,6 @@ const BookingHistoryTab = () => {
           )}
         </motion.div>
 
-        {/* Loading state for images */}
-        {loadingImages && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3"
-          >
-            <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-            <p className="text-sm text-blue-700">Loading vehicle images...</p>
-          </motion.div>
-        )}
-
-        {/* Empty State */}
         {bookings.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
             <Car className="w-16 h-16 text-gray-300 mb-4" />
@@ -408,15 +349,7 @@ const BookingHistoryTab = () => {
         {/* Bookings List */}
         <div className="space-y-4">
           {displayedBookings.map((booking, index) => {
-            if (!booking.vehicle) {
-              console.warn("⚠️ Skipping booking without vehicle:", booking._id);
-              return null;
-            }
-
-            const vehicleId =
-              typeof booking.vehicle === "string"
-                ? booking.vehicle
-                : booking.vehicle?._id || "";
+            if (!booking.vehicle) return null;
 
             const vehicleBrand =
               typeof booking.vehicle === "string"
@@ -439,9 +372,13 @@ const BookingHistoryTab = () => {
               ? "N/A"
               : booking.station?.name || "N/A";
 
-            const vehicleImage = vehicleImages[vehicleId];
-            const imageLoading = loadingImages && !vehicleImage;
+            // Get vehicle image directly from booking
+            const vehicleImage = getVehicleImageUrl(booking);
+
+            // Status checks
             const isPending = booking.status === "pending";
+            const isCompleted = booking.status === "completed";
+            const hasRating = !!booking.rating;
 
             return (
               <motion.div
@@ -449,120 +386,165 @@ const BookingHistoryTab = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                whileHover={{ y: -4 }}
-                onClick={() => handleViewDetails(booking._id)}
-                className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all cursor-pointer"
+                className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all"
               >
-                <div className="flex gap-4">
-                  {/* Vehicle Image */}
-                  <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 relative">
-                    {imageLoading ? (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
-                      </div>
-                    ) : vehicleImage ? (
-                      <motion.img
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.3 }}
-                        src={vehicleImage}
-                        alt={`${vehicleBrand} ${vehicleModel}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          target.style.display = "none";
-                          const parent = target.parentElement;
-                          if (parent) {
-                            parent.innerHTML = `
+                {/* Main Card - Clickable */}
+                <div
+                  onClick={() => handleViewDetails(booking._id)}
+                  className="p-5 cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex gap-4">
+                    {/* Vehicle Image */}
+                    <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      {vehicleImage ? (
+                        <img
+                          src={vehicleImage}
+                          alt={`${vehicleBrand} ${vehicleModel}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            e.currentTarget.parentElement!.innerHTML = `
                               <div class="w-full h-full flex items-center justify-center">
-                                <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
-                                  <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
+                                <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
                               </div>
                             `;
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Car className="w-8 h-8 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Booking Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="font-bold text-gray-900 text-lg">
-                          {vehicleBrand} {vehicleModel}
-                        </h3>
-                        <p className="text-sm text-gray-600">{vehiclePlate}</p>
-                      </div>
-                      <StatusBadge status={booking.status} />
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Car className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                      <div className="flex items-center text-gray-600">
-                        <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
-                        <span className="truncate">
-                          Start: {formatDate(booking.startTime)}
-                        </span>
+                    {/* Booking Info */}
+                    <div className="flex-1 min-w-0">
+                      {/* Header with Status */}
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-lg">
+                            {vehicleBrand} {vehicleModel}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {vehiclePlate}
+                          </p>
+                        </div>
+
+                        <StatusBadge status={booking.status} />
                       </div>
-                      <div className="flex items-center text-gray-600">
-                        <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-                        <span className="truncate">{stationName}</span>
+
+                      <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                        <div className="flex items-center text-gray-600">
+                          <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span className="truncate">
+                            Start: {formatDate(booking.startTime)}
+                          </span>
+                        </div>
+                        <div className="flex items-center text-gray-600">
+                          <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span className="truncate">{stationName}</span>
+                        </div>
+                        <div className="flex items-center text-gray-600">
+                          <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span className="truncate">
+                            End: {formatDate(booking.endTime)}
+                          </span>
+                        </div>
+                        <div className="flex items-center font-semibold text-green-600">
+                          <CreditCard className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span className="truncate">
+                            {booking.amounts?.grandTotal?.toLocaleString() ||
+                              "0"}
+                            đ
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center text-gray-600">
-                        <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
-                        <span className="truncate">
-                          End: {formatDate(booking.endTime)}
-                        </span>
-                      </div>
-                      <div className="flex items-center font-semibold text-green-600">
-                        <CreditCard className="w-4 h-4 mr-2 flex-shrink-0" />
-                        <span className="truncate">
-                          {booking.amounts?.grandTotal?.toLocaleString() || "0"}
-                          đ
-                        </span>
+
+                      {/* Payment Button for Pending */}
+                      {isPending && (
+                        <button
+                          onClick={(e) => handleReturnToPayment(e, booking._id)}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                          <span>Complete Payment</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Pending Warning */}
+                  {isPending && (
+                    <div className="mt-3 pt-3 border-t border-yellow-200 bg-yellow-50 -mx-5 -mb-5 px-5 py-3 rounded-b-xl">
+                      <div className="flex items-start gap-2 text-xs text-yellow-800">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <p>
+                          <span className="font-semibold">
+                            Payment Required:
+                          </span>{" "}
+                          This booking is waiting for payment completion.
+                        </p>
                       </div>
                     </div>
-
-                    {/* Payment Button for Pending */}
-                    {isPending && (
-                      <motion.button
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={(e) => handleReturnToPayment(e, booking._id)}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
-                      >
-                        <CreditCard className="w-4 h-4" />
-                        <span>Complete Payment</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </motion.button>
-                    )}
-                  </div>
+                  )}
                 </div>
 
-                {/* Pending Payment Warning */}
-                {isPending && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    className="mt-3 pt-3 border-t border-yellow-200 bg-yellow-50 -mx-5 -mb-5 px-5 py-3 rounded-b-xl"
-                  >
-                    <div className="flex items-start gap-2 text-xs text-yellow-800">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <p>
-                        <span className="font-semibold">Payment Required:</span>{" "}
-                        This booking is waiting for payment completion. Click
-                        the button above to proceed with payment.
-                      </p>
-                    </div>
-                  </motion.div>
+                {/* Rating Section Below Card (Completed Only) */}
+                {isCompleted && (
+                  <>
+                    {!hasRating && (
+                      <div className="border-t border-gray-200 px-5 py-3 bg-gradient-to-r from-yellow-50 to-orange-50">
+                        <button
+                          onClick={(e) => handleOpenRating(e, booking)}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                        >
+                          <FaStar className="w-4 h-4" />
+                          <span>Rate Your Experience</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {hasRating && (
+                      <div className="border-t border-gray-200 px-5 py-3 bg-gradient-to-r from-green-50 to-emerald-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="flex">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <FaStar
+                                  key={star}
+                                  className={`w-4 h-4 ${
+                                    star <= (booking.rating?.score || 0)
+                                      ? "text-yellow-500"
+                                      : "text-gray-300"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-sm font-semibold text-gray-700">
+                              You rated this booking
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {new Date(
+                              booking.rating?.submittedAt || ""
+                            ).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
+                        {booking.rating?.comment && (
+                          <p className="text-sm text-gray-600 mt-2 italic">
+                            "{booking.rating.comment}"
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </motion.div>
             );
@@ -576,19 +558,16 @@ const BookingHistoryTab = () => {
             animate={{ opacity: 1, y: 0 }}
             className="flex justify-center pt-4"
           >
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={handleLoadMore}
               className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 shadow-lg transition-all"
             >
               <span>Show More Bookings</span>
               <ChevronDown className="w-5 h-5" />
-            </motion.button>
+            </button>
           </motion.div>
         )}
 
-        {/* End message */}
         {!canLoadMore && bookings.length > 0 && (
           <div className="text-center py-8 text-gray-400 text-sm">
             You've reached the end of your bookings
@@ -596,7 +575,7 @@ const BookingHistoryTab = () => {
         )}
       </div>
 
-      {/* Detail Modal */}
+      {/* Modals */}
       {selectedBookingId && (
         <BookingDetailModal
           isOpen={isModalOpen}
@@ -606,6 +585,32 @@ const BookingHistoryTab = () => {
           }}
           bookingId={selectedBookingId}
         />
+      )}
+
+      {selectedBookingForAction && (
+        <>
+          <RatingModal
+            isOpen={ratingModalOpen}
+            onClose={() => {
+              setRatingModalOpen(false);
+              setSelectedBookingForAction(null);
+            }}
+            bookingId={selectedBookingForAction._id}
+            vehicleName={getVehicleName(selectedBookingForAction)}
+            onSuccess={handleActionSuccess}
+          />
+
+          <ReportModal
+            isOpen={reportModalOpen}
+            onClose={() => {
+              setReportModalOpen(false);
+              setSelectedBookingForAction(null);
+            }}
+            bookingId={selectedBookingForAction._id}
+            vehicleName={getVehicleName(selectedBookingForAction)}
+            onSuccess={handleActionSuccess}
+          />
+        </>
       )}
     </>
   );

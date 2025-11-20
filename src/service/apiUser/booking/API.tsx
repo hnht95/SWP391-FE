@@ -1,7 +1,6 @@
-// service/apiBooking/UserApi.tsx
+// service/apiUser/booking/API.tsx
 import axios from "axios";
 import api from "../../Utils";
-// import api from "../Utils";
 
 // ============ TYPE DEFINITIONS ============
 
@@ -41,9 +40,24 @@ export type VehicleInBooking = {
   pricePerHour: number;
   status: string;
   defaultPhotos?: {
-    exterior: Array<{ _id: string; url: string; type: string }>;
-    interior: Array<{ _id: string; url: string; type: string }>;
+    exterior: Array<
+      | {
+          _id: string;
+          url: string;
+          type: string;
+        }
+      | string
+    >;
+    interior: Array<
+      | {
+          _id: string;
+          url: string;
+          type: string;
+        }
+      | string
+    >;
   };
+  photos?: string[];
 };
 
 export type StationInfo = {
@@ -106,6 +120,19 @@ export type CancellationPolicy = {
   specialCases: Array<Record<string, unknown>>;
 };
 
+export type BookingRating = {
+  score: number;
+  comment?: string;
+  submittedAt: string;
+};
+
+export type IncidentPhoto = {
+  url?: string;
+  publicId?: string;
+  type?: string;
+  uploadedAt?: string;
+};
+
 export type Booking = {
   _id: string;
   bookingId?: string;
@@ -113,6 +140,7 @@ export type Booking = {
   vehicle: string | VehicleInBooking;
   station: string | StationInfo;
   company: string | null;
+
   startTime: string;
   endTime: string;
   status: BookingStatus;
@@ -134,6 +162,13 @@ export type Booking = {
   amounts: BookingAmounts;
   amountEstimated?: number;
   pricingSnapshot?: PricingSnapshot;
+  rating?: BookingRating;
+  userIncidentReport?: {
+    reported: boolean;
+    description?: string;
+    photos: IncidentPhoto[];
+    reportedAt?: string;
+  };
   createdAt: string;
   updatedAt: string;
   __v?: number;
@@ -242,6 +277,48 @@ type ApiResponseWrapper<T> = {
   data?: T;
   message?: string;
   error?: string;
+};
+
+export type SubmitRatingRequest = {
+  score: number;
+  comment?: string;
+};
+
+export type RatingData = {
+  score: number;
+  comment?: string;
+  submittedAt: string;
+};
+
+export type SubmitRatingResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    bookingId: string;
+    rating: RatingData;
+  };
+};
+
+export type ReportIncidentRequest = {
+  description: string;
+  incidentPhotos?: string[];
+};
+
+export type UserIncidentReport = {
+  reported: boolean;
+  description: string;
+  photos: IncidentPhoto[];
+  reportedAt: string;
+};
+
+export type ReportIncidentResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    bookingId: string;
+    userIncidentReport: UserIncidentReport;
+    vehicle: Record<string, unknown>;
+  };
 };
 
 // ============ ERROR HANDLER ============
@@ -546,6 +623,60 @@ const normalizeBooking = (data: unknown): Booking => {
     amountEstimated:
       typeof booking.amountEstimated === "number" ? booking.amountEstimated : 0,
     pricingSnapshot: normalizePricingSnapshot(booking.pricingSnapshot),
+    // ✅ Add rating field
+    rating:
+      booking.rating && typeof booking.rating === "object"
+        ? {
+            score:
+              typeof (booking.rating as Record<string, unknown>).score ===
+              "number"
+                ? ((booking.rating as Record<string, unknown>).score as number)
+                : 0,
+            comment:
+              typeof (booking.rating as Record<string, unknown>).comment ===
+              "string"
+                ? ((booking.rating as Record<string, unknown>)
+                    .comment as string)
+                : undefined,
+            submittedAt:
+              typeof (booking.rating as Record<string, unknown>).submittedAt ===
+              "string"
+                ? ((booking.rating as Record<string, unknown>)
+                    .submittedAt as string)
+                : new Date().toISOString(),
+          }
+        : undefined,
+    // ✅ Add userIncidentReport field
+    userIncidentReport:
+      booking.userIncidentReport &&
+      typeof booking.userIncidentReport === "object"
+        ? {
+            reported:
+              typeof (booking.userIncidentReport as Record<string, unknown>)
+                .reported === "boolean"
+                ? ((booking.userIncidentReport as Record<string, unknown>)
+                    .reported as boolean)
+                : false,
+            description:
+              typeof (booking.userIncidentReport as Record<string, unknown>)
+                .description === "string"
+                ? ((booking.userIncidentReport as Record<string, unknown>)
+                    .description as string)
+                : undefined,
+            photos: Array.isArray(
+              (booking.userIncidentReport as Record<string, unknown>).photos
+            )
+              ? ((booking.userIncidentReport as Record<string, unknown>)
+                  .photos as IncidentPhoto[])
+              : [],
+            reportedAt:
+              typeof (booking.userIncidentReport as Record<string, unknown>)
+                .reportedAt === "string"
+                ? ((booking.userIncidentReport as Record<string, unknown>)
+                    .reportedAt as string)
+                : undefined,
+          }
+        : undefined,
     createdAt:
       typeof booking.createdAt === "string"
         ? booking.createdAt
@@ -786,7 +917,6 @@ export const extendBooking = async (
       }>
     >(`/bookings/${bookingId}/extend`, data);
 
-    // ✅ Extract and type narrow payload
     let payload: {
       success?: boolean;
       message?: string;
@@ -802,7 +932,6 @@ export const extendBooking = async (
       };
     };
 
-    // Check if response.data has a 'data' property (wrapped response)
     if (
       response.data &&
       typeof response.data === "object" &&
@@ -812,24 +941,20 @@ export const extendBooking = async (
     ) {
       payload = response.data.data;
     } else if (response.data && typeof response.data === "object") {
-      // Direct response (not wrapped)
       payload = response.data as typeof payload;
     } else {
       throw new Error("Invalid extend booking response");
     }
 
-    // Parse booking if present
     let normalizedBooking: Booking | undefined;
     if (payload.booking) {
       try {
         normalizedBooking = normalizeBooking(payload.booking);
       } catch (normalizeError) {
         console.warn("Could not normalize extended booking:", normalizeError);
-        // Don't throw - continue without booking object
       }
     }
 
-    // Return structured response
     return {
       success: payload.success ?? true,
       message: payload.message ?? "Booking extended successfully",
@@ -843,6 +968,7 @@ export const extendBooking = async (
     throw err;
   }
 };
+
 /**
  * GET /api/bookings/{id}/contract
  * Get booking contract
@@ -869,6 +995,146 @@ export const getBookingContract = async (
     };
   } catch (err) {
     handleError(err, "getBookingContract");
+    throw err;
+  }
+};
+
+/**
+ * POST /api/bookings/{id}/rating
+ * Submit rating for completed booking
+ */
+export const submitBookingRating = async (
+  bookingId: string,
+  data: SubmitRatingRequest
+): Promise<SubmitRatingResponse> => {
+  try {
+    if (data.score < 1 || data.score > 5) {
+      throw new Error("Rating score must be between 1 and 5");
+    }
+
+    const response = await api.post<
+      ApiResponseWrapper<{
+        bookingId: string;
+        rating: {
+          score: number;
+          comment?: string;
+          submittedAt: string;
+        };
+      }>
+    >(`/bookings/${bookingId}/rating`, data);
+
+    const rawPayload = response.data?.data || response.data;
+
+    if (!rawPayload || typeof rawPayload !== "object") {
+      throw new Error("Invalid rating response");
+    }
+
+    const payload = rawPayload as {
+      bookingId?: string;
+      rating?: {
+        score: number;
+        comment?: string;
+        submittedAt: string;
+      };
+    };
+
+    if (!payload.rating) {
+      throw new Error("Invalid rating response: missing rating data");
+    }
+
+    return {
+      success: true,
+      message: "Rating submitted successfully",
+      data: {
+        bookingId: payload.bookingId || bookingId,
+        rating: payload.rating,
+      },
+    };
+  } catch (err) {
+    handleError(err, "submitBookingRating");
+    throw err;
+  }
+};
+
+/**
+ * POST /api/bookings/{id}/report-incident
+ * Report vehicle incident
+ */
+export const reportIncident = async (
+  bookingId: string,
+  data: ReportIncidentRequest
+): Promise<ReportIncidentResponse> => {
+  try {
+    if (!data.description || data.description.trim().length === 0) {
+      throw new Error("Incident description is required");
+    }
+
+    if (data.incidentPhotos && data.incidentPhotos.length > 5) {
+      throw new Error("Maximum 5 photos allowed for incident report");
+    }
+
+    const response = await api.post<
+      ApiResponseWrapper<{
+        bookingId: string;
+        userIncidentReport: {
+          reported: boolean;
+          description: string;
+          photos: Array<Record<string, unknown>>;
+          reportedAt: string;
+        };
+        vehicle: Record<string, unknown>;
+      }>
+    >(`/bookings/${bookingId}/report-incident`, data);
+
+    const rawPayload = response.data?.data || response.data;
+
+    if (!rawPayload || typeof rawPayload !== "object") {
+      throw new Error("Invalid incident report response");
+    }
+
+    const payload = rawPayload as {
+      bookingId?: string;
+      userIncidentReport?: {
+        reported: boolean;
+        description: string;
+        photos: Array<Record<string, unknown>>;
+        reportedAt: string;
+      };
+      vehicle?: Record<string, unknown>;
+      message?: string;
+    };
+
+    if (!payload.userIncidentReport) {
+      throw new Error("Invalid incident report response: missing report data");
+    }
+
+    return {
+      success: true,
+      message:
+        payload.message ||
+        "Incident reported successfully. Staff will be notified.",
+      data: {
+        bookingId: payload.bookingId || bookingId,
+        userIncidentReport: {
+          reported: payload.userIncidentReport.reported,
+          description: payload.userIncidentReport.description,
+          photos: (payload.userIncidentReport.photos || []).map((photo) => ({
+            url: typeof photo.url === "string" ? photo.url : undefined,
+            publicId:
+              typeof photo.publicId === "string" ? photo.publicId : undefined,
+            type: typeof photo.type === "string" ? photo.type : undefined,
+            uploadedAt:
+              typeof photo.uploadedAt === "string"
+                ? photo.uploadedAt
+                : undefined,
+          })),
+          reportedAt: payload.userIncidentReport.reportedAt,
+        },
+        vehicle: payload.vehicle || {},
+      },
+    };
+  } catch (err) {
+    handleError(err, "reportIncident");
     throw err;
   }
 };
@@ -961,6 +1227,8 @@ const userBookingApi = {
   cancelBooking,
   extendBooking,
   getBookingContract,
+  submitBookingRating,
+  reportIncident,
   getBookingStatusColor,
   getBookingStatusLabel,
   getDepositStatusColor,
