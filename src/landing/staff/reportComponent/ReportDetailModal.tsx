@@ -186,7 +186,8 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                     Description
                   </h3>
                   <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {selectedRawRequest?.reportText ||
+                    {selectedRawRequest?.description ||
+                      selectedRawRequest?.reportText ||
                       selectedTicket.description ||
                       "No description provided"}
                   </div>
@@ -264,13 +265,21 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                               ).urgency) ||
                             "medium"
                           }
-                          currentDesc={selectedRawRequest.reportText || ""}
+                          currentDesc={
+                            selectedRawRequest.description ||
+                            selectedRawRequest.reportText ||
+                            ""
+                          }
                           onDone={onActionComplete}
                         />
                       ) : (
                         <DeletionRequestActions
                           requestId={selectedRawRequest._id}
-                          currentDesc={selectedRawRequest.reportText || ""}
+                          currentDesc={
+                            selectedRawRequest.description ||
+                            selectedRawRequest.reportText ||
+                            ""
+                          }
                           onDone={onActionComplete}
                         />
                       )}
