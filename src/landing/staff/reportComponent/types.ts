@@ -58,6 +58,7 @@ export interface StationRequestItem {
   _id: string;
   status: string;
   reportText?: string;
+  description?: string;
   reportedBy?:
     | string
     | {
