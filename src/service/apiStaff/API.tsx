@@ -105,6 +105,7 @@ export interface StationRequestItem {
         email?: string;
       };
   reportText?: string;
+  description?: string; // Thêm field description từ API
   evidencePhotos?: EvidencePhoto[];
   status: string; // pending | approved | rejected
   previousVehicleStatus?: string;

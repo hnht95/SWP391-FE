@@ -65,7 +65,7 @@ const StaffReport = () => {
           activeSection === "maintenance"
             ? "Maintenance Request"
             : "Deletion Request",
-        description: item.reportText || "",
+        description: item.description || item.reportText || "",
         type: activeSection === "maintenance" ? "vehicle_breakdown" : "other",
         status: mappedStatus,
         priority: "medium",
