@@ -46,12 +46,18 @@ const TransferVehicleModal: React.FC<TransferVehicleModalProps> = ({
     setError(null);
 
     try {
-      await transferVehicleStation(vehicle._id || "", formData);
+      const result = await transferVehicleStation(vehicle._id || "", formData);
+      console.log("✅ Vehicle transferred successfully:", result);
+      
+      // Call onSuccess first to show success popup, then close modal after a short delay
       onSuccess?.();
+      
+      // Close modal after a short delay to allow success popup to show
+      setTimeout(() => {
       onClose();
+      }, 300);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to transfer vehicle");
-    } finally {
       setIsLoading(false);
     }
   };

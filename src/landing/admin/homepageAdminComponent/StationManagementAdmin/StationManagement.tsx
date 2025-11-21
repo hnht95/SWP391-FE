@@ -437,15 +437,15 @@ const StationManagement: React.FC = () => {
             <AnimatePresence>
               <>
                 <motion.div
-                  className="fixed inset-0 bg-black/50 z-[9999]"
+                  className="fixed inset-0 bg-gray-900/35 backdrop-blur-[1px] z-[9999]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setConfirmDeleteOpen(false)}
                 />
-                <div className="fixed inset-0 z[10000] flex items-center justify-center p-4 pointer-events-none">
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none">
                   <motion.div
-                    className="pointer-events-auto bg-white rounded-2xl shadow-2xl w-full max-w-md"
+                    className="pointer-events-auto bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-100"
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -500,7 +500,7 @@ const StationManagement: React.FC = () => {
                         <button
                           type="button"
                           onClick={confirmDelete}
-                          className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+                          className="px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl shadow-lg shadow-red-500/30 hover:scale-[1.01] transition-transform"
                         >
                           Delete
                         </button>

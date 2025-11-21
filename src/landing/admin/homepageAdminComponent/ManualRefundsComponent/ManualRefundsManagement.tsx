@@ -1,1068 +1,311 @@
-import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useMemo, useState } from "react";
 import {
-  MdClose,
-  MdPerson,
-  MdCalendarToday,
-  MdAttachFile,
-  MdCheckCircle,
-  MdCancel,
-  MdPending,
-  MdAutorenew,
-  MdDone,
-  MdInfo,
   MdAttachMoney,
-  MdEdit,
-  MdUpload,
-  MdAdd,
-  MdDirectionsCar,
+  MdReceiptLong,
+  MdCalendarToday,
 } from "react-icons/md";
-import ListManualRefunds from "./ListManualRefunds";
-import ListRefundCandidates from "./ListRefundCandidates";
 import {
-  getManualRefundById,
-  updateManualRefund,
-  createManualRefund,
+  ResponsiveContainer,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  Bar,
+} from "recharts";
+import ListManualRefunds from "./ListManualRefunds";
+import {
   formatCurrency,
-  getRefundStatusColor,
-  getRefundStatusLabel,
+  type ManualRefund,
 } from "../../../../service/apiAdmin/apiManualRefunds/API";
-import type {
-  ManualRefund,
-  ManualRefundStatus,
-  ManualRefundCandidate,
-} from "../../../../service/apiAdmin/apiManualRefunds/API";
+
+type TimeRangeKey = "7d" | "30d" | "90d" | "all";
+
+const TIME_RANGES: Array<{ label: string; value: TimeRangeKey; days?: number }> =
+  [
+    { label: "7D", value: "7d", days: 7 },
+    { label: "30D", value: "30d", days: 30 },
+    { label: "90D", value: "90d", days: 90 },
+    { label: "All", value: "all" },
+  ];
+
+const STATUS_META: Record<
+  string,
+  { label: string; from: string; to: string; text: string }
+> = {
+  pending: {
+    label: "Pending",
+    from: "#fde68a",
+    to: "#f59e0b",
+    text: "text-amber-600",
+  },
+  approved: {
+    label: "Approved",
+    from: "#bbf7d0",
+    to: "#10b981",
+    text: "text-emerald-600",
+  },
+  processing: {
+    label: "Processing",
+    from: "#bfdbfe",
+    to: "#2563eb",
+    text: "text-blue-600",
+  },
+  completed: {
+    label: "Completed",
+    from: "#ddd6fe",
+    to: "#7c3aed",
+    text: "text-purple-600",
+  },
+  done: {
+    label: "Done",
+    from: "#ddd6fe",
+    to: "#7c3aed",
+    text: "text-purple-600",
+  },
+  cancelled: {
+    label: "Cancelled",
+    from: "#e5e7eb",
+    to: "#6b7280",
+    text: "text-gray-600",
+  },
+  rejected: {
+    label: "Rejected",
+    from: "#fecdd3",
+    to: "#f43f5e",
+    text: "text-rose-600",
+  },
+};
 
 const ManualRefundsManagement: React.FC = () => {
-  // Tab state
-  const [activeTab, setActiveTab] = useState<"candidates" | "requests">(
-    "candidates"
-  );
+  const [refunds, setRefunds] = useState<ManualRefund[]>([]);
+  const [timeRange, setTimeRange] = useState<TimeRangeKey>("30d");
 
-  // Refund modal state
-  const [selectedRefund, setSelectedRefund] = useState<ManualRefund | null>(
-    null
-  );
-  const [isRefundModalOpen, setIsRefundModalOpen] = useState<boolean>(false);
-  const [isProcessingRefund, setIsProcessingRefund] = useState<boolean>(false);
-  const [refundStatus, setRefundStatus] =
-    useState<ManualRefundStatus>("pending");
-  const [refundNote, setRefundNote] = useState<string>("");
-  const [refundAttachments, setRefundAttachments] = useState<File[]>([]);
-  const [refundError, setRefundError] = useState<string | null>(null);
-  const [refundSuccessMessage, setRefundSuccessMessage] = useState<
-    string | null
-  >(null);
-  const [isLoadingRefundDetail, setIsLoadingRefundDetail] =
-    useState<boolean>(false);
-
-  // Candidate modal state
-  const [selectedCandidate, setSelectedCandidate] =
-    useState<ManualRefundCandidate | null>(null);
-  const [isCandidateModalOpen, setIsCandidateModalOpen] =
-    useState<boolean>(false);
-  const [isProcessingCandidate, setIsProcessingCandidate] =
-    useState<boolean>(false);
-  const [refundAmount, setRefundAmount] = useState<number>(0);
-  const [refundReason, setRefundReason] = useState<string>("");
-  const [candidateNote, setCandidateNote] = useState<string>("");
-  const [candidateError, setCandidateError] = useState<string | null>(null);
-  const [candidateSuccessMessage, setCandidateSuccessMessage] = useState<
-    string | null
-  >(null);
-
-  // Reset refund modal state
-  useEffect(() => {
-    if (isRefundModalOpen) {
-      document.body.style.overflow = "hidden";
-      if (selectedRefund) {
-        setRefundStatus(selectedRefund.status);
-        setRefundNote(selectedRefund.note || "");
-        setRefundAttachments([]);
-      }
-    } else {
-      document.body.style.overflow = "unset";
-      setRefundStatus("pending");
-      setRefundNote("");
-      setRefundAttachments([]);
-      setRefundError(null);
-      setRefundSuccessMessage(null);
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isRefundModalOpen, selectedRefund]);
-
-  // Reset candidate modal state
-  useEffect(() => {
-    if (isCandidateModalOpen) {
-      document.body.style.overflow = "hidden";
-      if (selectedCandidate) {
-        setRefundAmount(selectedCandidate.refundableRemaining || 0);
-        setRefundReason("");
-        setCandidateNote("");
-      }
-    } else {
-      document.body.style.overflow = "unset";
-      setRefundAmount(0);
-      setRefundReason("");
-      setCandidateNote("");
-      setCandidateError(null);
-      setCandidateSuccessMessage(null);
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isCandidateModalOpen, selectedCandidate]);
-
-  // Handle refund selection
-  const handleSelectRefund = async (refund: ManualRefund) => {
-    setSelectedRefund(refund);
-    setIsRefundModalOpen(true);
-    setRefundError(null);
-    setIsLoadingRefundDetail(true);
-
-    try {
-      const response = await getManualRefundById(refund._id);
-      if (response.success && response.data) {
-        setSelectedRefund(response.data);
-      } else {
-        setRefundError("Failed to load refund details");
-      }
-    } catch (err: any) {
-      console.error("Error loading refund details:", err);
-      setRefundError(err?.message || "Failed to load refund details");
-    } finally {
-      setIsLoadingRefundDetail(false);
-    }
-  };
-
-  // Handle candidate selection
-  const handleSelectCandidate = (candidate: ManualRefundCandidate) => {
-    setSelectedCandidate(candidate);
-    setIsCandidateModalOpen(true);
-    setRefundAmount(candidate.refundableRemaining || 0);
-  };
-
-  // Close refund modal
-  const handleCloseRefundModal = () => {
-    setIsRefundModalOpen(false);
-    setSelectedRefund(null);
-  };
-
-  // Close candidate modal
-  const handleCloseCandidateModal = () => {
-    setIsCandidateModalOpen(false);
-    setSelectedCandidate(null);
-  };
-
-  // Update refund
-  const handleUpdateRefund = async () => {
-    if (!selectedRefund) return;
-
-    setIsProcessingRefund(true);
-    setRefundError(null);
-    setRefundSuccessMessage(null);
-
-    try {
-      const response = await updateManualRefund(selectedRefund._id, {
-        status: refundStatus,
-        note: refundNote.trim() || undefined,
-        attachments:
-          refundAttachments.length > 0 ? refundAttachments : undefined,
-      });
-
-      if (response.success) {
-        setRefundSuccessMessage("Manual refund updated successfully");
-        setTimeout(() => {
-          handleCloseRefundModal();
-          window.location.reload();
-        }, 1500);
-      } else {
-        setRefundError(response.message || "Cannot update refund");
-      }
-    } catch (err: any) {
-      console.error("Error updating manual refund:", err);
-      setRefundError(
-        err?.message || "An error occurred while updating the refund"
-      );
-    } finally {
-      setIsProcessingRefund(false);
-    }
-  };
-
-  // Create refund from candidate
-  const handleCreateRefund = async () => {
-    if (!selectedCandidate) return;
-
-    if (!refundReason.trim()) {
-      setCandidateError("Reason is required");
-      return;
-    }
-
-    if (refundAmount <= 0) {
-      setCandidateError("Refund amount must be greater than 0");
-      return;
-    }
-
-    setIsProcessingCandidate(true);
-    setCandidateError(null);
-    setCandidateSuccessMessage(null);
-
-    try {
-      const response = await createManualRefund({
-        bookingId: selectedCandidate._id,
-        amount: refundAmount,
-        reason: refundReason.trim(),
-        note: candidateNote.trim() || undefined,
-      });
-
-      if (response.success) {
-        setCandidateSuccessMessage("Manual refund created successfully");
-        setTimeout(() => {
-          handleCloseCandidateModal();
-          window.location.reload();
-        }, 1500);
-      } else {
-        setCandidateError(response.message || "Cannot create refund");
-      }
-    } catch (err: any) {
-      console.error("Error creating manual refund:", err);
-      setCandidateError(
-        err?.message || "An error occurred while creating the refund"
-      );
-    } finally {
-      setIsProcessingCandidate(false);
-    }
-  };
-
-  const getStatusIcon = (status: ManualRefundStatus | string) => {
-    switch (status) {
-      case "pending":
-        return <MdPending className="w-5 h-5" />;
-      case "approved":
-        return <MdCheckCircle className="w-5 h-5" />;
-      case "rejected":
-        return <MdCancel className="w-5 h-5" />;
-      case "processing":
-        return <MdAutorenew className="w-5 h-5" />;
-      case "completed":
-        return <MdDone className="w-5 h-5" />;
-      case "cancelled":
-        return <MdCancel className="w-5 h-5" />;
-      case "done":
-        return <MdDone className="w-5 h-5" />;
-      default:
-        return null;
-    }
-  };
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getBookingId = (refund: ManualRefund): string => {
-    return refund.booking?._id?.slice(-8) || "N/A";
-  };
-
-  const getStaffName = (refund: ManualRefund): string => {
-    return refund.staff?.name || "N/A";
-  };
-
-  const handleRefundFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const filesArray = Array.from(e.target.files);
-      setRefundAttachments((prev) => [...prev, ...filesArray]);
-    }
-  };
-
-  const removeRefundAttachment = (index: number) => {
-    setRefundAttachments((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const getVehicleInfo = (candidate: ManualRefundCandidate): string => {
-    if (!candidate.vehicle) return "N/A";
-    if (typeof candidate.vehicle === "string") return candidate.vehicle;
-    const vehicle = candidate.vehicle;
-    return (
-      `${vehicle.brand || ""} ${vehicle.model || ""} ${
-        vehicle.plateNumber || ""
-      }`.trim() || "N/A"
+  const filteredRefunds = useMemo(() => {
+    if (timeRange === "all") return refunds;
+    const range = TIME_RANGES.find((item) => item.value === timeRange);
+    if (!range?.days) return refunds;
+    const cutoff = Date.now() - range.days * 24 * 60 * 60 * 1000;
+    return refunds.filter(
+      (refund) => new Date(refund.createdAt).getTime() >= cutoff
     );
-  };
+  }, [refunds, timeRange]);
+
+  const summary = useMemo(() => {
+    const totalAmount = filteredRefunds.reduce(
+      (sum, refund) => sum + (refund.amount || 0),
+      0
+    );
+    const totalRequests = filteredRefunds.length;
+
+    const statusBreakdown = filteredRefunds.reduce<
+      Record<string, { count: number; amount: number }>
+    >((acc, refund) => {
+      const statusKey = (refund.status || "unknown").toLowerCase();
+      if (!acc[statusKey]) {
+        acc[statusKey] = { count: 0, amount: 0 };
+      }
+      acc[statusKey].count += 1;
+      acc[statusKey].amount += refund.amount || 0;
+      return acc;
+    }, {});
+
+    return { totalAmount, totalRequests, statusBreakdown };
+  }, [filteredRefunds]);
+
+  const mostRecentAmount = filteredRefunds[0]?.amount || 0;
+
+  const chartData = useMemo(() => {
+    return Object.entries(summary.statusBreakdown).map(
+      ([status, data]) => ({
+        status:
+          STATUS_META[status]?.label ||
+          status.charAt(0).toUpperCase() + status.slice(1),
+        count: data.count,
+        amount: Number((data.amount / 1000).toFixed(2)), // convert to thousands
+        rawAmount: data.amount,
+      })
+    );
+  }, [summary.statusBreakdown]);
 
   return (
-    <>
-      <div className="h-full flex flex-col">
-        {/* Tabs */}
-        <div className="flex-shrink-0 mb-4 border-b border-gray-200">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab("candidates")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === "candidates"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Danh sách ứng viên
-            </button>
-            <button
-              onClick={() => setActiveTab("requests")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === "requests"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Yêu cầu refund
-            </button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <MdCalendarToday className="h-4 w-4" />
+          <span>Manual Refunds</span>
+        </div>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Refund Performance
+        </h1>
+        <p className="text-sm text-gray-500">
+          Monitor manual refund amounts and request volume by time range.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
+        {TIME_RANGES.map((range) => (
+          <button
+            key={range.value}
+            onClick={() => setTimeRange(range.value)}
+            className={`px-3 py-1.5 text-sm font-semibold rounded-xl transition-all ${
+              timeRange === range.value
+                ? "bg-blue-600 text-white shadow"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            {range.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-3xl border border-gray-100 bg-gradient-to-br from-white via-gray-50/50 to-white p-6 lg:p-8 shadow-lg">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="flex items-center gap-4 p-4 rounded-2xl bg-blue-50/50 border border-blue-100/50">
+            <div className="rounded-xl bg-blue-600/10 p-3 text-blue-600">
+              <MdAttachMoney className="h-7 w-7" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600 mb-1">
+                Total refund amount
+              </p>
+              <p className="text-2xl lg:text-3xl font-bold text-gray-900">
+                {formatCurrency(summary.totalAmount, "VND")}
+              </p>
+              {mostRecentAmount > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Latest transaction: {formatCurrency(mostRecentAmount, "VND")}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100/50">
+            <div className="rounded-xl bg-emerald-600/10 p-3 text-emerald-600">
+              <MdReceiptLong className="h-7 w-7" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600 mb-1">
+                Total requests
+              </p>
+              <p className="text-2xl lg:text-3xl font-bold text-gray-900">
+                {summary.totalRequests}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {Object.keys(summary.statusBreakdown).length} statuses
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div className="flex-1 min-h-0">
-          {activeTab === "candidates" ? (
-            <ListRefundCandidates onSelectCandidate={handleSelectCandidate} />
+        <div className="rounded-2xl border border-gray-100 bg-white/80 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Status distribution
+            </h3>
+            <p className="text-xs text-gray-500">
+              Amount bar displayed in thousands (VND)
+            </p>
+          </div>
+          {chartData.length === 0 ? (
+            <div className="py-6 text-center text-sm text-gray-500">
+              No data for this range.
+            </div>
           ) : (
-            <ListManualRefunds onSelectRefund={handleSelectRefund} />
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} barGap={12}>
+                  <defs>
+                    <linearGradient id="countGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#93C5FD" />
+                      <stop offset="100%" stopColor="#2563EB" />
+                    </linearGradient>
+                    <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#FDE68A" />
+                      <stop offset="100%" stopColor="#F59E0B" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis
+                    dataKey="status"
+                    tick={{ fill: "#6B7280", fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fill: "#6B7280", fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fill: "#6B7280", fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(value) => `${value}k`}
+                  />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Legend />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="count"
+                    name="Requests"
+                    fill="url(#countGradient)"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={42}
+                  />
+                  <Bar
+                    yAxisId="right"
+                    dataKey="amount"
+                    name="Amount (thousand VND)"
+                    fill="url(#amountGradient)"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={42}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Candidate Detail Modal (Create Refund) */}
-      {createPortal(
-        <AnimatePresence>
-          {isCandidateModalOpen && selectedCandidate && (
-            <>
-              <motion.div
-                className="fixed inset-0 bg-black/50 z-[9999]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                onClick={handleCloseCandidateModal}
-              />
-              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.96, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96, y: 20 }}
-                  transition={{
-                    type: "spring",
-                    damping: 25,
-                    stiffness: 300,
-                    mass: 0.8,
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col pointer-events-auto"
-                >
-                  {/* Modal Header */}
-                  <div className="sticky top-0 z-20 flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900/95">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-2xl flex items-center justify-center shadow-md">
-                        <MdAdd className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-white">
-                          Create Manual Refund
-                        </h2>
-                        <p className="text-sm text-gray-200">
-                          Booking ID: {selectedCandidate._id.slice(-8)}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleCloseCandidateModal}
-                      className="text-gray-400 hover:text-white hover:bg-gray-800 rounded-full p-2 transition-all duration-200"
-                    >
-                      <MdClose className="w-5 h-5" />
-                    </button>
-                  </div>
+      <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">
+          Manual refund list
+        </h3>
+        <ListManualRefunds onDataLoaded={setRefunds} />
+      </div>
+    </div>
+  );
+};
 
-                  {/* Modal Content */}
-                  <div className="flex-1 overflow-y-auto p-6 min-h-0">
-                    {/* Success/Error Messages */}
-                    {candidateSuccessMessage && (
-                      <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-green-800">
-                          {candidateSuccessMessage}
-                        </p>
-                      </div>
-                    )}
-                    {candidateError && (
-                      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-800">{candidateError}</p>
-                      </div>
-                    )}
+const ChartTooltip: React.FC<any> = ({ active, payload }) => {
+  if (!active || !payload || payload.length === 0) return null;
+  const data = payload[0].payload as {
+    status: string;
+    count: number;
+    rawAmount: number;
+  };
 
-                    <div className="space-y-6">
-                      {/* Booking Information */}
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <MdCalendarToday className="w-5 h-5 text-blue-600" />
-                          Booking Information
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">
-                              Booking ID
-                            </p>
-                            <p className="text-base font-medium text-gray-900">
-                              {selectedCandidate._id.slice(-8)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Status</p>
-                            <p className="text-base font-medium text-gray-900">
-                              {selectedCandidate.status || "N/A"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">
-                              Start Time
-                            </p>
-                            <p className="text-base font-medium text-gray-900">
-                              {formatDate(selectedCandidate.startTime)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">
-                              End Time
-                            </p>
-                            <p className="text-base font-medium text-gray-900">
-                              {formatDate(selectedCandidate.endTime)}
-                            </p>
-                          </div>
-                          {selectedCandidate.amounts && (
-                            <>
-                              <div>
-                                <p className="text-sm text-gray-500 mb-1">
-                                  Total Paid
-                                </p>
-                                <p className="text-base font-medium text-gray-900">
-                                  {formatCurrency(
-                                    selectedCandidate.amounts.totalPaid ||
-                                      selectedCandidate.paid ||
-                                      0,
-                                    "VND"
-                                  )}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-500 mb-1">
-                                  Refundable Amount
-                                </p>
-                                <p className="text-base font-semibold text-green-600">
-                                  {formatCurrency(
-                                    selectedCandidate.refundableRemaining || 0,
-                                    "VND"
-                                  )}
-                                </p>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Renter Information */}
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <MdPerson className="w-5 h-5 text-blue-600" />
-                          Renter Information
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Name</p>
-                            <p className="text-base font-medium text-gray-900">
-                              {selectedCandidate.renter?.name || "N/A"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Email</p>
-                            <p className="text-base font-medium text-gray-900">
-                              {selectedCandidate.renter?.email || "N/A"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Phone</p>
-                            <p className="text-base font-medium text-gray-900">
-                              {selectedCandidate.renter?.phone || "N/A"}
-                            </p>
-                          </div>
-                          {selectedCandidate.renter?.bankInfo && (
-                            <div>
-                              <p className="text-sm text-gray-500 mb-1">
-                                Bank Account
-                              </p>
-                              <p className="text-base font-medium text-gray-900">
-                                {selectedCandidate.renter.bankInfo
-                                  .accountName || "N/A"}{" "}
-                                -{" "}
-                                {selectedCandidate.renter.bankInfo.bankName ||
-                                  "N/A"}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {selectedCandidate.renter.bankInfo
-                                  .accountNumber || ""}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Vehicle Information */}
-                      {selectedCandidate.vehicle && (
-                        <div className="bg-gray-50 rounded-xl p-4">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <MdDirectionsCar className="w-5 h-5 text-blue-600" />
-                            Vehicle Information
-                          </h3>
-                          <div>
-                            <p className="text-base font-medium text-gray-900">
-                              {getVehicleInfo(selectedCandidate)}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Create Refund Form */}
-                      <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <MdAdd className="w-5 h-5 text-blue-600" />
-                          Create Refund Request
-                        </h3>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Refund Amount{" "}
-                              <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="number"
-                              value={refundAmount}
-                              onChange={(e) =>
-                                setRefundAmount(Number(e.target.value))
-                              }
-                              min="0"
-                              max={selectedCandidate.refundableRemaining || 0}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              disabled={isProcessingCandidate}
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Maximum:{" "}
-                              {formatCurrency(
-                                selectedCandidate.refundableRemaining || 0,
-                                "VND"
-                              )}
-                            </p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Reason <span className="text-red-500">*</span>
-                            </label>
-                            <textarea
-                              value={refundReason}
-                              onChange={(e) => setRefundReason(e.target.value)}
-                              placeholder="Enter refund reason..."
-                              rows={3}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              disabled={isProcessingCandidate}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Note (optional)
-                            </label>
-                            <textarea
-                              value={candidateNote}
-                              onChange={(e) => setCandidateNote(e.target.value)}
-                              placeholder="Enter additional notes..."
-                              rows={2}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              disabled={isProcessingCandidate}
-                            />
-                          </div>
-                          <button
-                            onClick={handleCreateRefund}
-                            disabled={
-                              isProcessingCandidate ||
-                              !refundReason.trim() ||
-                              refundAmount <= 0
-                            }
-                            className="w-full px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                          >
-                            <MdAdd className="w-5 h-5" />
-                            {isProcessingCandidate
-                              ? "Creating..."
-                              : "Create Refund"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            </>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
-
-      {/* Refund Detail Modal (Update Refund) */}
-      {createPortal(
-        <AnimatePresence>
-          {isRefundModalOpen && selectedRefund && (
-            <>
-              <motion.div
-                className="fixed inset-0 bg-black/50 z-[9999]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                onClick={handleCloseRefundModal}
-              />
-              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.96, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96, y: 20 }}
-                  transition={{
-                    type: "spring",
-                    damping: 25,
-                    stiffness: 300,
-                    mass: 0.8,
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col pointer-events-auto"
-                >
-                  {/* Modal Header */}
-                  <div className="sticky top-0 z-20 flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900/95">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-md">
-                        <MdAttachMoney className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-white">
-                          Manual Refund Details
-                        </h2>
-                        <p className="text-sm text-gray-200">
-                          ID: {selectedRefund._id.slice(-8)}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleCloseRefundModal}
-                      className="text-gray-400 hover:text-white hover:bg-gray-800 rounded-full p-2 transition-all duration-200"
-                    >
-                      <MdClose className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Modal Content */}
-                  <div className="flex-1 overflow-y-auto p-6 min-h-0">
-                    {/* Loading State */}
-                    {isLoadingRefundDetail && (
-                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800 flex items-center gap-2">
-                          <MdAutorenew className="w-4 h-4 animate-spin" />
-                          Loading refund details...
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Status Badge */}
-                    <div className="mb-6">
-                      <span
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border ${getRefundStatusColor(
-                          selectedRefund.status
-                        )}`}
-                      >
-                        {getStatusIcon(selectedRefund.status)}
-                        {getRefundStatusLabel(selectedRefund.status)}
-                      </span>
-                    </div>
-
-                    {/* Success/Error Messages */}
-                    {refundSuccessMessage && (
-                      <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-green-800">
-                          {refundSuccessMessage}
-                        </p>
-                      </div>
-                    )}
-                    {refundError && (
-                      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-800">{refundError}</p>
-                      </div>
-                    )}
-
-                    <div className="space-y-6">
-                      {/* Booking Information */}
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <MdCalendarToday className="w-5 h-5 text-blue-600" />
-                          Booking Information
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">
-                              Booking ID
-                            </p>
-                            <p className="text-base font-medium text-gray-900">
-                              {getBookingId(selectedRefund)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">
-                              Booking Status
-                            </p>
-                            <p className="text-base font-medium text-gray-900">
-                              {selectedRefund.booking?.status || "N/A"}
-                            </p>
-                          </div>
-                          {selectedRefund.booking?.amounts && (
-                            <>
-                              <div>
-                                <p className="text-sm text-gray-500 mb-1">
-                                  Total Paid
-                                </p>
-                                <p className="text-base font-medium text-gray-900">
-                                  {formatCurrency(
-                                    selectedRefund.booking.amounts.totalPaid ||
-                                      0,
-                                    "VND"
-                                  )}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-500 mb-1">
-                                  Grand Total
-                                </p>
-                                <p className="text-base font-medium text-gray-900">
-                                  {formatCurrency(
-                                    selectedRefund.booking.amounts.grandTotal ||
-                                      0,
-                                    "VND"
-                                  )}
-                                </p>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Renter Information */}
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <MdPerson className="w-5 h-5 text-blue-600" />
-                          Renter Information
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Name</p>
-                            <p className="text-base font-medium text-gray-900">
-                              {selectedRefund.renter?.name || "N/A"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Email</p>
-                            <p className="text-base font-medium text-gray-900">
-                              {selectedRefund.renter?.email || "N/A"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Phone</p>
-                            <p className="text-base font-medium text-gray-900">
-                              {selectedRefund.renter?.phone || "N/A"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Refund Details */}
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <MdAttachMoney className="w-5 h-5 text-blue-600" />
-                          Refund Details
-                        </h3>
-                        <div className="space-y-3">
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">
-                              Refund Amount
-                            </p>
-                            <p className="text-base font-semibold text-green-600">
-                              {selectedRefund.amount
-                                ? formatCurrency(selectedRefund.amount, "VND")
-                                : "N/A"}
-                            </p>
-                          </div>
-                          {selectedRefund.method && (
-                            <div>
-                              <p className="text-sm text-gray-500 mb-1">
-                                Method
-                              </p>
-                              <p className="text-base text-gray-700">
-                                {selectedRefund.method}
-                              </p>
-                            </div>
-                          )}
-                          {selectedRefund.transferredAt && (
-                            <div>
-                              <p className="text-sm text-gray-500 mb-1">
-                                Transferred At
-                              </p>
-                              <p className="text-base text-gray-700">
-                                {formatDate(selectedRefund.transferredAt)}
-                              </p>
-                            </div>
-                          )}
-                          {selectedRefund.reference && (
-                            <div>
-                              <p className="text-sm text-gray-500 mb-1">
-                                Reference
-                              </p>
-                              <p className="text-base text-gray-700">
-                                {selectedRefund.reference}
-                              </p>
-                            </div>
-                          )}
-                          {selectedRefund.note && (
-                            <div>
-                              <p className="text-sm text-gray-500 mb-1">Note</p>
-                              <p className="text-base text-gray-700 whitespace-pre-wrap">
-                                {selectedRefund.note}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Staff Information */}
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <MdInfo className="w-5 h-5 text-blue-600" />
-                          Staff Information
-                        </h3>
-                        <div className="space-y-3">
-                          {selectedRefund.staff && (
-                            <div>
-                              <p className="text-sm text-gray-500 mb-1">
-                                Processed By
-                              </p>
-                              <p className="text-base font-medium text-gray-900">
-                                {getStaffName(selectedRefund)} (
-                                {selectedRefund.staff.email || "N/A"})
-                              </p>
-                            </div>
-                          )}
-                          {selectedRefund.beneficiary && (
-                            <div>
-                              <p className="text-sm text-gray-500 mb-1">
-                                Beneficiary
-                              </p>
-                              <p className="text-base font-medium text-gray-900">
-                                {selectedRefund.beneficiary.accountName} -{" "}
-                                {selectedRefund.beneficiary.bankName} (
-                                {selectedRefund.beneficiary.accountNumber})
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Attachments */}
-                      {selectedRefund.attachments &&
-                        selectedRefund.attachments.length > 0 && (
-                          <div className="bg-gray-50 rounded-xl p-4">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                              <MdAttachFile className="w-5 h-5 text-blue-600" />
-                              Attachments ({selectedRefund.attachments.length})
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                              {selectedRefund.attachments.map(
-                                (attachmentUrl, index) => {
-                                  const isImage =
-                                    attachmentUrl &&
-                                    (attachmentUrl.endsWith(".jpg") ||
-                                      attachmentUrl.endsWith(".jpeg") ||
-                                      attachmentUrl.endsWith(".png") ||
-                                      attachmentUrl.endsWith(".gif") ||
-                                      attachmentUrl.endsWith(".webp"));
-
-                                  return (
-                                    <div
-                                      key={index}
-                                      className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
-                                    >
-                                      {isImage ? (
-                                        <img
-                                          src={attachmentUrl}
-                                          alt="Attachment"
-                                          className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                          onClick={() =>
-                                            window.open(attachmentUrl, "_blank")
-                                          }
-                                        />
-                                      ) : (
-                                        <a
-                                          href={attachmentUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="w-full h-full flex items-center justify-center hover:bg-gray-200 transition-colors"
-                                        >
-                                          <MdAttachFile className="w-8 h-8 text-gray-600" />
-                                        </a>
-                                      )}
-                                    </div>
-                                  );
-                                }
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                      {/* Update Form */}
-                      <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          <MdEdit className="w-5 h-5 text-blue-600" />
-                          Update Refund
-                        </h3>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Status
-                            </label>
-                            <select
-                              value={refundStatus}
-                              onChange={(e) =>
-                                setRefundStatus(
-                                  e.target.value as ManualRefundStatus
-                                )
-                              }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              disabled={isProcessingRefund}
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="approved">Approved</option>
-                              <option value="rejected">Rejected</option>
-                              <option value="processing">Processing</option>
-                              <option value="completed">Completed</option>
-                              <option value="cancelled">Cancelled</option>
-                              <option value="done">Done</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Note (optional)
-                            </label>
-                            <textarea
-                              value={refundNote}
-                              onChange={(e) => setRefundNote(e.target.value)}
-                              placeholder="Enter note..."
-                              rows={3}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              disabled={isProcessingRefund}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Additional Attachments (optional)
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <label className="flex-1 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                                <MdUpload className="w-5 h-5 text-gray-600" />
-                                <span className="text-sm text-gray-700">
-                                  Choose Files
-                                </span>
-                                <input
-                                  type="file"
-                                  multiple
-                                  onChange={handleRefundFileChange}
-                                  className="hidden"
-                                  disabled={isProcessingRefund}
-                                />
-                              </label>
-                            </div>
-                            {refundAttachments.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                {refundAttachments.map((file, index) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-center justify-between px-3 py-2 bg-white rounded border border-gray-200"
-                                  >
-                                    <span className="text-sm text-gray-700 truncate flex-1">
-                                      {file.name}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        removeRefundAttachment(index)
-                                      }
-                                      className="ml-2 text-red-600 hover:text-red-800"
-                                      disabled={isProcessingRefund}
-                                    >
-                                      <MdClose className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            onClick={handleUpdateRefund}
-                            disabled={
-                              isProcessingRefund ||
-                              (refundStatus === selectedRefund.status &&
-                                refundNote === (selectedRefund.note || "") &&
-                                refundAttachments.length === 0)
-                            }
-                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                          >
-                            <MdEdit className="w-5 h-5" />
-                            {isProcessingRefund
-                              ? "Processing..."
-                              : "Update Refund"}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Timestamps */}
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="text-gray-500 mb-1">Created At</p>
-                            <p className="font-medium text-gray-900">
-                              {formatDate(selectedRefund.createdAt)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500 mb-1">Last Updated</p>
-                            <p className="font-medium text-gray-900">
-                              {formatDate(selectedRefund.updatedAt)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            </>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
-    </>
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg text-sm space-y-1">
+      <p className="font-semibold text-gray-900">{data.status}</p>
+      <p className="text-gray-600">
+        Requests: <span className="font-semibold">{data.count}</span>
+      </p>
+      <p className="text-gray-600">
+        Amount:{" "}
+        <span className="font-semibold">
+          {formatCurrency(data.rawAmount || 0, "VND")}
+        </span>
+      </p>
+    </div>
   );
 };
 
 export default ManualRefundsManagement;
+

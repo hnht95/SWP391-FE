@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { MdDeleteSweep } from "react-icons/md";
-import { TbTransfer } from "react-icons/tb";
 import { GrHostMaintenance } from "react-icons/gr";
 import MaintenanceRequestRow from "./MaintenanceRequestRow";
 import DeletionRequestRow from "./DeletionRequestRow";
@@ -10,7 +9,6 @@ import type { MaintenanceRequest, DeletionRequest } from "../../../../../../type
 interface RequestsTabProps {
   maintenanceRequests: MaintenanceRequest[];
   deletionRequests: DeletionRequest[];
-  transferLogs: any[];
   isLoading: boolean;
   onApproveMaintenance: (requestId: string) => Promise<void>;
   onRejectMaintenance: (requestId: string) => Promise<void>;
@@ -26,7 +24,6 @@ interface RequestsTabProps {
 const RequestsTab: React.FC<RequestsTabProps> = ({
   maintenanceRequests,
   deletionRequests,
-  transferLogs,
   isLoading,
   onApproveMaintenance,
   onRejectMaintenance,
@@ -38,7 +35,7 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
   onPageChange,
   getStationName,
 }) => {
-  const [activeTab, setActiveTab] = useState<"maintenance" | "deletion" | "transfers">("deletion");
+  const [activeTab, setActiveTab] = useState<"maintenance" | "deletion">("deletion");
 
   const tabs = [
     {
@@ -55,13 +52,6 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
       count: deletionRequests.length,
       color: "red",
     },
-    {
-      id: "transfers" as const,
-      label: "Transfer History",
-      icon: TbTransfer,
-      count: transferLogs.length,
-      color: "green",
-    },
   ];
 
   const getTabColor = (color: string) => {
@@ -75,11 +65,6 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
         return {
           active: "bg-red-100 text-red-700 border-red-200",
           inactive: "text-red-600 hover:text-red-700 hover:bg-red-50",
-        };
-      case "green":
-        return {
-          active: "bg-green-100 text-green-700 border-green-200",
-          inactive: "text-green-600 hover:text-green-700 hover:bg-green-50",
         };
       default:
         return {
@@ -224,92 +209,6 @@ const RequestsTab: React.FC<RequestsTabProps> = ({
                           onReject={() => onRejectDeletion(request._id)}
                           onView={(r) => onViewDeletionRequest?.(r)}
                         />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-
-      case "transfers":
-        return (
-          <div className="space-y-4">
-            {transferLogs.length === 0 ? (
-              <div className="text-center py-12">
-                <TbTransfer className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">No transfer logs found</p>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Vehicle
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          From Station
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          To Station
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Transferred By
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {transferLogs.map((log: any) => (
-                        <tr key={log._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {log.vehicle?.brand || "N/A"} {log.vehicle?.model || ""}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {log.vehicle?.plateNumber || log.vehicleId || "N/A"}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {log.fromStation?.name || log.fromStationId || "N/A"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {log.toStation?.name || log.toStationId || "N/A"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {typeof log.transferredBy === "object" 
-                              ? log.transferredBy?.name || log.transferredBy?.email || "N/A"
-                              : log.transferredBy || "N/A"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {log.transferDate 
-                              ? new Date(log.transferDate).toLocaleDateString("vi-VN")
-                              : log.createdAt 
-                              ? new Date(log.createdAt).toLocaleDateString("vi-VN")
-                              : "N/A"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              log.status === "completed" 
-                                ? "bg-green-100 text-green-700" 
-                                : log.status === "pending"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-red-100 text-red-700"
-                            }`}>
-                              {log.status ? log.status.charAt(0).toUpperCase() + log.status.slice(1) : "N/A"}
-                            </span>
-                          </td>
-                        </tr>
                       ))}
                     </tbody>
                   </table>

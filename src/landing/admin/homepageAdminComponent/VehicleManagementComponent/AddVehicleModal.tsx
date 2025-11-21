@@ -202,19 +202,21 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ isOpen, onClose, onSu
         year: form.year,
         color: form.color,
         batteryCapacity: form.batteryCapacity,
-        mileage: form.mileage,
+        mileage: form.mileage, // Can be 0
         pricePerDay: form.pricePerDay,
         pricePerHour: form.pricePerHour,
         status: form.status,
         station: form.station,
         valuation: {
-          valueVND: form.valuation,
+          valueVND: form.valuation, // Can be 0
         },
         exteriorFiles: exteriorFiles,
         interiorFiles: interiorFiles,
       };
 
       console.log("Creating vehicle with data:", vehicleData);
+      console.log("📊 Mileage value:", vehicleData.mileage, "Type:", typeof vehicleData.mileage);
+      console.log("📊 Valuation value:", vehicleData.valuation?.valueVND, "Type:", typeof vehicleData.valuation?.valueVND);
       const createdVehicle = await createVehicle(vehicleData);
       
       // Fetch the vehicle again to ensure we have complete data including valuation

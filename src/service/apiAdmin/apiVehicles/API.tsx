@@ -452,24 +452,30 @@ export const createVehicle = async (
         formData.append("plateNumber", vehicleData.plateNumber);
       if (vehicleData.brand) formData.append("brand", vehicleData.brand);
       if (vehicleData.model) formData.append("model", vehicleData.model);
-      if (vehicleData.year)
+      if (vehicleData.year !== undefined)
         formData.append("year", vehicleData.year.toString());
       if (vehicleData.color) formData.append("color", vehicleData.color);
-      if (vehicleData.batteryCapacity)
+      if (vehicleData.batteryCapacity !== undefined)
         formData.append(
           "batteryCapacity",
           vehicleData.batteryCapacity.toString()
         );
-      if (vehicleData.mileage)
+      // Fix: Check for existence, not truthiness (mileage can be 0)
+      if (vehicleData.mileage !== undefined) {
         formData.append("mileage", vehicleData.mileage.toString());
-      if (vehicleData.pricePerDay)
+        console.log("📤 Appending mileage to FormData:", vehicleData.mileage);
+      }
+      if (vehicleData.pricePerDay !== undefined)
         formData.append("pricePerDay", vehicleData.pricePerDay.toString());
-      if (vehicleData.pricePerHour)
+      if (vehicleData.pricePerHour !== undefined)
         formData.append("pricePerHour", vehicleData.pricePerHour.toString());
       if (vehicleData.status) formData.append("status", vehicleData.status);
       if (vehicleData.station) formData.append("station", vehicleData.station);
-      if (vehicleData.valuation)
+      // Fix: Check for existence, not truthiness (valuation can be 0)
+      if (vehicleData.valuation !== undefined) {
         formData.append("valuation", JSON.stringify(vehicleData.valuation));
+        console.log("📤 Appending valuation to FormData:", JSON.stringify(vehicleData.valuation));
+      }
 
       // Append files
       if (vehicleData.exteriorFiles) {
@@ -872,24 +878,37 @@ export const deleteVehicle = async (id: string): Promise<void> => {
 /**
  * POST /api/vehicles/:id/transfer-station
  * Chuyển xe sang trạm khác (admin)
+ * Response format: { success: true, data: { vehicle: Vehicle, transferLogId: string } }
  */
 export const transferVehicleStation = async (
   id: string,
   transferData: TransferStationData
 ): Promise<Vehicle> => {
   try {
-    const response = await api.post<SingleVehicleResponse>(
+    const response = await api.post<{
+      success: boolean;
+      data: {
+        vehicle: Vehicle;
+        transferLogId: string;
+      };
+    }>(
       `/vehicles/${id}/transfer-station`,
       transferData
     );
 
     console.log("✅ Transfer response:", response.data);
 
-    if (response.data.success && response.data.data) {
-      return response.data.data;
+    // Handle response format: { success: true, data: { vehicle: Vehicle, transferLogId: string } }
+    if (response.data.success && response.data.data?.vehicle) {
+      return response.data.data.vehicle;
     }
 
-    // Handle direct vehicle response
+    // Fallback: Handle if data is vehicle directly
+    if (response.data.success && response.data.data && (response.data.data as any)._id) {
+      return response.data.data as unknown as Vehicle;
+    }
+
+    // Fallback: Handle direct vehicle response
     if (
       typeof response.data === "object" &&
       response.data &&
@@ -1279,6 +1298,63 @@ export const getSimilarVehicles = async (
     return [];
   }
 };
+
+// Rating interface
+export interface VehicleRating {
+  _id: string;
+  bookingId: string;
+  vehicleId: string;
+  renterId?: string;
+  renter?: {
+    _id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  };
+  score: number;
+  comment?: string;
+  submittedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Get all ratings for a specific vehicle
+ * Logic: Get all bookings for vehicle → Get rating from each booking → Aggregate
+ */
+export const getVehicleRatings = async (
+  vehicleId: string
+): Promise<VehicleRating[]> => {
+  try {
+    console.log("🔄 Fetching vehicle ratings for vehicle:", vehicleId);
+    
+    // Dynamically import to avoid circular dependency
+    const { getVehicleRatingsFromBookings } = await import("../apiBooking/API");
+    
+    // Get ratings from bookings
+    const ratings = await getVehicleRatingsFromBookings(vehicleId);
+    
+    // Map BookingRating to VehicleRating format
+    const vehicleRatings: VehicleRating[] = ratings.map((rating) => ({
+      _id: rating._id,
+      bookingId: rating.bookingId,
+      vehicleId: rating.vehicleId || vehicleId,
+      renterId: rating.renterId,
+      renter: rating.renter,
+      score: rating.score,
+      comment: rating.comment,
+      submittedAt: rating.submittedAt,
+      createdAt: rating.createdAt,
+      updatedAt: rating.updatedAt,
+    }));
+
+    console.log(`✅ Found ${vehicleRatings.length} ratings for vehicle ${vehicleId}`);
+    return vehicleRatings;
+  } catch (error: any) {
+    console.error("❌ Error fetching vehicle ratings:", error);
+    return [];
+  }
+};
 export default {
   getAllVehicles,
   getVehiclesPaginated,
@@ -1300,7 +1376,8 @@ export default {
   getMaintenanceRequestsPaginated,
   approveMaintenanceRequest,
   rejectMaintenanceRequest,
-  getSimilarVehicles, // Add this
+  getSimilarVehicles,
+  getVehicleRatings,
   getPhotoUrls,
   getStationId,
 };

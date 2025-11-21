@@ -1,6 +1,12 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { MdLocationOn } from "react-icons/md";
+import {
+  MdOutlineStoreMallDirectory,
+  MdOutlineTaskAlt,
+  MdOutlineBlock,
+  MdOutlineMultilineChart,
+  MdLocationOn,
+} from "react-icons/md";
 
 interface MeasurementIndexProps {
   totalStations: number;
@@ -36,25 +42,25 @@ const MeasurementIndex: React.FC<MeasurementIndexProps> = ({
     {
       label: "Total Stations",
       value: totalStations,
-      icon: "📍",
+      icon: <MdOutlineStoreMallDirectory className="w-5 h-5" />,
       color: "bg-blue-500",
     },
     {
       label: "Active",
       value: activeStations,
-      icon: "✓",
+      icon: <MdOutlineTaskAlt className="w-5 h-5" />,
       color: "bg-green-500",
     },
     {
       label: "Inactive",
       value: inactiveStations,
-      icon: "✕",
+      icon: <MdOutlineBlock className="w-5 h-5" />,
       color: "bg-red-500",
     },
     {
       label: "Activity Rate",
       value: `${activityPercentage}%`,
-      icon: "📊",
+      icon: <MdOutlineMultilineChart className="w-5 h-5" />,
       color: "bg-purple-500",
     },
   ];

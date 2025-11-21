@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MdCalendarToday, MdPeople, MdArrowForward, MdClose, MdBookOnline } from "react-icons/md";
-import { getBookedVehicles, formatCurrency } from "../../../../service/apiAdmin/apiBooking/API";
-import type { Booking, PaginatedBookingsResponse } from "../../../../service/apiAdmin/apiBooking/API";
+import { getAllBookings, formatCurrency } from "../../../../service/apiAdmin/apiBooking/API";
+import type { Booking, PaginatedBookingsResponse, BookingStatus } from "../../../../service/apiAdmin/apiBooking/API";
 
 const Bookedmanagement: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -15,65 +15,83 @@ const Bookedmanagement: React.FC = () => {
   const [modalCurrentPage, setModalCurrentPage] = useState<number>(1);
   const [modalTotalPages, setModalTotalPages] = useState<number>(1);
   const [modalTotal, setModalTotal] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [selectedStatus, setSelectedStatus] = useState<"all" | BookingStatus>("all");
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState<boolean>(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const statusButtonRef = useRef<HTMLButtonElement>(null);
   const limit = 3;
-  const modalLimit = 10;
+  const modalLimit = 20;
 
-  const fetchBookings = useCallback(async (_page: number) => {
+  const getBookingTimestamp = useCallback((booking: Booking): number => {
+    // Prioritize createdAt (when booking was created/booked) for newest bookings first
+    const rawDate = booking.createdAt || booking.updatedAt || (booking as any)._dateSort || booking.startTime || booking.endTime;
+    if (!rawDate) return 0;
+    const time = new Date(rawDate).getTime();
+    return Number.isNaN(time) ? 0 : time;
+  }, []);
+
+  const fetchBookings = useCallback(async (page: number) => {
     try {
       setLoading(true);
       setError(null);
-      // Fetch more items to ensure we get the newest bookings, then take only the first 'limit' items
-      // This ensures widget shows the same newest bookings as modal
-      const fetchLimit = Math.max(limit * 2, 10); // Fetch at least 10 items to ensure we have enough
-      const response: PaginatedBookingsResponse = await getBookedVehicles({
-        page: 1, // Always fetch page 1 for widget to get newest bookings
-        limit: fetchLimit,
+      const response: PaginatedBookingsResponse = await getAllBookings({
+        page,
+        limit,
       });
       // Sort bookings by createdAt (newest booking received first)
-      const sortedBookings = (response.items || []).sort((a, b) => {
-        const dateA = new Date(a.createdAt).getTime();
-        const dateB = new Date(b.createdAt).getTime();
-        return dateB - dateA; // Descending order (newest booking first)
-      });
-      // Take only the first 'limit' items for display (3 newest bookings)
-      const displayBookings = sortedBookings.slice(0, limit);
-      setBookings(displayBookings);
+      const sortedBookings = (response.items || [])
+        .map((booking) => ({
+          booking,
+          timestamp: getBookingTimestamp(booking),
+        }))
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .map((entry) => entry.booking);
+      setBookings(sortedBookings);
+      setTotalPages(response.totalPages || 1);
+      setCurrentPage(response.page || page);
     } catch (err: any) {
-      console.error("Error fetching booked vehicles:", err);
+      console.error("Error fetching bookings:", err);
       setError(err?.message || "Failed to load bookings");
       setBookings([]);
     } finally {
       setLoading(false);
     }
-  }, [limit]);
+  }, [limit, getBookingTimestamp]);
 
   const fetchModalBookings = useCallback(async (page: number) => {
     try {
       setModalLoading(true);
-      const response: PaginatedBookingsResponse = await getBookedVehicles({
+      const response: PaginatedBookingsResponse = await getAllBookings({
         page,
         limit: modalLimit,
+        status: selectedStatus,
       });
       // Sort bookings by createdAt (newest booking received first)
-      const sortedBookings = (response.items || []).sort((a, b) => {
-        const dateA = new Date(a.createdAt).getTime();
-        const dateB = new Date(b.createdAt).getTime();
-        return dateB - dateA; // Descending order (newest booking first)
-      });
+      const sortedBookings = (response.items || [])
+        .map((booking) => ({
+          booking,
+          timestamp: getBookingTimestamp(booking),
+        }))
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .map((entry) => entry.booking);
       setModalBookings(sortedBookings);
       setModalTotalPages(response.totalPages || 1);
       setModalTotal(response.total || 0);
+      setModalCurrentPage(response.page || page);
     } catch (err: any) {
       console.error("Error fetching modal bookings:", err);
       setModalBookings([]);
     } finally {
       setModalLoading(false);
     }
-  }, [modalLimit]);
+  }, [modalLimit, getBookingTimestamp, selectedStatus]);
 
   useEffect(() => {
-    fetchBookings(1); // Always fetch page 1 for widget (newest bookings)
-  }, [fetchBookings]);
+    fetchBookings(currentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
   useEffect(() => {
     if (showModal) {
@@ -91,6 +109,15 @@ const Bookedmanagement: React.FC = () => {
       document.body.style.overflow = "unset";
     };
   }, [showModal, fetchModalBookings]);
+
+  // Reset to page 1 when status changes
+  useEffect(() => {
+    if (showModal) {
+      setModalCurrentPage(1);
+      fetchModalBookings(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStatus]);
 
   useEffect(() => {
     if (showModal) {
@@ -125,23 +152,23 @@ const Bookedmanagement: React.FC = () => {
     const remainingHours = diffHours % 24;
 
     if (diffDays > 0) {
-      return `${diffDays} ngày${remainingHours > 0 ? ` ${remainingHours} giờ` : ""}`;
+      return `${diffDays} day${diffDays > 1 ? "s" : ""}${remainingHours > 0 ? ` ${remainingHours} hour${remainingHours > 1 ? "s" : ""}` : ""}`;
     }
-    return `${diffHours} giờ`;
+    return `${diffHours} hour${diffHours > 1 ? "s" : ""}`;
   };
 
   const getVehicleName = (booking: Booking): string => {
     if (typeof booking.vehicle === "object" && booking.vehicle) {
       return `${booking.vehicle.brand} ${booking.vehicle.model}`;
     }
-    return "Chưa có xe";
+    return "No vehicle";
   };
 
   const getStationName = (booking: Booking): string => {
     if (typeof booking.station === "object" && booking.station) {
       return booking.station.name;
     }
-    return "Chưa có trạm";
+    return "No station";
   };
 
   const getRenterName = (booking: Booking): string => {
@@ -149,6 +176,40 @@ const Bookedmanagement: React.FC = () => {
       return booking.renter.name;
     }
     return "Unknown";
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        statusDropdownRef.current &&
+        statusButtonRef.current &&
+        !statusDropdownRef.current.contains(event.target as Node) &&
+        !statusButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+
+    if (isStatusDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isStatusDropdownOpen]);
+
+  const statusOptions: Array<{ value: "all" | BookingStatus; label: string }> = [
+    { value: "all", label: "All" },
+    { value: "reserved", label: "Reserved" },
+    { value: "active", label: "Active" },
+    { value: "completed", label: "Completed" },
+    { value: "cancelled", label: "Cancelled" },
+  ];
+
+  const getStatusLabel = (status: "all" | BookingStatus): string => {
+    return statusOptions.find(opt => opt.value === status)?.label || "All";
   };
 
   return (
@@ -167,7 +228,7 @@ const Bookedmanagement: React.FC = () => {
 
       {loading && bookings.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-sm text-gray-500">Đang tải dữ liệu...</div>
+          <div className="text-sm text-gray-500">Loading data...</div>
         </div>
       ) : error ? (
         <div className="flex-1 flex items-center justify-center">
@@ -175,7 +236,7 @@ const Bookedmanagement: React.FC = () => {
         </div>
       ) : bookings.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-sm text-gray-500">Chưa có booking nào</div>
+          <div className="text-sm text-gray-500">No bookings found</div>
         </div>
       ) : (
         <>
@@ -246,6 +307,8 @@ const Bookedmanagement: React.FC = () => {
                           ? "bg-green-100 text-green-700"
                           : booking.status === "completed"
                           ? "bg-purple-100 text-purple-700"
+                          : booking.status === "cancelled"
+                          ? "bg-red-100 text-red-700"
                           : "bg-gray-100 text-gray-700"
                       }`}
                     >
@@ -257,7 +320,52 @@ const Bookedmanagement: React.FC = () => {
             ))}
           </div>
 
-          {/* No pagination for widget - always shows 3 newest bookings */}
+          {/* Widget Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-gray-200 flex-shrink-0">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Prev
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage === 1) {
+                    pageNum = i + 1;
+                  } else if (currentPage === totalPages) {
+                    pageNum = totalPages - 2 + i;
+                  } else {
+                    pageNum = currentPage - 1 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-2 py-1 text-xs font-medium rounded transition-all ${
+                        currentPage === pageNum
+                          ? "bg-blue-600 text-white"
+                          : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -297,7 +405,7 @@ const Bookedmanagement: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-lg font-bold text-white">All Bookings</h2>
-                      <p className="text-xs text-gray-200">Xem toàn bộ danh sách booking đang được đặt</p>
+                      <p className="text-xs text-gray-200">View all booking list</p>
                     </div>
                   </div>
                   <button
@@ -312,11 +420,11 @@ const Bookedmanagement: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-5 min-h-0 flex flex-col scroll-smooth">
                   {modalLoading && modalBookings.length === 0 ? (
                     <div className="flex items-center justify-center flex-1">
-                      <div className="text-sm text-gray-500">Đang tải dữ liệu...</div>
+                      <div className="text-sm text-gray-500">Loading data...</div>
                     </div>
                   ) : modalBookings.length === 0 ? (
                     <div className="flex items-center justify-center flex-1">
-                      <div className="text-sm text-gray-500">Chưa có booking nào</div>
+                      <div className="text-sm text-gray-500">No bookings found</div>
                     </div>
                   ) : (
                     <div className="space-y-3 flex-1">
@@ -391,6 +499,8 @@ const Bookedmanagement: React.FC = () => {
                                     ? "bg-green-100 text-green-700"
                                     : booking.status === "completed"
                                     ? "bg-purple-100 text-purple-700"
+                                    : booking.status === "cancelled"
+                                    ? "bg-red-100 text-red-700"
                                     : "bg-gray-100 text-gray-700"
                                 }`}
                               >
@@ -405,56 +515,97 @@ const Bookedmanagement: React.FC = () => {
                 </div>
 
                 {/* Modal Pagination */}
-                {modalTotalPages > 1 && (
-                  <div className="border-t border-gray-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0 bg-gray-50">
-                    <div className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
-                      Hiển thị {(modalCurrentPage - 1) * modalLimit + 1} - {Math.min(modalCurrentPage * modalLimit, modalTotal)} / {modalTotal}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setModalCurrentPage((prev) => Math.max(1, prev - 1))}
-                        disabled={modalCurrentPage === 1}
-                        className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs sm:text-sm font-medium text-gray-700 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out"
-                      >
-                        Trước
-                      </button>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: Math.min(5, modalTotalPages) }, (_, i) => {
-                          let pageNum: number;
-                          if (modalTotalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (modalCurrentPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (modalCurrentPage >= modalTotalPages - 2) {
-                            pageNum = modalTotalPages - 4 + i;
-                          } else {
-                            pageNum = modalCurrentPage - 2 + i;
-                          }
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => setModalCurrentPage(pageNum)}
-                            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out ${
-                              modalCurrentPage === pageNum
-                                ? "bg-blue-600 text-white"
-                                : "border border-gray-300 text-gray-700 hover:bg-white"
-                            }`}
+                <div className="border-t border-gray-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0 bg-gray-50">
+                  <div className="flex items-center gap-4">
+                    <div className="relative flex items-center gap-2">
+                      <span className="text-xs sm:text-sm text-gray-600">Status:</span>
+                      <div className="relative">
+                        <button
+                          ref={statusButtonRef}
+                          type="button"
+                          onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                          className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[120px] text-left flex items-center justify-between gap-2 transition-all duration-200"
+                        >
+                          <span>{getStatusLabel(selectedStatus)}</span>
+                          <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${isStatusDropdownOpen ? "rotate-180" : ""}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        <AnimatePresence>
+                          {isStatusDropdownOpen && (
+                            <motion.div
+                              ref={statusDropdownRef}
+                              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                              className="absolute bottom-full left-0 mb-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-50 overflow-hidden"
                             >
-                              {pageNum}
-                            </button>
-                          );
-                        })}
+                              {statusOptions.map((option) => (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedStatus(option.value);
+                                    setIsStatusDropdownOpen(false);
+                                  }}
+                                  className={`w-full px-3 py-2 text-xs sm:text-sm text-left hover:bg-gray-50 transition-colors duration-150 ${
+                                    selectedStatus === option.value
+                                      ? "bg-blue-50 text-blue-700 font-medium"
+                                      : "text-gray-700"
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
-                      <button
-                        onClick={() => setModalCurrentPage((prev) => Math.min(modalTotalPages, prev + 1))}
-                        disabled={modalCurrentPage === modalTotalPages}
-                        className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs sm:text-sm font-medium text-gray-700 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out"
-                      >
-                        Sau
-                      </button>
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                      Showing {(modalCurrentPage - 1) * modalLimit + 1}-{Math.min(modalCurrentPage * modalLimit, modalTotal)} of {modalTotal}
                     </div>
                   </div>
-                )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setModalCurrentPage(1)}
+                      disabled={modalCurrentPage === 1}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs sm:text-sm font-medium text-gray-700 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    >
+                      First
+                    </button>
+                    <button
+                      onClick={() => setModalCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={modalCurrentPage === 1}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs sm:text-sm font-medium text-gray-700 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs sm:text-sm text-gray-600 px-2">
+                      Page {modalCurrentPage} of {modalTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setModalCurrentPage((prev) => Math.min(modalTotalPages, prev + 1))}
+                      disabled={modalCurrentPage === modalTotalPages}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs sm:text-sm font-medium text-gray-700 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={() => setModalCurrentPage(modalTotalPages)}
+                      disabled={modalCurrentPage === modalTotalPages}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs sm:text-sm font-medium text-gray-700 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    >
+                      Last
+                    </button>
+                  </div>
+                </div>
                 </motion.div>
               </div>
             </>
